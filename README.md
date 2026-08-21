@@ -153,6 +153,20 @@ Web 控制台 :5050（不打开串口）
 
 请勿在 Issue 中提交 API Key、录音或设备标识。安全问题请按 [SECURITY](service/SECURITY.md) 中的方式私下反馈，不要公开提交。
 
+## 联系我们
+
+- **邮箱：** `avalon.ty@gmail.com`
+- **微信号：** `avalon_ty`
+- **问题反馈与功能建议：** [GitHub Issues](https://github.com/tudoom/OpenDeskBotV2/issues)
+
+<p align="center">
+  <strong>微信交流群</strong>
+  <br>
+  使用微信扫描下方二维码加入
+  <br><br>
+  <img src="assets/wechat-group-qr.png" width="220" alt="OpenDeskBotV2 微信交流群二维码">
+</p>
+
 ## License
 
 - **Hardware**（结构、PCB、原理图与 BOM，托管于[嘉立创开源硬件平台](https://oshwhub.com/eda_hedwaytj/project_asxqsedb)）：CERN-OHL-S-2.0
