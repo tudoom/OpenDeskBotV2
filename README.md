@@ -25,7 +25,7 @@ OpenDeskBotV2 是一台开源的 ESP32-S3 桌面机器人。它能听你说话�
 **立即开始：** [下载客户端](https://github.com/tudoom/OpenDeskBotV2/releases) · [快速开始](#快速开始) · [硬件资料](https://oshwhub.com/eda_hedwaytj/project_asxqsedb) · [反馈问题](https://github.com/tudoom/OpenDeskBotV2/issues)
 
 <p align="center">
-  <img src="assets/poster.jpg" width="420" alt="OpenDeskBotV2 桌面机器人">
+  <img src="assets/banner.jpg" width="100%" alt="小歪 桌面机器人 · 开源 · AI · 视觉 · 语音 · 互动">
 </p>
 
 ## V2 相比 V1 的变化
