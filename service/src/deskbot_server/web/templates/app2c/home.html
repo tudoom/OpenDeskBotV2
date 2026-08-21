@@ -1,0 +1,820 @@
+{% extends "base_2c.html" %}
+{% block page_title %}家 · 小歪{% endblock %}
+{% block extra_head %}
+<script>
+  window.__HOME_FACE__ = {
+    w: {{ face_lcd_w|int }},
+    h: {{ face_lcd_h|int }},
+    defaultAnim: {{ expr_default_anim|tojson }},
+  };
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "{{ url_for('static', filename='vendor/three.module.js') }}"
+  }
+}
+</script>
+<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<script src="{{ url_for('static', filename='generated/primitive_spec.js') }}"></script>
+<script src="{{ url_for('static', filename='face_preview_2c.js') }}"></script>
+{% endblock %}
+{% block content %}
+<div id="home">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">SYSTEM · [[ deviceStatusCode ]]</div>
+      <h1>[[ greeting ]]，欢迎回来</h1>
+      <p>[[ deviceStatusDescription ]]</p>
+    </div>
+    <a v-if="!hasBoundDevice" class="btn ghost" href="{{ url_for('app2c.devices') }}">查看 USB 设备</a>
+  </div>
+
+  <div v-if="loadError" class="ui-state error" role="alert" style="margin-bottom:18px">
+    <b>首页有部分数据未能加载</b>
+    <p>[[ loadError ]]</p>
+    <div class="btngroup"><button class="btn ghost" @click="load">重新加载</button></div>
+  </div>
+  <div
+    v-show="micNoAcousticSignal"
+    class="ui-state error"
+    role="alert"
+    aria-live="assertive"
+    data-page-microphone-health-alert
+    style="display:none;margin-bottom:18px"
+  >
+    <b>麦克风没有收到声音，请检查扩展板或麦克风</b>
+    <p>设备持续上传了音频数据，但长期没有检测到可用的声学变化；检测到有效声音后告警会自动恢复。</p>
+    <div class="btngroup"><a class="btn ghost" :href="deviceLink('{{ url_for('app2c.devices') }}')">查看设备</a></div>
+  </div>
+
+  <!-- 设备主控台：表情 / 3D / 摄像头 三块等大 + 读数 + 操作 -->
+  <div class="stage home-console">
+    <div class="brackets"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span></div>
+    <div class="stage-hd">
+      <span class="unit">UNIT · [[ deviceName ]]</span>
+      <span class="uid">[[ deviceId || '未连接' ]]</span>
+    </div>
+
+    <div class="home-media">
+      <!-- 表情 -->
+      <div class="media-tile" aria-label="当前表情">
+        <div class="media-hd"><span>表情 · 当前</span><b>[[ faceLabel ]]</b></div>
+        <div class="media-stage">
+          <div class="face"><div class="scanline"></div><svg viewBox="0 0 284 240" v-html="homeFaceSvg" aria-hidden="true"></svg></div>
+        </div>
+      </div>
+      <!-- 3D 模型 -->
+      <div class="media-tile" aria-label="3D 小歪状态模拟">
+        <div class="media-hd"><span>3D · 仅模拟</span><b>浏览器预览</b></div>
+        <div class="media-stage">
+          <div class="home-robot-host" ref="homeRobot3dHost">
+            <p v-if="homeRobotError" class="home-robot-fallback">[[ homeRobotError ]]</p>
+          </div>
+        </div>
+      </div>
+      <!-- 摄像头 -->
+      <div class="media-tile" aria-label="摄像头画面">
+        <div class="media-hd">
+          <span>CAMERA · [[ cameraStatusCode ]]</span>
+          <a :href="deviceLink('{{ url_for('app2c.lab') }}?tab=camera')">打开实验台</a>
+        </div>
+        <div class="media-stage">
+          <img v-if="camera.imageUrl" :src="camera.imageUrl" :class="{'is-stale':camera.stale}" alt="摄像头实时画面">
+          <div v-if="camera.imageUrl" class="camera-frame-meta" :class="{stale:camera.stale}">
+            [[ camera.stale ? '画面已停更' : '实时' ]] · [[ cameraCapturedLabel ]]
+          </div>
+          <div v-else class="home-camera-empty">
+            <b>[[ camera.statusText ]]</b>
+            <small>[[ selected ? '等待目标设备上行 camera_view 画面' : '通过 USB 连接并选择设备后显示实时画面' ]]</small>
+            <button v-if="selected && camera.status!=='connecting'" class="btn ghost" type="button" @click="reconnectHomeCamera">重新连接</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-deck">
+      <div class="readouts">
+        <a class="readout" href="{{ url_for('app2c.devices') }}"><span class="k">STATUS</span><span class="v"><span class="led" :style="online ? null : 'background:#9a9a90'"></span>[[ deviceStatusLabel ]]</span></a>
+        <a class="readout" href="{{ url_for('app2c.voice') }}"><span class="k">VOICE</span><span class="v">[[ voiceLabel ]]</span></a>
+        <a class="readout" href="{{ url_for('app2c.expr') }}"><span class="k">MOOD</span><span class="v">[[ faceLabel ]]</span></a>
+        <a class="readout" href="{{ url_for('app2c.memories') }}"><span class="k">MEMORY</span><span class="v">[[ memoryCount ]] 件</span></a>
+      </div>
+      <div class="home-deck-actions">
+        <button type="button" class="btn ghost" :disabled="!servoContract.ready" @click="playHomeRobotMotion()">预览打招呼（SIM）</button>
+        <button type="button" class="btn primary" :disabled="!online || deviceActionBusy || !servoContract.ready" @click="sendPhysicalGreeting">
+          [[ deviceActionBusy ? '正在下发…' : '让实体小歪打招呼' ]]
+        </button>
+        <a class="btn ghost" :href="deviceLink('{{ url_for('app2c.lab') }}?tab=servo')">舵机实验台</a>
+      </div>
+    </div>
+    <p v-if="servoContract.error" class="home-action-result error" role="status">[[ servoContract.error ]]</p>
+    <p v-if="deviceActionMessage" class="home-action-result" :class="{error:deviceActionError}" role="status" aria-live="polite">[[ deviceActionMessage ]]</p>
+  </div>
+
+  <!-- 玩法 + 引导 -->
+  <div class="home-bottom">
+    <!-- 主创作动作：任何状态都能进入 -->
+    <div class="heroes heroes-stack">
+      <a class="hero" href="{{ url_for('app2c.expr') }}">
+        <div class="emoji"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14c1 1.3 6 1.3 7 0"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/></svg></div>
+        <div><b>捏表情</b><span>换张脸 · 配情绪</span><small class="hero-subtle">含表情包生成</small></div>
+      </a>
+      <a class="hero" href="{{ url_for('app2c.voice') }}">
+        <div class="emoji"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 010 6"/><path d="M19 6a8 8 0 010 12"/></svg></div>
+        <div><b>调声音</b><span>挑音色 · 试听</span></div>
+      </a>
+    </div>
+
+    <!-- 状态 A：还没配置好 → 上手清单（引导下一步，而非罗列全部入口） -->
+    <section v-if="setupIncomplete" class="home-setup" aria-label="上手清单">
+      <div class="home-setup-hd"><span>GET STARTED</span><b>让小歪活起来，还差几步</b></div>
+      <a class="setup-step" :class="{done: llmKnown && !llmMissing}" href="{{ url_for('app2c.advanced') }}?tab=llm">
+        <span class="step-check"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg></span>
+        <span class="step-copy"><b>配置对话模型</b><small>密钥由本机服务保存；对话内容会发送至你配置的云模型</small></span>
+        <span class="step-state">[[ !llmKnown ? '状态未知' : (llmMissing ? '去配置' : '已完成') ]]</span>
+      </a>
+      <a class="setup-step" :class="{done: ttsKnown && !ttsMissing}" href="{{ url_for('app2c.advanced') }}?tab=llm">
+        <span class="step-check"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg></span>
+        <span class="step-copy"><b>选择声音能力</b><small>试听和语音合成需要豆包语音 API Key；复刻还需额外凭证</small></span>
+        <span class="step-state">[[ !ttsKnown ? '状态未知' : (ttsMissing ? '去配置' : '已完成') ]]</span>
+      </a>
+      <a class="setup-step" :class="{done: selected}" href="{{ url_for('app2c.devices') }}">
+        <span class="step-check"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg></span>
+        <span class="step-copy"><b>连接你的小歪</b><small>使用 USB 数据线连接，握手后会自动出现在控制台</small></span>
+        <span class="step-state">[[ selected ? '已完成' : '去连接' ]]</span>
+      </a>
+    </section>
+
+    <!-- 状态 B：已配置 → 最近动态（展示内容，而非重复入口和空数字） -->
+    <section v-else class="home-recent" aria-label="最近动态">
+      <a class="recent-block" href="{{ url_for('app2c.memories') }}">
+        <div class="recent-hd"><span>MEMORY</span><b>它记得的事</b><i>[[ memoryCount ]]</i></div>
+        <ul v-if="recentMemories.length" class="recent-list">
+          <li v-for="m in recentMemories" :key="m.id">[[ m.text ]]</li>
+        </ul>
+        <p v-else class="recent-empty">还没有记忆，多和它聊聊，它会记住重要的事。</p>
+      </a>
+      <a class="recent-block" href="{{ url_for('app2c.people') }}">
+        <div class="recent-hd"><span>FACES</span><b>认识的人</b><i>[[ peopleCount ]]</i></div>
+        <div v-if="recentPeople.length" class="avatar-row">
+          <span v-for="p in recentPeople" :key="p.person_id" class="avatar" :title="p.name || ('#'+p.person_id)">[[ (p.name||'?').slice(0,1) ]]</span>
+        </div>
+        <p v-else class="recent-empty">还没有认识的人，让它用摄像头看看你。</p>
+      </a>
+      <a class="recent-block" href="{{ url_for('app2c.reminders') }}">
+        <div class="recent-hd"><span>NEXT</span><b>下一个提醒</b><i>[[ reminderCount ]]</i></div>
+        <div v-if="nextReminder" class="recent-next">
+          <b>[[ nextReminder.description || nextReminder.title || '提醒' ]]</b>
+          <small>下次 [[ nextReminder.next_run_at || nextReminder.cron_expr || nextReminder.cron || '' ]]</small>
+        </div>
+        <p v-else class="recent-empty">还没有提醒，去设一个吧。</p>
+      </a>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+const HOME_FACE = window.__HOME_FACE__ || {};
+const HOME_FACE_LCD_W = Number(HOME_FACE.w) || 284;
+const HOME_FACE_LCD_H = Number(HOME_FACE.h) || 240;
+const HOME_EXPR_DEFAULT_ANIM = HOME_FACE.defaultAnim || {
+  elements: {
+    nose: [{shape:'circle',x:142,y:124,r:11}],
+    eye_l: [{shape:'circle',x:93,y:107,r:16}],
+    eye_r: [{shape:'circle',x:191,y:107,r:16}],
+    mouth: [{shape:'rect',x:102,y:151,w:80,h:20}],
+    extra: [],
+  },
+};
+const HOME_ROBOT_CENTER = 90;
+createApp({
+  delimiters: ['[[', ']]'],
+  data(){ return {
+    greeting:'你好',
+    hasBoundDevice:false, selected:false, online:false, devicePresence:'unknown',
+    deviceName:'未连接', deviceId:'', deviceObservedAt:'', loadError:'',
+    microphoneHealthStatus:'checking',
+    llmMissing:false, ttsMissing:false, llmKnown:false, ttsKnown:false,
+    voiceLabel:'未设置音色', emotionCount:0, memoryCount:0, reminderCount:0, peopleCount:0, deviceCount:0,
+    recentMemories:[], recentPeople:[], nextReminder:null,
+    scenes:[], emotionMap:{}, faceLabel:'待机',
+    homeRobotError:'', homeRobotServo:{x:90,y:90},
+    // 舵机契约（硬件包络）单一源：/api/servo_contract；拉取失败时禁用打招呼相关控件。
+    servoContract:{ready:false,error:'',envelope:null},
+    cameraViewWsBase: {{ camera_view_ws_base|tojson }},
+    debugToken:'',
+    debugTokenExpiresAt:0,
+    deviceActionBusy:false, deviceActionMessage:'', deviceActionError:false,
+    camera:{
+      ws:null,status:'idle',statusText:'选择设备后显示摄像头画面',
+      imageUrl:'',frameBytes:0,generation:0,lastFrameAt:0,stale:false,
+      reconnectAttempt:0,reconnectTimer:0,staleTimer:0,destroyed:false,
+    },
+    unsubscribeDeviceState:null,
+  }; },
+  computed:{
+    setupIncomplete(){
+      return (this.llmKnown && this.llmMissing)
+        || (this.ttsKnown && this.ttsMissing)
+        || !this.selected;
+    },
+    micNoAcousticSignal(){
+      return this.online
+        && this.microphoneHealthStatus==='mic_no_acoustic_signal';
+    },
+    deviceStatusCode(){
+      if(!this.hasBoundDevice) return 'NO DEVICE';
+      if(!this.selected) return 'NO TARGET';
+      if(this.devicePresence==='control-down') return 'SERVICE DOWN';
+      if(this.devicePresence==='online') return 'ONLINE';
+      if(this.devicePresence==='offline') return 'OFFLINE';
+      return 'UNKNOWN';
+    },
+    deviceStatusLabel(){
+      if(!this.hasBoundDevice) return '未连接';
+      if(!this.selected) return '未选择';
+      if(this.devicePresence==='control-down') return '实时服务不可达';
+      if(this.devicePresence==='online') return '在线';
+      if(this.devicePresence==='offline') return '离线';
+      return '状态未知';
+    },
+    deviceStatusDescription(){
+      if(!this.hasBoundDevice) return '还没有检测到机器人，请连接 USB 数据线。';
+      if(!this.selected) return '已检测到设备，但尚未选择本页的操作目标。';
+      if(this.devicePresence==='control-down') return '控制台在线，但实时设备服务暂时不可达。';
+      if(this.devicePresence==='online') return this.deviceName+' 在线，可以接收实体操作。';
+      if(this.devicePresence==='offline') return this.deviceName+' 当前离线，配置会保留，实体操作已禁用。';
+      return this.deviceName+' 的在线状态暂时未知。';
+    },
+    cameraStatusCode(){
+      if(this.camera.stale) return 'STALE';
+      if(this.camera.status==='streaming') return 'LIVE';
+      if(this.camera.status==='connecting') return 'CONNECTING';
+      if(this.camera.status==='reconnecting') return 'RETRYING';
+      return 'OFFLINE';
+    },
+    cameraCapturedLabel(){
+      if(!this.camera.lastFrameAt) return '尚无画面';
+      return new Date(this.camera.lastFrameAt).toLocaleTimeString('zh-CN',{
+        hour:'2-digit',minute:'2-digit',second:'2-digit',
+      });
+    },
+    homeFaceSvg(){
+      const preview = window.DeskbotFacePreview;
+      if(!preview) return '';
+      return preview.sceneToSvg(preview.pickScene(this.scenes, this.emotionMap, 'idle'));
+    },
+    homeRobotYawDeg(){
+      const x = Number(this.homeRobotServo && this.homeRobotServo.x);
+      return Number.isFinite(x) ? x - HOME_ROBOT_CENTER : 0;
+    },
+    homeRobotPitchDeg(){
+      const y = Number(this.homeRobotServo && this.homeRobotServo.y);
+      return Number.isFinite(y) ? y - HOME_ROBOT_CENTER : 0;
+    },
+  },
+  methods:{
+    async j(u){ return window.DeskbotConsole.apiJson(u); },
+    async api(u,opts){ return window.DeskbotConsole.apiJson(u,opts); },
+    deviceLink(url){ return window.DeskbotConsole.withDevice(url,this.deviceId); },
+    applyDeviceState(snapshot){
+      if(snapshot.phase==='loading') return;
+      if(snapshot.phase==='error'){
+        this.devicePresence='control-down';
+        if(!this.loadError) this.loadError=snapshot.error||'设备状态加载失败';
+        return;
+      }
+      const previousId=this.deviceId;
+      const previousOnline=this.online;
+      this.deviceCount=(snapshot.devices||[]).length;
+      this.hasBoundDevice=(snapshot.devices||[]).length>0;
+      this.deviceId=snapshot.targetId||'';
+      this.selected=!!snapshot.target;
+      this.deviceName=snapshot.target
+        ? (snapshot.target.display_name||snapshot.target.device_id)
+        : (this.hasBoundDevice?'未选择':'未连接');
+      this.devicePresence=snapshot.target
+        ? window.DeskbotConsole.presence(snapshot.target)
+        : 'unknown';
+      this.online=this.devicePresence==='online';
+      this.deviceObservedAt=snapshot.observedAt||'';
+      this.microphoneHealthStatus=snapshot.target
+        && snapshot.target.microphone_health
+        ? String(snapshot.target.microphone_health.status||'checking')
+        : 'checking';
+      if(previousId!==this.deviceId){
+        this.debugToken='';
+        this.debugTokenExpiresAt=0;
+        void this.loadDeviceContent();
+      }
+      if(previousId!==this.deviceId || previousOnline!==this.online){
+        if(this.selected && this.online) void this.openHomeCamera();
+        else this.closeHomeCamera({status:this.selected?'设备离线，摄像头已暂停':'选择设备后显示摄像头画面'});
+      }
+    },
+    async ensureDebugToken(){
+      if(this.debugToken && this.debugTokenExpiresAt>Date.now()+30000) return this.debugToken;
+      const d = await this.api('/api/debug/ws_token');
+      this.debugToken = d.token || '';
+      this.debugTokenExpiresAt = Date.now()+Math.max(0,Number(d.expires_in||0))*1000;
+      return this.debugToken;
+    },
+    clearCameraFrame(){
+      if(this.camera.imageUrl) URL.revokeObjectURL(this.camera.imageUrl);
+      this.camera.imageUrl='';
+      this.camera.frameBytes=0;
+      this.camera.lastFrameAt=0;
+      this.camera.stale=false;
+    },
+    closeHomeCamera(options){
+      const opts=options||{};
+      this.camera.generation+=1;
+      clearTimeout(this.camera.reconnectTimer);
+      clearTimeout(this.camera.staleTimer);
+      this.camera.reconnectTimer=0;
+      this.camera.staleTimer=0;
+      if(this.camera.ws){
+        const ws=this.camera.ws;
+        ws.onopen=ws.onclose=ws.onerror=ws.onmessage=null;
+        try{ ws.close(); }catch(_e){}
+      }
+      this.camera.ws = null;
+      if(!opts.preserveFrame) this.clearCameraFrame();
+      if(opts.status){
+        this.camera.status='idle';
+        this.camera.statusText=opts.status;
+      }
+    },
+    scheduleCameraReconnect(generation){
+      if(this.camera.destroyed || !this.selected || !this.online || generation!==this.camera.generation) return;
+      clearTimeout(this.camera.reconnectTimer);
+      const attempt=Math.min(this.camera.reconnectAttempt+1,6);
+      this.camera.reconnectAttempt=attempt;
+      const delay=Math.min(30000,1000*Math.pow(2,attempt-1))+Math.floor(Math.random()*500);
+      this.camera.status='reconnecting';
+      this.camera.statusText='摄像头连接中断，'+Math.ceil(delay/1000)+' 秒后重试';
+      this.camera.reconnectTimer=setTimeout(()=>{
+        if(generation===this.camera.generation) void this.openHomeCamera({reconnect:true});
+      },delay);
+    },
+    reconnectHomeCamera(){
+      this.camera.reconnectAttempt=0;
+      void this.openHomeCamera();
+    },
+    async openHomeCamera(options){
+      if(!this.selected || !this.online || !this.deviceId || !this.cameraViewWsBase){
+        this.closeHomeCamera({status:this.selected?'设备离线，摄像头已暂停':'选择设备后显示摄像头画面'});
+        this.camera.status='idle';
+        return;
+      }
+      const reconnect=!!(options&&options.reconnect);
+      this.closeHomeCamera({preserveFrame:reconnect});
+      const generation=this.camera.generation;
+      try{
+        const token = await this.ensureDebugToken();
+        if(generation!==this.camera.generation) return;
+        const url = new URL(this.cameraViewWsBase);
+        url.searchParams.set('device_id', this.deviceId);
+        this.camera.status='connecting';
+        this.camera.statusText='正在连接摄像头';
+        const ws = new WebSocket(
+          url.toString(),
+          window.DeskbotConsole.debugWsProtocols(token),
+        );
+        ws.binaryType = 'blob';
+        ws.onopen = () => {
+          if(generation!==this.camera.generation) return;
+          this.camera.status='connected';
+          this.camera.statusText='已连接，等待摄像头画面';
+        };
+        ws.onclose = () => {
+          if(generation!==this.camera.generation) return;
+          this.camera.ws=null;
+          this.camera.stale=!!this.camera.imageUrl;
+          this.scheduleCameraReconnect(generation);
+        };
+        ws.onerror = () => {
+          if(generation!==this.camera.generation) return;
+          this.camera.status='error';
+          this.camera.statusText='摄像头连接失败';
+        };
+        ws.onmessage = (ev) => {
+          if(generation===this.camera.generation && ev.data instanceof Blob){
+            if(this.camera.imageUrl) URL.revokeObjectURL(this.camera.imageUrl);
+            this.camera.frameBytes = ev.data.size;
+            this.camera.imageUrl = URL.createObjectURL(ev.data);
+            this.camera.lastFrameAt=Date.now();
+            this.camera.stale=false;
+            this.camera.reconnectAttempt=0;
+            this.camera.status='streaming';
+            this.camera.statusText='实时画面';
+            clearTimeout(this.camera.staleTimer);
+            this.camera.staleTimer=setTimeout(()=>{
+              if(generation!==this.camera.generation) return;
+              this.camera.stale=true;
+              this.camera.status='stale';
+              this.camera.statusText='画面超过 8 秒未更新，正在重连';
+              try{ ws.close(); }catch(_e){}
+            },8000);
+          }
+        };
+        this.camera.ws = ws;
+      }catch(_e){
+        if(generation!==this.camera.generation) return;
+        this.camera.status='error';
+        this.camera.statusText='摄像头连接失败';
+        this.scheduleCameraReconnect(generation);
+      }
+    },
+    setGreeting(){
+      const h=new Date().getHours();
+      this.greeting = h<6?'凌晨好' : h<9?'早上好' : h<12?'上午好' : h<14?'中午好' : h<18?'下午好' : '晚上好';
+    },
+    drawHomeRobotFace(canvas){
+      if(!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if(!ctx) return;
+      ctx.fillStyle = '#0d0f14';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const elements = (HOME_EXPR_DEFAULT_ANIM && HOME_EXPR_DEFAULT_ANIM.elements) || {};
+      const colors = {eye_l:'#f6f5ef', eye_r:'#f6f5ef', nose:'#ffb928', mouth:'#ff5a00', extra:'#f6f5ef'};
+      for(const key of ['eye_l','eye_r','nose','mouth','extra']){
+        for(const shape of (elements[key] || [])) this.drawHomeRobotShape(ctx, shape, colors[key] || '#f6f5ef');
+      }
+    },
+    drawHomeRobotShape(ctx, shape, color){
+      if(!shape) return;
+      const kind = String(shape.shape || 'rect').toLowerCase();
+      ctx.fillStyle = shape.color || color;
+      ctx.strokeStyle = shape.color || color;
+      ctx.lineWidth = Math.max(1, Number(shape.line_width) || 2);
+      if(kind === 'circle'){
+        ctx.beginPath();
+        ctx.arc(Number(shape.x) || 0, Number(shape.y) || 0, Math.max(1, Number(shape.r) || 4), 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
+      if(kind === 'line'){
+        ctx.beginPath();
+        ctx.moveTo(Number(shape.x1 ?? shape.x) || 0, Number(shape.y1 ?? shape.y) || 0);
+        ctx.lineTo(Number(shape.x2 ?? shape.x) || 0, Number(shape.y2 ?? shape.y) || 0);
+        ctx.stroke();
+        return;
+      }
+      const x = Number(shape.x) || 0, y = Number(shape.y) || 0;
+      const w = Math.max(1, Number(shape.w) || 12), h = Math.max(1, Number(shape.h) || 6);
+      if(kind === 'rect_outline') ctx.strokeRect(x, y, w, h);
+      else ctx.fillRect(x, y, w, h);
+    },
+    updateHomeRobotFace(){
+      // 3D 模型屏幕上的表情与「表情 · 当前」卡片保持一致：直接把同一份 homeFaceSvg 光栅化到贴图
+      const state = this._homeRobot3d;
+      if(!state || !state.faceCanvas || !state.faceTexture) return;
+      const inner = this.homeFaceSvg;
+      if(!inner){ return; } // 预览组件还没就绪时保留初始绘制
+      const cv = state.faceCanvas;
+      // viewBox 与「表情 · 当前」卡片一致（284×240 设计坐标系），确保两处表情完全相同
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + cv.width + '" height="' + cv.height + '" viewBox="0 0 284 240" preserveAspectRatio="xMidYMid meet">'
+        + '<rect width="284" height="240" fill="#0d0f14"/>' + inner + '</svg>';
+      const img = new Image();
+      img.onload = () => {
+        const st = this._homeRobot3d;
+        if(!st || st.faceCanvas !== cv) return; // 已销毁或被替换
+        const ctx = cv.getContext('2d');
+        if(!ctx) return;
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        st.faceTexture.needsUpdate = true;
+      };
+      img.onerror = () => {};
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    },
+    async ensureHomeThree(){
+      if(window.__HOME_THREE__) return window.__HOME_THREE__;
+      if(!this._homeThreePromise){
+        this._homeThreePromise = import('three').then((mod) => {
+          window.__HOME_THREE__ = mod;
+          return mod;
+        }).catch((e) => {
+          this._homeThreePromise = null;
+          throw e;
+        });
+      }
+      return this._homeThreePromise;
+    },
+    makeHomeForwardArrow(THREE){
+      const mat = new THREE.MeshStandardMaterial({color:0x30d158,metalness:0.05,roughness:0.45});
+      const group = new THREE.Group();
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.55,10), mat);
+      shaft.rotation.x = Math.PI / 2;
+      shaft.position.set(0,0.015,0.28);
+      group.add(shaft);
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.09,0.2,10), mat);
+      tip.rotation.x = Math.PI / 2;
+      tip.position.set(0,0.015,0.62);
+      group.add(tip);
+      group.position.set(0,0.005,1.05);
+      return group;
+    },
+    syncHomeRobotServo(){
+      const state = this._homeRobot3d;
+      const THREE = window.__HOME_THREE__;
+      if(!state || !state.headPivot || !THREE) return;
+      state.targetHeadYaw = THREE.MathUtils.degToRad(this.homeRobotYawDeg);
+      state.targetHeadPitch = THREE.MathUtils.degToRad(this.homeRobotPitchDeg);
+    },
+    disposeHomeRobot3d(){
+      if(this._homeRobotAnimId){ cancelAnimationFrame(this._homeRobotAnimId); this._homeRobotAnimId = null; }
+      if(this._homeRobotResizeObs){ try{ this._homeRobotResizeObs.disconnect(); }catch(_e){} this._homeRobotResizeObs = null; }
+      const state = this._homeRobot3d;
+      if(state && state.renderer){
+        if(state.faceTexture){ try{ state.faceTexture.dispose(); }catch(_e){} }
+        try{ state.renderer.dispose(); }catch(_e){}
+        if(state.renderer.domElement && state.renderer.domElement.parentNode){
+          state.renderer.domElement.parentNode.removeChild(state.renderer.domElement);
+        }
+      }
+      this._homeRobot3d = null;
+    },
+    async homeRobotInit3d(){
+      this.disposeHomeRobot3d();
+      this.homeRobotError = '';
+      const host = this.$refs.homeRobot3dHost;
+      if(!host) return;
+      let THREE;
+      try{ THREE = await this.ensureHomeThree(); }
+      catch(_e){ this.homeRobotError = 'Three.js 加载失败'; return; }
+      let renderer;
+      try{ renderer = new THREE.WebGLRenderer({antialias:true,alpha:false,preserveDrawingBuffer:true}); }
+      catch(_e){ this.homeRobotError = 'WebGL 不可用'; return; }
+
+      const w = Math.max(180, host.clientWidth || 420);
+      const h = Math.max(180, host.clientHeight || 300);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x111318);
+      const camera = new THREE.PerspectiveCamera(38, w / h, 0.08, 50);
+      camera.position.set(0,0.92,2.65);
+      camera.lookAt(0,0.78,0);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(w, h, false);
+      host.appendChild(renderer.domElement);
+
+      scene.add(new THREE.AmbientLight(0xffffff,0.7));
+      const key = new THREE.DirectionalLight(0xffffff,0.95);
+      key.position.set(1.5,3.5,2.5);
+      scene.add(key);
+      const rim = new THREE.DirectionalLight(0xff7a1a,0.35);
+      rim.position.set(-2,1.2,-1.5);
+      scene.add(rim);
+      scene.add(new THREE.GridHelper(2.4,8,0x55565d,0x25272f));
+      scene.add(this.makeHomeForwardArrow(THREE));
+
+      const turntable = new THREE.Group();
+      scene.add(turntable);
+      const bodyMat = new THREE.MeshStandardMaterial({color:0x4f535a,roughness:0.58,metalness:0.18});
+      const headMat = new THREE.MeshStandardMaterial({color:0xf6f5ef,roughness:0.42,metalness:0.06});
+      const neckMat = new THREE.MeshStandardMaterial({color:0xff5a00,roughness:0.36,metalness:0.18});
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.62,0.07,24), new THREE.MeshStandardMaterial({color:0x25272f,roughness:0.58}));
+      base.position.y = -0.02;
+      turntable.add(base);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.82,0.62,0.52), bodyMat);
+      body.position.y = 0.28;
+      turntable.add(body);
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.12,0.22,16), neckMat);
+      neck.position.y = 0.66;
+      turntable.add(neck);
+      const headPivot = new THREE.Group();
+      headPivot.position.y = 0.8;
+      turntable.add(headPivot);
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.62,0.5,0.54), headMat);
+      head.position.y = 0.22;
+      headPivot.add(head);
+
+      const faceCanvas = document.createElement('canvas');
+      faceCanvas.width = HOME_FACE_LCD_W;
+      faceCanvas.height = HOME_FACE_LCD_H;
+      this.drawHomeRobotFace(faceCanvas);
+      const faceTexture = new THREE.CanvasTexture(faceCanvas);
+      faceTexture.magFilter = THREE.NearestFilter;
+      faceTexture.minFilter = THREE.NearestFilter;
+      const faceScreen = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.42,0.42 * HOME_FACE_LCD_H / HOME_FACE_LCD_W),
+        new THREE.MeshBasicMaterial({map:faceTexture,toneMapped:false}),
+      );
+      faceScreen.position.set(0,0.22,0.272);
+      headPivot.add(faceScreen);
+
+      this._homeRobot3d = {scene,camera,renderer,turntable,headPivot,faceCanvas,faceTexture,currentHeadYaw:0,currentHeadPitch:0,targetHeadYaw:0,targetHeadPitch:0,idle:0};
+      this.syncHomeRobotServo();
+      this.updateHomeRobotFace();
+      const resize = () => {
+        const state = this._homeRobot3d;
+        if(!state || !host) return;
+        const rw = Math.max(180, host.clientWidth || 420);
+        const rh = Math.max(180, host.clientHeight || 300);
+        state.camera.aspect = rw / rh;
+        state.camera.updateProjectionMatrix();
+        state.renderer.setSize(rw, rh, false);
+      };
+      if(typeof ResizeObserver !== 'undefined'){
+        this._homeRobotResizeObs = new ResizeObserver(() => resize());
+        this._homeRobotResizeObs.observe(host);
+      }
+      const tick = () => {
+        const state = this._homeRobot3d;
+        if(!state) return;
+        state.idle += 0.016;
+        this.syncHomeRobotServo();
+        state.currentHeadYaw += (state.targetHeadYaw - state.currentHeadYaw) * 0.16;
+        state.currentHeadPitch += (state.targetHeadPitch - state.currentHeadPitch) * 0.16;
+        state.headPivot.rotation.order = 'YXZ';
+        state.headPivot.rotation.y = state.currentHeadYaw + Math.sin(state.idle * 0.9) * 0.025;
+        state.headPivot.rotation.x = state.currentHeadPitch + Math.sin(state.idle * 1.2) * 0.012;
+        state.turntable.rotation.y = Math.sin(state.idle * 0.25) * 0.08;
+        state.renderer.render(state.scene, state.camera);
+        this._homeRobotAnimId = requestAnimationFrame(tick);
+      };
+      tick();
+    },
+    async loadServoContract(){
+      try{
+        const d = await this.api('/proxy/deskbot/api/servo_contract');
+        if(!d.envelope) throw new Error('契约缺少 envelope');
+        this.servoContract = {ready:true, error:'', envelope:d.envelope};
+      }catch(e){
+        // 契约拉取失败：禁用打招呼相关控件并提示，不回退硬编码限位。
+        // 冷启动时页面常早于 Core 就绪，自动退避重试直到成功。
+        this.servoContract = {ready:false, error:'舵机契约拉取失败，动作控件已禁用（将自动重试）：'+(e.message||e), envelope:null};
+        this._contractRetryDelay = Math.min((this._contractRetryDelay||2000)*1.5, 15000);
+        setTimeout(()=>{ if(!this.servoContract.ready) this.loadServoContract(); }, this._contractRetryDelay);
+      }
+    },
+    _homeAxisEnd(mode, raw, start, lo, hi){
+      if(Number(mode) === 2) return start; // HOLD：保持当前轴角度
+      const v = Number(raw);
+      if(Number(mode) === 1) return Math.max(lo, Math.min(hi, start + (Number.isFinite(v) ? v : 0)));
+      return Math.max(lo, Math.min(hi, Number.isFinite(v) ? v : start));
+    },
+    animateHomeRobotServo(step){
+      const payload = step || {};
+      const env = (this.servoContract && this.servoContract.envelope) || null;
+      if(!env) return Promise.resolve(); // 契约未就绪：无硬编码限位可用，跳过模拟
+      const startX = Number(this.homeRobotServo.x) || HOME_ROBOT_CENTER;
+      const startY = Number(this.homeRobotServo.y) || HOME_ROBOT_CENTER;
+      const endX = this._homeAxisEnd(payload.xm, payload.x, startX, Number(env.xMin), Number(env.xMax));
+      const endY = this._homeAxisEnd(payload.ym, payload.y, startY, Number(env.yMin), Number(env.yMax));
+      const duration = Math.max(80, Number(payload.ms) || 420);
+      const seq = (this._homeRobotSeq || 0) + 1;
+      this._homeRobotSeq = seq;
+      return new Promise((resolve) => {
+        const t0 = performance.now();
+        const frame = () => {
+          if(this._homeRobotSeq !== seq){ resolve(); return; }
+          const t = Math.min(1, (performance.now() - t0) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          this.homeRobotServo = {
+            x: startX + (endX - startX) * eased,
+            y: startY + (endY - startY) * eased,
+          };
+          if(t < 1) requestAnimationFrame(frame);
+          else resolve();
+        };
+        frame();
+      });
+    },
+    homeGreetingSteps(){
+      return [
+        {x:70,y:86,xm:0,ym:0,ms:360},
+        {x:110,y:94,xm:0,ym:0,ms:420},
+        {x:90,y:90,xm:0,ym:0,ms:520},
+      ];
+    },
+    async playHomeRobotMotion(steps){
+      const sequence=Array.isArray(steps)?steps:this.homeGreetingSteps();
+      for(const step of sequence) await this.animateHomeRobotServo(step);
+    },
+    async sendPhysicalGreeting(){
+      if(!this.servoContract.ready){ this.deviceActionError=true; this.deviceActionMessage=this.servoContract.error||'舵机契约未就绪'; return; }
+      if(!this.online || !this.deviceId || this.deviceActionBusy) return;
+      this.deviceActionBusy=true;
+      this.deviceActionMessage='';
+      this.deviceActionError=false;
+      const steps=this.homeGreetingSteps();
+      const operationId=window.DeskbotConsole.newControlOperationId('home-servo');
+      const url=new URL('/proxy/deskbot/api/device_servo',location.origin);
+      url.searchParams.set('device_id',this.deviceId);
+      url.searchParams.set('operation_id',operationId);
+      const requestBody={steps,action:'replace',level:3,operation_id:operationId};
+      try{
+        const results=await Promise.allSettled([
+          window.DeskbotConsole.submitControlOperation({
+            url:url.toString(),
+            requestOptions:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(requestBody)},
+            baseUrl:'/proxy/deskbot',
+            deviceId:this.deviceId,
+            operationId,
+          }),
+          this.playHomeRobotMotion(steps),
+        ]);
+        if(results[0].status==='rejected') throw results[0].reason;
+        this.deviceActionMessage='动作已在 '+this.deviceName+' 执行完成。';
+      }catch(e){
+        const detail=e.message||'实体动作下发失败';
+        this.deviceActionError=!detail.includes('执行状态未知');
+        this.deviceActionMessage=detail;
+      }finally{
+        this.deviceActionBusy=false;
+      }
+    },
+    async loadDeviceContent(){
+      const generation=(this._contentGeneration||0)+1;
+      this._contentGeneration=generation;
+      this.memoryCount=0; this.reminderCount=0; this.peopleCount=0;
+      this.recentMemories=[]; this.recentPeople=[]; this.nextReminder=null;
+      this.scenes=[]; this.emotionMap={}; this.faceLabel='待机';
+      const results=await Promise.allSettled([
+        this.j('/app/api/memories'),
+        this.j('/app/api/scheduled-tasks?page=1&per_page=10'),
+        this.j('/app/api/face-profiles'),
+        this.j('/api/face_expression_transaction'),
+      ]);
+      if(generation!==this._contentGeneration) return;
+      const errors=[];
+      const value=(index,label)=>{
+        if(results[index].status==='fulfilled') return results[index].value;
+        errors.push(label+'加载失败');
+        return {};
+      };
+      const mem=value(0,'记忆'); const memList=mem.memories||[];
+      this.memoryCount=Number(mem.count ?? memList.length); this.recentMemories=memList.slice(0,3);
+      const rem=value(1,'提醒'); const remList=rem.tasks||[];
+      this.reminderCount=Number(rem.total ?? remList.length); this.nextReminder=remList[0]||null;
+      const ppl=value(2,'人脸档案'); const pplList=ppl.profiles||[];
+      this.peopleCount=pplList.length; this.recentPeople=pplList.slice(0,6);
+      const expressions=value(3,'表情场景');
+      this.scenes=expressions.config||[];
+      this.emotionMap=expressions.map||{};
+      this.emotionCount=Object.keys(this.emotionMap).length;
+      const preview=window.DeskbotFacePreview;
+      const face=preview ? preview.pickScene(this.scenes,this.emotionMap,'idle') : null;
+      this.faceLabel=face ? (face.title||face.name||'待机') : '待机';
+      if(errors.length) this.loadError=[this.loadError,errors.join('；')].filter(Boolean).join('；');
+      this.updateHomeRobotFace();
+    },
+    async load(){
+      this.loadError='';
+      const results=await Promise.allSettled([
+        this.j('/api/setup/llm'),
+        this.j('/api/doubao_tts/config'),
+        window.DeskbotConsole.refresh(),
+      ]);
+      const errors=[];
+      if(results[0].status==='fulfilled'){
+        this.llmKnown=true;
+        this.llmMissing=!!results[0].value.needs_config;
+      }else{
+        this.llmKnown=false;
+        errors.push('对话模型状态读取失败');
+      }
+      if(results[1].status==='fulfilled'){
+        const cfg=results[1].value;
+        this.ttsKnown=true;
+        this.ttsMissing=!(cfg.config&&cfg.config.api_key_set);
+        const sid=(cfg.config&&cfg.config.speaker)||'';
+        if(sid){
+          try{
+            const sp=await this.j('/api/doubao_tts/speakers');
+            const hit=(sp.speakers||[]).find(x=>x.id===sid);
+            this.voiceLabel=hit?hit.label:sid;
+          }catch(_e){
+            this.voiceLabel=sid;
+            errors.push('音色名称读取失败');
+          }
+        }
+      }else{
+        this.ttsKnown=false;
+        errors.push('语音配置状态读取失败');
+      }
+      if(results[2].status==='rejected') errors.push('设备状态读取失败');
+      this.loadError=errors.join('；');
+    },
+  },
+  mounted(){
+    this.setGreeting();
+    this.unsubscribeDeviceState=window.DeskbotConsole.onChange(this.applyDeviceState);
+    void this.loadServoContract();
+    void this.load();
+    this.$nextTick(() => { void this.homeRobotInit3d(); });
+  },
+  beforeUnmount(){
+    this.camera.destroyed=true;
+    this.closeHomeCamera();
+    this.disposeHomeRobot3d();
+    if(this.unsubscribeDeviceState) this.unsubscribeDeviceState();
+  },
+}).mount('#home');
+</script>
+{% endblock %}

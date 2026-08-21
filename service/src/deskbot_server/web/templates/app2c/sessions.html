@@ -1,0 +1,202 @@
+{% extends "base_2c.html" %}
+{% block page_title %}对话记录 · 小歪{% endblock %}
+{% block extra_head %}
+<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<style>
+  .session-layout{display:grid;grid-template-columns:minmax(260px,380px) minmax(0,1fr);gap:18px;align-items:start}
+  .session-list,.session-detail{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel);box-shadow:var(--shadow-sm)}
+  .session-toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:14px;border-bottom:var(--bw) solid var(--line)}
+  .session-toolbar .tinput{min-width:150px;flex:1}
+  .session-row{display:block;width:100%;text-align:left;padding:14px;border:0;border-bottom:1px solid var(--soft-line);background:transparent;color:var(--ink);cursor:pointer}
+  .session-row:hover,.session-row.on{background:var(--wash)}
+  .session-row b,.session-row small{display:block}
+  .session-row small{margin-top:5px;color:var(--dim);font-family:var(--mono);font-size:11px}
+  .session-badges{display:flex;gap:6px;margin-top:8px}
+  .session-badge{border:1px solid var(--line);border-radius:999px;padding:2px 7px;font:10px var(--mono);background:var(--bg)}
+  .session-detail{min-height:420px;padding:18px}
+  .session-detail-head{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--soft-line);padding-bottom:14px}
+  .session-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .session-messages{display:grid;gap:11px;margin-top:16px}
+  .session-message{max-width:82%;padding:11px 13px;border:1px solid var(--line);border-radius:var(--rs);background:var(--bg);white-space:pre-wrap;overflow-wrap:anywhere}
+  .session-message.assistant{margin-right:auto}
+  .session-message.user{margin-left:auto;background:var(--accent-soft)}
+  .session-message small{display:block;margin-bottom:5px;color:var(--dim);font:10px var(--mono)}
+  .delivery-state{display:inline-flex;margin-left:6px;border:1px solid var(--soft-line);border-radius:999px;padding:1px 6px}
+  .delivery-state.failed,.delivery-state.cancelled{color:#d92d20;border-color:#d92d20}
+  .delivery-state.played{color:#147d45}
+  .session-pages{display:flex;justify-content:space-between;align-items:center;padding:12px 14px}
+  @media(max-width:800px){.session-layout{grid-template-columns:1fr}.session-detail{min-height:300px}.session-message{max-width:92%}}
+</style>
+{% endblock %}
+{% block content %}
+<div id="sessionsApp">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">CONVERSATIONS · LOCAL HISTORY</div>
+      <h1>对话记录</h1>
+      <p>查看、导出或清除这台电脑上的统一对话记录。</p>
+    </div>
+  </div>
+
+  <div class="state-panel" v-if="phase==='loading'" role="status">正在加载对话…</div>
+  <div class="state-panel error" v-else-if="phase==='error'" role="alert">
+    <b>对话加载失败</b><small>[[ error ]]</small>
+    <button type="button" class="btn ghost" @click="load">重试</button>
+  </div>
+  <div class="session-layout" v-else>
+    <section class="session-list" aria-label="对话列表">
+      <div class="session-toolbar">
+        <button type="button" class="btn primary" @click="createNew()" :disabled="busy">新建对话</button>
+        <button type="button" class="btn ghost" @click="clearCurrent()" :disabled="busy">清除当前对话</button>
+      </div>
+      <button
+        type="button"
+        class="session-row"
+        :class="{on:selectedId===row.session_id}"
+        v-for="row in sessions"
+        :key="row.session_id"
+        @click="open(row)"
+      >
+        <b>[[ row.title || '新对话' ]]</b>
+        <small>[[ formatTime(row.updated_at) ]] · [[ row.message_count ]] 条消息</small>
+        <span class="session-badges">
+          <span class="session-badge" v-if="row.is_current">当前</span>
+        </span>
+      </button>
+      <div class="state-panel compact" v-if="!sessions.length">这个筛选下还没有对话。</div>
+      <div class="session-pages">
+        <button type="button" class="btn ghost" @click="changePage(-1)" :disabled="page<=1">上一页</button>
+        <small>第 [[ page ]] / [[ totalPages ]] 页 · 共 [[ total ]] 条</small>
+        <button type="button" class="btn ghost" @click="changePage(1)" :disabled="page>=totalPages">下一页</button>
+      </div>
+    </section>
+
+    <section class="session-detail" aria-live="polite">
+      <div class="state-panel compact" v-if="detailLoading">正在读取对话内容…</div>
+      <template v-else-if="detail">
+        <div class="session-detail-head">
+          <div>
+            <h2>[[ detail.title || '新对话' ]]</h2>
+            <small>
+              [[ formatTime(detail.updated_at) ]]
+            </small>
+          </div>
+          <div class="session-actions">
+            <button type="button" class="btn ghost" @click="activate(detail)" :disabled="busy || detail.is_current">[[ detail.is_current ? '当前对话' : '设为当前' ]]</button>
+            <button type="button" class="btn ghost" @click="createNew()" :disabled="busy">新对话</button>
+            <button type="button" class="btn ghost" @click="clearCurrent()" :disabled="busy">清除当前</button>
+            <a class="btn ghost" :href="exportUrl(detail)">导出 JSON</a>
+            <button type="button" class="btn danger" @click="remove(detail)" :disabled="busy">删除</button>
+          </div>
+        </div>
+        <div class="session-messages">
+          <div class="session-message" :class="message.role" v-for="(message,index) in detail.messages" :key="index">
+            <small>
+              [[ message.role==='user' ? '我' : '小歪' ]] · [[ formatTime(message.ts) ]]
+              <span
+                v-if="message.role==='assistant' && message.delivery_status"
+                class="delivery-state"
+                :class="message.delivery_status"
+              >[[ deliveryLabel(message.delivery_status) ]]</span>
+            </small>
+            [[ message.message ]]
+            <small v-if="message.delivery_error" class="form-error">[[ message.delivery_error ]]</small>
+          </div>
+          <div class="state-panel compact" v-if="!detail.messages.length">这段对话还没有消息。</div>
+        </div>
+      </template>
+      <div class="state-panel compact" v-else>从左侧选择一段对话查看内容。</div>
+    </section>
+  </div>
+  <p class="form-error" v-if="message" role="status">[[ message ]]</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){return{
+    phase:'loading',error:'',message:'',busy:false,
+    sessions:[],detail:null,detailLoading:false,selectedId:'',
+    page:1,total:0,totalPages:1,loadSeq:0,detailSeq:0
+  };},
+  methods:{
+    api(url,opts){return window.DeskbotConsole.apiJson(url,opts);},
+    deliveryLabel(status){
+      return {
+        generated:'已生成，待交付',synthesized:'已合成，待下发',
+        enqueued:'设备已入队',accepted:'设备已接收，播放未确认',
+        played:'设备已播放',failed:'交付失败',cancelled:'已取消',
+        not_requested:'未请求播报'
+      }[status]||status;
+    },
+    formatTime(value){
+      const n=Number(value); const d=Number.isFinite(n)&&n>0?new Date(n*1000):new Date(value||'');
+      return Number.isFinite(d.getTime())?d.toLocaleString('zh-CN'):'时间未知';
+    },
+    exportUrl(row){return '/app/api/sessions/'+encodeURIComponent(row.session_id)+'/export';},
+    async load(){
+      const seq=++this.loadSeq;const requestedPage=this.page;
+      this.phase='loading';this.error='';
+      try{
+        const u=new URL('/app/api/sessions',location.origin);
+        u.searchParams.set('page',String(requestedPage));
+        u.searchParams.set('per_page','20');
+        const d=await this.api(u.pathname+u.search);
+        if(seq!==this.loadSeq)return;
+        this.sessions=d.sessions||[];this.page=d.page||1;this.total=d.total||0;this.totalPages=d.total_pages||1;
+        this.phase='ready';
+        if(this.selectedId && !this.sessions.some(s=>s.session_id===this.selectedId)){this.selectedId='';this.detail=null;}
+      }catch(e){if(seq===this.loadSeq){this.phase='error';this.error=e.message||'加载失败';}}
+    },
+    async open(row){
+      const seq=++this.detailSeq;const sessionId=row.session_id;
+      this.selectedId=sessionId;this.detailLoading=true;this.message='';
+      try{
+        const d=await this.api('/app/api/sessions/'+encodeURIComponent(sessionId));
+        if(seq!==this.detailSeq||sessionId!==this.selectedId)return;
+        this.detail=d.session||null;
+      }
+      catch(e){if(seq===this.detailSeq)this.message=e.message||'读取失败';}
+      finally{if(seq===this.detailSeq)this.detailLoading=false;}
+    },
+    async createNew(row){
+      this.busy=true;this.message='';
+      try{
+        const d=await this.api('/app/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'新对话'})});
+        this.page=1;await this.load();await this.open(d.session);this.message='已创建并切换到新对话';
+      }catch(e){this.message=e.message||'创建失败';}finally{this.busy=false;}
+    },
+    async clearCurrent(){
+      if(!confirm('清除当前对话？历史记录仍会保留。'))return;
+      this.busy=true;this.message='';
+      try{
+        await this.api('/app/api/sessions/clear-current',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+        await this.load();
+        if(this.detail)this.detail.is_current=false;
+        this.message='当前对话已清除，下一句话会开始新对话';
+      }
+      catch(e){this.message=e.message||'清除失败';}finally{this.busy=false;}
+    },
+    async activate(row){
+      this.busy=true;this.message='';
+      try{
+        await this.api('/app/api/sessions/'+encodeURIComponent(row.session_id)+'/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+        await this.load();await this.open(row);this.message='已切换当前对话';
+      }
+      catch(e){this.message=e.message||'切换失败';}finally{this.busy=false;}
+    },
+    async remove(row){
+      if(!confirm('永久删除“'+(row.title||'新对话')+'”？此操作无法撤销。'))return;
+      this.busy=true;this.message='';
+      try{await this.api('/app/api/sessions/'+encodeURIComponent(row.session_id),{method:'DELETE'});if(this.selectedId===row.session_id){this.selectedId='';this.detail=null;}await this.load();this.message='对话已删除';}
+      catch(e){this.message=e.message||'删除失败';}finally{this.busy=false;}
+    },
+    goFirstAndLoad(){this.page=1;this.selectedId='';this.detail=null;this.load();},
+    changePage(delta){const next=Math.max(1,Math.min(this.totalPages,this.page+delta));if(next!==this.page){this.page=next;this.selectedId='';this.detail=null;this.load();}}
+  },
+  mounted(){this.load();}
+}).mount('#sessionsApp');
+</script>
+{% endblock %}

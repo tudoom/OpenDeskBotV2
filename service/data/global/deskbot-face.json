@@ -1,0 +1,7721 @@
+{
+  "schema_version": 2,
+  "revision": 0,
+  "name": "deskbot-default",
+  "description": "汉语拼音音素口型与基础情绪动画，适用于 Deskbot OLED 284×240",
+  "mappings": {
+    "idle": "idle",
+    "listening": "listening",
+    "thinking": "thinking",
+    "speaking": "idle",
+    "happy": "happy",
+    "sad": "sad",
+    "angry": "angry",
+    "surprised": "surprised",
+    "sleepy": "sleep"
+  },
+  "phonemes": [
+    {
+      "name": "sil",
+      "origin": "system",
+      "title": "静音",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 148,
+                "y": 153,
+                "w": 56,
+                "h": 18,
+                "radius": 9,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 153,
+                "y": 159,
+                "w": 46,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "_",
+        "pau",
+        "sp",
+        "silence"
+      ]
+    },
+    {
+      "name": "i",
+      "origin": "system",
+      "title": "i - 扁口",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "IY",
+        "IH",
+        "IX"
+      ]
+    },
+    {
+      "name": "e",
+      "origin": "system",
+      "title": "e - 中扁口",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "EH",
+        "ER"
+      ]
+    },
+    {
+      "name": "o",
+      "origin": "system",
+      "title": "o - 中圆口",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 157,
+                "y": 142,
+                "w": 40,
+                "h": 40,
+                "radius": 20,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 162,
+                "y": 148,
+                "w": 30,
+                "h": 25,
+                "radius": 12,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "AO"
+      ]
+    },
+    {
+      "name": "u",
+      "origin": "system",
+      "title": "u - 扁小圆",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 159,
+                "y": 148,
+                "w": 36,
+                "h": 28,
+                "radius": 14,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 164,
+                "y": 154,
+                "w": 26,
+                "h": 13,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "UW",
+        "UH"
+      ]
+    },
+    {
+      "name": "a",
+      "origin": "system",
+      "title": "a - 大口",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "AA",
+        "AE",
+        "AH"
+      ]
+    },
+    {
+      "name": "v",
+      "origin": "system",
+      "title": "ü - 比u更扁",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 161,
+                "y": 151,
+                "w": 32,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 166,
+                "y": 157,
+                "w": 22,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "ai",
+      "origin": "system",
+      "title": "ai - a→i",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "uai"
+      ]
+    },
+    {
+      "name": "ao",
+      "origin": "system",
+      "title": "ao - a→o",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 157,
+                "y": 142,
+                "w": 40,
+                "h": 40,
+                "radius": 20,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 162,
+                "y": 148,
+                "w": 30,
+                "h": 25,
+                "radius": 12,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "AW"
+      ]
+    },
+    {
+      "name": "ou",
+      "origin": "system",
+      "title": "ou - o→u",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 157,
+                "y": 142,
+                "w": 40,
+                "h": 40,
+                "radius": 20,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 162,
+                "y": 148,
+                "w": 30,
+                "h": 25,
+                "radius": 12,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 159,
+                "y": 148,
+                "w": 36,
+                "h": 28,
+                "radius": 14,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 164,
+                "y": 154,
+                "w": 26,
+                "h": 13,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "OW",
+        "OY"
+      ]
+    },
+    {
+      "name": "ei",
+      "origin": "system",
+      "title": "ei - e→i",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "EY"
+      ]
+    },
+    {
+      "name": "ie",
+      "origin": "system",
+      "title": "ie - i→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "uo",
+      "origin": "system",
+      "title": "uo - u→o",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 159,
+                "y": 148,
+                "w": 36,
+                "h": 28,
+                "radius": 14,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 164,
+                "y": 154,
+                "w": 26,
+                "h": 13,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 157,
+                "y": 142,
+                "w": 40,
+                "h": 40,
+                "radius": 20,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 162,
+                "y": 148,
+                "w": 30,
+                "h": 25,
+                "radius": 12,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "ian",
+      "origin": "system",
+      "title": "ian - i→a→e",
+      "frames": [
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "iang",
+        "üan",
+        "van"
+      ]
+    },
+    {
+      "name": "in",
+      "origin": "system",
+      "title": "in - i→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "ing"
+      ]
+    },
+    {
+      "name": "iong",
+      "origin": "system",
+      "title": "iong - i→o→e",
+      "frames": [
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 157,
+                "y": 142,
+                "w": 40,
+                "h": 40,
+                "radius": 20,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 162,
+                "y": 148,
+                "w": 30,
+                "h": 25,
+                "radius": 12,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "iou",
+      "origin": "system",
+      "title": "iou - i→o→u",
+      "frames": [
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 157,
+                "y": 142,
+                "w": 40,
+                "h": 40,
+                "radius": 20,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 162,
+                "y": 148,
+                "w": 30,
+                "h": 25,
+                "radius": 12,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 159,
+                "y": 148,
+                "w": 36,
+                "h": 28,
+                "radius": 14,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 164,
+                "y": 154,
+                "w": 26,
+                "h": 13,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "iu"
+      ]
+    },
+    {
+      "name": "uan",
+      "origin": "system",
+      "title": "uan - u→a→e",
+      "frames": [
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 159,
+                "y": 148,
+                "w": 36,
+                "h": 28,
+                "radius": 14,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 164,
+                "y": 154,
+                "w": 26,
+                "h": 13,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "uang"
+      ]
+    },
+    {
+      "name": "an",
+      "origin": "system",
+      "title": "an - a→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "ang",
+      "origin": "system",
+      "title": "ang - a→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "en",
+      "origin": "system",
+      "title": "en - e→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "uen",
+        "un"
+      ]
+    },
+    {
+      "name": "eng",
+      "origin": "system",
+      "title": "eng - e→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "ong",
+      "origin": "system",
+      "title": "ong - o→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 157,
+                "y": 142,
+                "w": 40,
+                "h": 40,
+                "radius": 20,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 162,
+                "y": 148,
+                "w": 30,
+                "h": 25,
+                "radius": 12,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "er",
+      "origin": "system",
+      "title": "er - 卷舌",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "ve",
+      "origin": "system",
+      "title": "ve - ü→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 161,
+                "y": 151,
+                "w": 32,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 166,
+                "y": 157,
+                "w": 22,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "üe"
+      ]
+    },
+    {
+      "name": "vn",
+      "origin": "system",
+      "title": "vn - ü→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 161,
+                "y": 151,
+                "w": 32,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 166,
+                "y": 157,
+                "w": 22,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "ün"
+      ]
+    },
+    {
+      "name": "ui",
+      "origin": "system",
+      "title": "ui - u→e",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 159,
+                "y": 148,
+                "w": 36,
+                "h": 28,
+                "radius": 14,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 164,
+                "y": 154,
+                "w": 26,
+                "h": 13,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "uei"
+      ]
+    },
+    {
+      "name": "iao",
+      "origin": "system",
+      "title": "iao - i→a→o",
+      "frames": [
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 250,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 157,
+                "y": 142,
+                "w": 40,
+                "h": 40,
+                "radius": 20,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 162,
+                "y": 148,
+                "w": 30,
+                "h": 25,
+                "radius": 12,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "ia",
+      "origin": "system",
+      "title": "ia - i→a",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "ua",
+      "origin": "system",
+      "title": "ua - u→a",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 159,
+                "y": 148,
+                "w": 36,
+                "h": 28,
+                "radius": 14,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 164,
+                "y": 154,
+                "w": 26,
+                "h": 13,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 139,
+                "w": 60,
+                "h": 46,
+                "radius": 23,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 145,
+                "w": 50,
+                "h": 31,
+                "radius": 15,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "b",
+      "origin": "system",
+      "title": "b/p/m - 双唇",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 157,
+                "w": 60,
+                "h": 12,
+                "radius": 6,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 163,
+                "w": 50,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "p",
+        "m",
+        "B",
+        "P",
+        "M"
+      ]
+    },
+    {
+      "name": "f",
+      "origin": "system",
+      "title": "f/v - 唇齿",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 154,
+                "w": 60,
+                "h": 14,
+                "radius": 7,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 160,
+                "w": 50,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "F",
+        "V"
+      ]
+    },
+    {
+      "name": "d",
+      "origin": "system",
+      "title": "d/t - 舌尖",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 154,
+                "w": 60,
+                "h": 16,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 160,
+                "w": 50,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "t",
+        "D",
+        "T"
+      ]
+    },
+    {
+      "name": "n",
+      "origin": "system",
+      "title": "n/ng - 鼻音",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 154,
+                "w": 60,
+                "h": 16,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 160,
+                "w": 50,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "N",
+        "ng",
+        "NG"
+      ]
+    },
+    {
+      "name": "l",
+      "origin": "system",
+      "title": "l - 边音",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "L"
+      ]
+    },
+    {
+      "name": "g",
+      "origin": "system",
+      "title": "g/k - 舌根",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 155,
+                "y": 149,
+                "w": 44,
+                "h": 27,
+                "radius": 13,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 160,
+                "y": 155,
+                "w": 34,
+                "h": 12,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "k",
+        "G",
+        "K"
+      ]
+    },
+    {
+      "name": "h",
+      "origin": "system",
+      "title": "h - 喉音",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 144,
+                "w": 60,
+                "h": 36,
+                "radius": 18,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 150,
+                "w": 50,
+                "h": 21,
+                "radius": 10,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "H",
+        "HH"
+      ]
+    },
+    {
+      "name": "j",
+      "origin": "system",
+      "title": "j/q/x - 舌面",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 151,
+                "w": 60,
+                "h": 22,
+                "radius": 11,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 157,
+                "w": 50,
+                "h": 7,
+                "radius": 3,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "q",
+        "x",
+        "JH",
+        "CH"
+      ]
+    },
+    {
+      "name": "zh",
+      "origin": "system",
+      "title": "zh/ch/sh/r - 翘舌",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 149,
+                "w": 60,
+                "h": 27,
+                "radius": 13,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 155,
+                "w": 50,
+                "h": 12,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "ch",
+        "sh",
+        "r",
+        "ZH",
+        "SH"
+      ]
+    },
+    {
+      "name": "z",
+      "origin": "system",
+      "title": "z/c/s - 平舌",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 154,
+                "w": 60,
+                "h": 16,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 160,
+                "w": 50,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "c",
+        "s",
+        "S",
+        "Z"
+      ]
+    },
+    {
+      "name": "w",
+      "origin": "system",
+      "title": "w - 半元音圆唇",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 159,
+                "y": 148,
+                "w": 36,
+                "h": 28,
+                "radius": 14,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 164,
+                "y": 154,
+                "w": 26,
+                "h": 13,
+                "radius": 6,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "W"
+      ]
+    },
+    {
+      "name": "y",
+      "origin": "system",
+      "title": "y - 半元音展唇",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 137,
+                "y": 154,
+                "w": 80,
+                "h": 17,
+                "radius": 8,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 142,
+                "y": 160,
+                "w": 70,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "Y"
+      ]
+    },
+    {
+      "name": "TH",
+      "origin": "system",
+      "title": "th/dh - 齿间",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 147,
+                "y": 154,
+                "w": 60,
+                "h": 14,
+                "radius": 7,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 152,
+                "y": 160,
+                "w": 50,
+                "h": 2,
+                "radius": 1,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": [
+        "DH"
+      ]
+    },
+    {
+      "name": "R",
+      "origin": "system",
+      "title": "R - 卷舌",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "eye_l": [
+              {
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "eye_r": [
+              {
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97,
+                "rw": 11,
+                "rh": 11,
+                "c": 2047
+              }
+            ],
+            "nose": [],
+            "mouth": [
+              {
+                "shape": "round_rect",
+                "x": 159,
+                "y": 150,
+                "w": 36,
+                "h": 24,
+                "radius": 12,
+                "c": 2047
+              },
+              {
+                "shape": "round_rect",
+                "x": 164,
+                "y": 156,
+                "w": 26,
+                "h": 9,
+                "radius": 4,
+                "c": 0
+              }
+            ],
+            "extra": []
+          }
+        }
+      ],
+      "alias": []
+    }
+  ],
+  "emotions": [
+    {
+      "name": "idle",
+      "origin": "system",
+      "title": "日常待机",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 60,
+                "x": 147,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 50,
+                "x": 152,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 100,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 3,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 3,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 60,
+                "x": 147,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 50,
+                "x": 152,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 100,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 60,
+                "x": 147,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 50,
+                "x": 152,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 400,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 60,
+                "x": 147,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 50,
+                "x": 152,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "happy",
+      "origin": "system",
+      "title": "开心",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "extra": [
+              {
+                "c": 64064,
+                "rh": 6,
+                "rw": 12,
+                "shape": "ellipse_fill",
+                "x": 55,
+                "y": 131
+              },
+              {
+                "c": 64064,
+                "rh": 6,
+                "rw": 12,
+                "shape": "ellipse_fill",
+                "x": 218,
+                "y": 131
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 99
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 99
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 28,
+                "radius": 14,
+                "shape": "round_rect",
+                "w": 72,
+                "x": 141,
+                "y": 148
+              },
+              {
+                "c": 0,
+                "h": 13,
+                "radius": 6,
+                "shape": "round_rect",
+                "w": 62,
+                "x": 146,
+                "y": 154
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "shy",
+      "origin": "system",
+      "title": "害羞",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "extra": [
+              {
+                "c": 63488,
+                "rh": 4,
+                "rw": 9,
+                "shape": "ellipse_fill",
+                "x": 62,
+                "y": 133
+              },
+              {
+                "c": 63488,
+                "rh": 4,
+                "rw": 9,
+                "shape": "ellipse_fill",
+                "x": 222,
+                "y": 133
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 32,
+                "x": 161,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 22,
+                "x": 166,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 800,
+          "elements": {
+            "extra": [
+              {
+                "c": 63488,
+                "rh": 8,
+                "rw": 15,
+                "shape": "ellipse_fill",
+                "x": 56,
+                "y": 129
+              },
+              {
+                "c": 63488,
+                "rh": 8,
+                "rw": 15,
+                "shape": "ellipse_fill",
+                "x": 216,
+                "y": 129
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 32,
+                "x": 161,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 22,
+                "x": 166,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "angry",
+      "origin": "system",
+      "title": "生气",
+      "frames": [
+        {
+          "ms": 1000,
+          "elements": {
+            "extra": [
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 79,
+                "x2": 129,
+                "y1": 83,
+                "y2": 93
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 79,
+                "x2": 129,
+                "y1": 85,
+                "y2": 95
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 79,
+                "x2": 129,
+                "y1": 87,
+                "y2": 97
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 207,
+                "x2": 157,
+                "y1": 83,
+                "y2": 93
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 207,
+                "x2": 157,
+                "y1": 85,
+                "y2": 95
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 207,
+                "x2": 157,
+                "y1": 87,
+                "y2": 97
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 99
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 99
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 64,
+                "x": 145,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 54,
+                "x": 150,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 1000,
+          "elements": {
+            "extra": [
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 79,
+                "x2": 129,
+                "y1": 83,
+                "y2": 93
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 79,
+                "x2": 129,
+                "y1": 85,
+                "y2": 95
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 79,
+                "x2": 129,
+                "y1": 87,
+                "y2": 97
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 207,
+                "x2": 157,
+                "y1": 83,
+                "y2": 93
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 207,
+                "x2": 157,
+                "y1": 85,
+                "y2": 95
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 207,
+                "x2": 157,
+                "y1": 87,
+                "y2": 97
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 10,
+                "rw": 10,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 99
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 10,
+                "rw": 10,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 99
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 54,
+                "x": 150,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 1000,
+          "elements": {
+            "extra": [
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 79,
+                "x2": 129,
+                "y1": 83,
+                "y2": 93
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 79,
+                "x2": 129,
+                "y1": 85,
+                "y2": 95
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 79,
+                "x2": 129,
+                "y1": 87,
+                "y2": 97
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 207,
+                "x2": 157,
+                "y1": 83,
+                "y2": 93
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 207,
+                "x2": 157,
+                "y1": 85,
+                "y2": 95
+              },
+              {
+                "c": 2047,
+                "shape": "line",
+                "x1": 207,
+                "x2": 157,
+                "y1": 87,
+                "y2": 97
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 12,
+                "rw": 12,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 99
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 12,
+                "rw": 12,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 99
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 22,
+                "radius": 11,
+                "shape": "round_rect",
+                "w": 74,
+                "x": 140,
+                "y": 155
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 64,
+                "x": 145,
+                "y": 161
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "surprised",
+      "origin": "system",
+      "title": "惊讶",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 15,
+                "rw": 15,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 15,
+                "rw": 15,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 32,
+                "radius": 16,
+                "shape": "round_rect",
+                "w": 28,
+                "x": 163,
+                "y": 146
+              },
+              {
+                "c": 0,
+                "h": 17,
+                "radius": 8,
+                "shape": "round_rect",
+                "w": 18,
+                "x": 168,
+                "y": 152
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "sad",
+      "origin": "system",
+      "title": "难过",
+      "frames": [
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "r": 1,
+                "shape": "circle",
+                "x": 107,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 1,
+                "shape": "circle",
+                "x": 199,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 107,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 199,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 107,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 199,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 107,
+                "y": 160
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 199,
+                "y": 160
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "r": 2,
+                "shape": "circle",
+                "x": 107,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 2,
+                "shape": "circle",
+                "x": 199,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 1,
+                "shape": "circle",
+                "x": 107,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 1,
+                "shape": "circle",
+                "x": 199,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 107,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 199,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 107,
+                "y": 160
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 199,
+                "y": 160
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "r": 3,
+                "shape": "circle",
+                "x": 107,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 3,
+                "shape": "circle",
+                "x": 199,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 2,
+                "shape": "circle",
+                "x": 107,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 2,
+                "shape": "circle",
+                "x": 199,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 1,
+                "shape": "circle",
+                "x": 107,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 1,
+                "shape": "circle",
+                "x": 199,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 107,
+                "y": 160
+              },
+              {
+                "c": 65535,
+                "r": 0,
+                "shape": "circle",
+                "x": 199,
+                "y": 160
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "r": 4,
+                "shape": "circle",
+                "x": 107,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 4,
+                "shape": "circle",
+                "x": 199,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 3,
+                "shape": "circle",
+                "x": 107,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 3,
+                "shape": "circle",
+                "x": 199,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 2,
+                "shape": "circle",
+                "x": 107,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 2,
+                "shape": "circle",
+                "x": 199,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 1,
+                "shape": "circle",
+                "x": 107,
+                "y": 160
+              },
+              {
+                "c": 65535,
+                "r": 1,
+                "shape": "circle",
+                "x": 199,
+                "y": 160
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 4,
+                "shape": "circle",
+                "x": 107,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 4,
+                "shape": "circle",
+                "x": 199,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 3,
+                "shape": "circle",
+                "x": 107,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 3,
+                "shape": "circle",
+                "x": 199,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 2,
+                "shape": "circle",
+                "x": 107,
+                "y": 160
+              },
+              {
+                "c": 65535,
+                "r": 2,
+                "shape": "circle",
+                "x": 199,
+                "y": 160
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 4,
+                "shape": "circle",
+                "x": 107,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 4,
+                "shape": "circle",
+                "x": 199,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 3,
+                "shape": "circle",
+                "x": 107,
+                "y": 160
+              },
+              {
+                "c": 65535,
+                "r": 3,
+                "shape": "circle",
+                "x": 199,
+                "y": 160
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 4,
+                "shape": "circle",
+                "x": 107,
+                "y": 160
+              },
+              {
+                "c": 65535,
+                "r": 4,
+                "shape": "circle",
+                "x": 199,
+                "y": 160
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 160
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 160
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 115
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 130
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 145
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 107,
+                "y": 160
+              },
+              {
+                "c": 65535,
+                "r": 5,
+                "shape": "circle",
+                "x": 199,
+                "y": 160
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "sleep",
+      "origin": "system",
+      "title": "睡觉",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 172
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 178
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 183
+              },
+              {
+                "c": 65535,
+                "shape": "hline",
+                "w": 2,
+                "x": 184,
+                "y": 188
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 8,
+                "rw": 8,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 98
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 8,
+                "rw": 8,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 98
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 52,
+                "x": 149,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 42,
+                "x": 154,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 800,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 3,
+                "rw": 3,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 172
+              },
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 179
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 185
+              },
+              {
+                "c": 65535,
+                "shape": "hline",
+                "w": 4,
+                "x": 183,
+                "y": 190
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 6,
+                "rw": 10,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 99
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 6,
+                "rw": 10,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 99
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 52,
+                "x": 149,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 42,
+                "x": 154,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 1000,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 4,
+                "rw": 4,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 172
+              },
+              {
+                "c": 65535,
+                "rh": 3,
+                "rw": 3,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 180
+              },
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 188
+              },
+              {
+                "c": 65535,
+                "shape": "hline",
+                "w": 12,
+                "x": 179,
+                "y": 195
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 52,
+                "x": 149,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 42,
+                "x": 154,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 800,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 4,
+                "rw": 4,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 172
+              },
+              {
+                "c": 65535,
+                "rh": 3,
+                "rw": 3,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 180
+              },
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 188
+              },
+              {
+                "c": 65535,
+                "shape": "hline",
+                "w": 12,
+                "x": 179,
+                "y": 195
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 52,
+                "x": 149,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 42,
+                "x": 154,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 300,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 3,
+                "rw": 3,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 172
+              },
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 179
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 185
+              },
+              {
+                "c": 65535,
+                "shape": "hline",
+                "w": 8,
+                "x": 181,
+                "y": 190
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 52,
+                "x": 149,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 42,
+                "x": 154,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 250,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 172
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 178
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 183
+              },
+              {
+                "c": 65535,
+                "shape": "hline",
+                "w": 4,
+                "x": 183,
+                "y": 188
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 52,
+                "x": 149,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 42,
+                "x": 154,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 200,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 172
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 178
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 183
+              },
+              {
+                "c": 65535,
+                "shape": "hline",
+                "w": 2,
+                "x": 184,
+                "y": 188
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 4,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 52,
+                "x": 149,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 42,
+                "x": 154,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 800,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 172
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 178
+              },
+              {
+                "c": 65535,
+                "rh": 1,
+                "rw": 1,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 183
+              },
+              {
+                "c": 65535,
+                "shape": "hline",
+                "w": 2,
+                "x": 184,
+                "y": 188
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 8,
+                "rw": 8,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 98
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 8,
+                "rw": 8,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 98
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 52,
+                "x": 149,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 42,
+                "x": 154,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "thinking",
+      "origin": "system",
+      "title": "思考中",
+      "frames": [
+        {
+          "ms": 600,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "shape": "line",
+                "x1": 89,
+                "x2": 119,
+                "y1": 82,
+                "y2": 88
+              },
+              {
+                "c": 65535,
+                "shape": "line",
+                "x1": 197,
+                "x2": 167,
+                "y1": 82,
+                "y2": 88
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 600,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "shape": "line",
+                "x1": 89,
+                "x2": 119,
+                "y1": 82,
+                "y2": 88
+              },
+              {
+                "c": 65535,
+                "shape": "line",
+                "x1": 197,
+                "x2": 167,
+                "y1": 82,
+                "y2": 88
+              },
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 210,
+                "y": 120
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 101,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 177,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 600,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "shape": "line",
+                "x1": 89,
+                "x2": 119,
+                "y1": 82,
+                "y2": 88
+              },
+              {
+                "c": 65535,
+                "shape": "line",
+                "x1": 197,
+                "x2": 167,
+                "y1": 82,
+                "y2": 88
+              },
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 215,
+                "y": 118
+              },
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 220,
+                "y": 122
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 109,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 600,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "shape": "line",
+                "x1": 89,
+                "x2": 119,
+                "y1": 82,
+                "y2": 88
+              },
+              {
+                "c": 65535,
+                "shape": "line",
+                "x1": 197,
+                "x2": 167,
+                "y1": 82,
+                "y2": 88
+              },
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 215,
+                "y": 118
+              },
+              {
+                "c": 65535,
+                "rh": 2,
+                "rw": 2,
+                "shape": "ellipse_fill",
+                "x": 220,
+                "y": 122
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 109,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "listening",
+      "origin": "system",
+      "title": "倾听",
+      "frames": [
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 12,
+                "rw": 8,
+                "shape": "ellipse_outline",
+                "x": 230,
+                "y": 90
+              },
+              {
+                "c": 65535,
+                "rh": 14,
+                "rw": 10,
+                "shape": "ellipse_outline",
+                "x": 245,
+                "y": 85
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 14,
+                "rw": 10,
+                "shape": "ellipse_outline",
+                "x": 230,
+                "y": 90
+              },
+              {
+                "c": 65535,
+                "rh": 16,
+                "rw": 12,
+                "shape": "ellipse_outline",
+                "x": 248,
+                "y": 83
+              },
+              {
+                "c": 65535,
+                "rh": 18,
+                "rw": 14,
+                "shape": "ellipse_outline",
+                "x": 265,
+                "y": 78
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 109,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 185,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 16,
+                "rw": 12,
+                "shape": "ellipse_outline",
+                "x": 230,
+                "y": 90
+              },
+              {
+                "c": 65535,
+                "rh": 18,
+                "rw": 14,
+                "shape": "ellipse_outline",
+                "x": 250,
+                "y": 82
+              },
+              {
+                "c": 65535,
+                "rh": 20,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 268,
+                "y": 76
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 113,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 189,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 18,
+                "rw": 14,
+                "shape": "ellipse_outline",
+                "x": 230,
+                "y": 90
+              },
+              {
+                "c": 65535,
+                "rh": 20,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 252,
+                "y": 80
+              },
+              {
+                "c": 65535,
+                "rh": 22,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 268,
+                "y": 74
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 117,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 193,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 18,
+                "rw": 14,
+                "shape": "ellipse_outline",
+                "x": 230,
+                "y": 90
+              },
+              {
+                "c": 65535,
+                "rh": 20,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 252,
+                "y": 80
+              },
+              {
+                "c": 65535,
+                "rh": 22,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 268,
+                "y": 74
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 117,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 193,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 18,
+                "rw": 14,
+                "shape": "ellipse_outline",
+                "x": 230,
+                "y": 90
+              },
+              {
+                "c": 65535,
+                "rh": 20,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 252,
+                "y": 80
+              },
+              {
+                "c": 65535,
+                "rh": 22,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 268,
+                "y": 74
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 117,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 193,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 18,
+                "rw": 14,
+                "shape": "ellipse_outline",
+                "x": 230,
+                "y": 90
+              },
+              {
+                "c": 65535,
+                "rh": 20,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 252,
+                "y": 80
+              },
+              {
+                "c": 65535,
+                "rh": 22,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 268,
+                "y": 74
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 117,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 193,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 18,
+                "rw": 14,
+                "shape": "ellipse_outline",
+                "x": 230,
+                "y": 90
+              },
+              {
+                "c": 65535,
+                "rh": 20,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 252,
+                "y": 80
+              },
+              {
+                "c": 65535,
+                "rh": 22,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 268,
+                "y": 74
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 117,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 193,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 65535,
+                "rh": 18,
+                "rw": 14,
+                "shape": "ellipse_outline",
+                "x": 230,
+                "y": 90
+              },
+              {
+                "c": 65535,
+                "rh": 20,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 252,
+                "y": 80
+              },
+              {
+                "c": 65535,
+                "rh": 22,
+                "rw": 16,
+                "shape": "ellipse_outline",
+                "x": 268,
+                "y": 74
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 117,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 193,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 18,
+                "radius": 9,
+                "shape": "round_rect",
+                "w": 44,
+                "x": 155,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 3,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 34,
+                "x": 160,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "wake",
+      "origin": "system",
+      "title": "苏醒",
+      "frames": [
+        {
+          "ms": 800,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 3,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 3,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 10,
+                "radius": 5,
+                "shape": "round_rect",
+                "w": 32,
+                "x": 161,
+                "y": 157
+              },
+              {
+                "c": 0,
+                "h": 2,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 22,
+                "x": 166,
+                "y": 163
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 600,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 7,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 100
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 7,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 100
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 14,
+                "radius": 7,
+                "shape": "round_rect",
+                "w": 40,
+                "x": 157,
+                "y": 156
+              },
+              {
+                "c": 0,
+                "h": 2,
+                "radius": 1,
+                "shape": "round_rect",
+                "w": 30,
+                "x": 162,
+                "y": 162
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 600,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 10,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 98
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 10,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 98
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 20,
+                "radius": 10,
+                "shape": "round_rect",
+                "w": 56,
+                "x": 149,
+                "y": 153
+              },
+              {
+                "c": 0,
+                "h": 5,
+                "radius": 2,
+                "shape": "round_rect",
+                "w": 46,
+                "x": 154,
+                "y": 159
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [
+              {
+                "c": 64064,
+                "rh": 5,
+                "rw": 10,
+                "shape": "ellipse_fill",
+                "x": 55,
+                "y": 131
+              },
+              {
+                "c": 64064,
+                "rh": 5,
+                "rw": 10,
+                "shape": "ellipse_fill",
+                "x": 218,
+                "y": 131
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 28,
+                "radius": 14,
+                "shape": "round_rect",
+                "w": 72,
+                "x": 141,
+                "y": 148
+              },
+              {
+                "c": 0,
+                "h": 13,
+                "radius": 6,
+                "shape": "round_rect",
+                "w": 62,
+                "x": 146,
+                "y": 154
+              }
+            ],
+            "nose": []
+          }
+        },
+        {
+          "ms": 2000,
+          "elements": {
+            "extra": [
+              {
+                "c": 64064,
+                "rh": 6,
+                "rw": 12,
+                "shape": "ellipse_fill",
+                "x": 55,
+                "y": 131
+              },
+              {
+                "c": 64064,
+                "rh": 6,
+                "rw": 12,
+                "shape": "ellipse_fill",
+                "x": 218,
+                "y": 131
+              }
+            ],
+            "eye_l": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 105,
+                "y": 96
+              }
+            ],
+            "eye_r": [
+              {
+                "c": 2047,
+                "rh": 11,
+                "rw": 11,
+                "shape": "ellipse_fill",
+                "x": 181,
+                "y": 97
+              }
+            ],
+            "mouth": [
+              {
+                "c": 2047,
+                "h": 28,
+                "radius": 14,
+                "shape": "round_rect",
+                "w": 72,
+                "x": 141,
+                "y": 148
+              },
+              {
+                "c": 0,
+                "h": 13,
+                "radius": 6,
+                "shape": "round_rect",
+                "w": 62,
+                "x": 146,
+                "y": 154
+              }
+            ],
+            "nose": []
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "fake_smile",
+      "origin": "system",
+      "title": "假笑",
+      "frames": [
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "rh": 4,
+                "rw": 9,
+                "shape": "ellipse_fill",
+                "x": 89,
+                "y": 73
+              }
+            ],
+            "eye_r": [
+              {
+                "rh": 4,
+                "rw": 9,
+                "shape": "ellipse_fill",
+                "x": 178,
+                "y": 73
+              }
+            ],
+            "mouth": [
+              {
+                "h": 16,
+                "radius": 4,
+                "shape": "round_rect_outline",
+                "w": 71,
+                "x": 120,
+                "y": 147
+              },
+              {
+                "shape": "line",
+                "x1": 124,
+                "x2": 186,
+                "y1": 158,
+                "y2": 158
+              }
+            ],
+            "nose": [
+              {
+                "r": 11,
+                "shape": "circle",
+                "x": 142,
+                "y": 124
+              }
+            ]
+          }
+        },
+        {
+          "ms": 500,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "rh": 4,
+                "rw": 9,
+                "shape": "ellipse_fill",
+                "x": 89,
+                "y": 73
+              }
+            ],
+            "eye_r": [
+              {
+                "rh": 4,
+                "rw": 9,
+                "shape": "ellipse_fill",
+                "x": 178,
+                "y": 73
+              }
+            ],
+            "mouth": [
+              {
+                "h": 16,
+                "radius": 4,
+                "shape": "round_rect_outline",
+                "w": 71,
+                "x": 120,
+                "y": 147
+              },
+              {
+                "shape": "line",
+                "x1": 124,
+                "x2": 186,
+                "y1": 158,
+                "y2": 155
+              }
+            ],
+            "nose": [
+              {
+                "r": 11,
+                "shape": "circle",
+                "x": 142,
+                "y": 124
+              }
+            ]
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "fawning",
+      "origin": "system",
+      "title": "谄媚",
+      "frames": [
+        {
+          "ms": 480,
+          "elements": {
+            "extra": [
+              {
+                "r": 2,
+                "shape": "circle",
+                "x": 75,
+                "y": 67
+              },
+              {
+                "r": 2,
+                "shape": "circle",
+                "x": 200,
+                "y": 67
+              }
+            ],
+            "eye_l": [
+              {
+                "rh": 13,
+                "rw": 13,
+                "shape": "ellipse_fill",
+                "x": 89,
+                "y": 71
+              }
+            ],
+            "eye_r": [
+              {
+                "rh": 13,
+                "rw": 13,
+                "shape": "ellipse_fill",
+                "x": 178,
+                "y": 71
+              }
+            ],
+            "mouth": [
+              {
+                "h": 20,
+                "radius": 7,
+                "shape": "round_rect_outline",
+                "w": 67,
+                "x": 124,
+                "y": 144
+              },
+              {
+                "shape": "line",
+                "x1": 129,
+                "x2": 186,
+                "y1": 155,
+                "y2": 155
+              }
+            ],
+            "nose": [
+              {
+                "r": 11,
+                "shape": "circle",
+                "x": 142,
+                "y": 124
+              }
+            ]
+          }
+        },
+        {
+          "ms": 480,
+          "elements": {
+            "extra": [
+              {
+                "r": 2,
+                "shape": "circle",
+                "x": 73,
+                "y": 65
+              },
+              {
+                "r": 2,
+                "shape": "circle",
+                "x": 202,
+                "y": 65
+              }
+            ],
+            "eye_l": [
+              {
+                "rh": 16,
+                "rw": 16,
+                "shape": "ellipse_fill",
+                "x": 89,
+                "y": 69
+              }
+            ],
+            "eye_r": [
+              {
+                "rh": 16,
+                "rw": 16,
+                "shape": "ellipse_fill",
+                "x": 178,
+                "y": 69
+              }
+            ],
+            "mouth": [
+              {
+                "h": 22,
+                "radius": 7,
+                "shape": "round_rect_outline",
+                "w": 67,
+                "x": 124,
+                "y": 142
+              },
+              {
+                "shape": "line",
+                "x1": 129,
+                "x2": 186,
+                "y1": 153,
+                "y2": 153
+              }
+            ],
+            "nose": [
+              {
+                "r": 11,
+                "shape": "circle",
+                "x": 142,
+                "y": 124
+              }
+            ]
+          }
+        }
+      ],
+      "alias": []
+    },
+    {
+      "name": "astonished",
+      "origin": "system",
+      "title": "吃惊",
+      "frames": [
+        {
+          "ms": 400,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "rh": 16,
+                "rw": 16,
+                "shape": "ellipse_fill",
+                "x": 89,
+                "y": 69
+              }
+            ],
+            "eye_r": [
+              {
+                "rh": 16,
+                "rw": 16,
+                "shape": "ellipse_fill",
+                "x": 178,
+                "y": 69
+              }
+            ],
+            "mouth": [
+              {
+                "h": 36,
+                "radius": 18,
+                "shape": "round_rect_outline",
+                "w": 40,
+                "x": 129,
+                "y": 142
+              },
+              {
+                "h": 31,
+                "radius": 16,
+                "shape": "round_rect_outline",
+                "w": 36,
+                "x": 131,
+                "y": 144
+              }
+            ],
+            "nose": [
+              {
+                "r": 11,
+                "shape": "circle",
+                "x": 142,
+                "y": 124
+              }
+            ]
+          }
+        },
+        {
+          "ms": 440,
+          "elements": {
+            "extra": [],
+            "eye_l": [
+              {
+                "rh": 18,
+                "rw": 18,
+                "shape": "ellipse_fill",
+                "x": 89,
+                "y": 67
+              }
+            ],
+            "eye_r": [
+              {
+                "rh": 18,
+                "rw": 18,
+                "shape": "ellipse_fill",
+                "x": 178,
+                "y": 67
+              }
+            ],
+            "mouth": [
+              {
+                "h": 44,
+                "radius": 22,
+                "shape": "round_rect_outline",
+                "w": 49,
+                "x": 124,
+                "y": 138
+              },
+              {
+                "h": 40,
+                "radius": 20,
+                "shape": "round_rect_outline",
+                "w": 44,
+                "x": 126,
+                "y": 140
+              }
+            ],
+            "nose": [
+              {
+                "r": 11,
+                "shape": "circle",
+                "x": 142,
+                "y": 124
+              }
+            ]
+          }
+        }
+      ],
+      "alias": []
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+; 可选：仅覆盖硬件或显示相关 build_flags（例如 LCD 面板型号）。
+; USB CDC 是唯一的设备/PC 数据链路，不需要网络或服务端配置。
+
+[env:seeed_xiao_esp32s3]
+build_flags =
+	${env:seeed_xiao_esp32s3.build_flags}

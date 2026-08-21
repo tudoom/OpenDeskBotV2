@@ -1,0 +1,112 @@
+{% extends "base_2c.html" %}
+{% block page_title %}行为偏好 · 小歪{% endblock %}
+{% block extra_head %}
+<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<style>
+  .pref-stack{display:grid;gap:16px;max-width:820px}
+  .pref-card{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel);box-shadow:var(--shadow-sm);padding:17px}
+  .pref-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:14px}
+  .pref-head small{display:block;color:var(--dim);margin-top:4px;max-width:620px}
+  .pref-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+  .pref-switch{display:flex;gap:12px;align-items:center}
+  .pref-switch input{width:20px;height:20px;accent-color:var(--accent)}
+  .pref-note{padding:11px 13px;border:1px solid var(--line);border-radius:var(--rs);background:var(--wash);font-size:12px;color:var(--dim)}
+  .pref-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  @media(max-width:650px){.pref-grid{grid-template-columns:1fr}.pref-head{display:block}.pref-switch{margin-top:12px}}
+</style>
+{% endblock %}
+{% block content %}
+<div id="preferencesApp">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">BEHAVIOUR · LOCAL PROFILE</div>
+      <h1>行为偏好</h1>
+      <p>这台电脑统一保存勿扰时段和离线提醒策略，换设备即插即用。</p>
+    </div>
+  </div>
+
+  <div class="state-panel" v-if="phase==='loading'" role="status">正在读取设备偏好…</div>
+  <div class="state-panel error" v-else-if="phase==='error'" role="alert">
+    <b>偏好读取失败</b><small>[[ error ]]</small>
+    <button type="button" class="btn ghost" @click="load">重试</button>
+  </div>
+  <form class="pref-stack" v-else @submit.prevent="save">
+    <section class="pref-card">
+      <div class="pref-head">
+        <div><b>勿扰时段</b><small>跨午夜时间会自动识别，例如 22:00–08:00。勿扰期间到点的定时提醒会自动延后，待勿扰结束后再播报；你主动对小歪说话不受限制，仍会正常回答。</small></div>
+        <label class="pref-switch"><input type="checkbox" v-model="prefs.quiet_hours.enabled"><span>启用勿扰</span></label>
+      </div>
+      <div class="pref-grid">
+        <label class="form-label">开始
+          <input class="tinput" type="time" v-model="prefs.quiet_hours.start">
+        </label>
+        <label class="form-label">结束
+          <input class="tinput" type="time" v-model="prefs.quiet_hours.end">
+        </label>
+        <label class="form-label">时区
+          <select class="tinput" v-model="prefs.quiet_hours.timezone">
+            <option value="Asia/Shanghai">中国标准时间（Asia/Shanghai）</option>
+            <option value="Asia/Hong_Kong">香港（Asia/Hong_Kong）</option>
+            <option value="Asia/Tokyo">东京（Asia/Tokyo）</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="pref-card">
+      <div class="pref-head">
+        <div><b>设备离线时的提醒</b><small>决定提醒到点但设备短暂不在线时如何处理；系统会记录最终状态，不会把入队当成已播报。</small></div>
+      </div>
+      <div class="pref-grid">
+        <label class="form-label">策略
+          <select class="tinput" v-model="prefs.offline_reminder_policy">
+            <option value="retry_within_grace">在宽限期内重试</option>
+            <option value="expire">离线即明确过期</option>
+            <option value="deliver_when_online">恢复在线后补发</option>
+          </select>
+        </label>
+        <label class="form-label">重试宽限期（秒）
+          <input class="tinput" type="number" min="0" max="86400" step="30" v-model.number="prefs.offline_reminder_grace_seconds">
+        </label>
+      </div>
+    </section>
+
+    <div class="pref-actions">
+      <button type="submit" class="btn primary" :disabled="busy">[[ busy ? '保存中…' : '保存并应用' ]]</button>
+      <button type="button" class="btn ghost" @click="load" :disabled="busy">放弃修改</button>
+      <span role="status">[[ message ]]</span>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){return{
+    phase:'loading',error:'',message:'',busy:false,loadSeq:0,
+    prefs:{revision:0,quiet_hours:{enabled:true,start:'22:00',end:'08:00',timezone:'Asia/Shanghai'},offline_reminder_policy:'retry_within_grace',offline_reminder_grace_seconds:300}
+  };},
+  methods:{
+    api(url,opts){return window.DeskbotConsole.apiJson(url,opts);},
+    async load(){
+      const seq=++this.loadSeq;
+      this.phase='loading';this.error='';this.message='';
+      try{const d=await this.api('/app/api/preferences');if(seq!==this.loadSeq)return;this.prefs=Object.assign({},this.prefs,d.preferences||{});this.prefs.quiet_hours=Object.assign({},this.prefs.quiet_hours,(d.preferences&&d.preferences.quiet_hours)||{});this.phase='ready';}
+      catch(e){if(seq===this.loadSeq){this.phase='error';this.error=e.message||'读取失败';}}
+    },
+    async save(){
+      this.busy=true;this.message='';
+      try{
+        const d=await this.api('/app/api/preferences',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_revision:this.prefs.revision,preferences:this.prefs})});
+        this.prefs=Object.assign({},this.prefs,d.preferences||{});this.prefs.quiet_hours=Object.assign({},this.prefs.quiet_hours,(d.preferences&&d.preferences.quiet_hours)||{});
+        this.message='配置版本 '+d.revision+' 已保存并应用';
+      }catch(e){this.message=e.message||'保存失败';}finally{this.busy=false;}
+    }
+  },
+  mounted(){this.load();}
+}).mount('#preferencesApp');
+</script>
+{% endblock %}

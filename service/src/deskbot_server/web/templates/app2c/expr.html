@@ -1,0 +1,825 @@
+{% extends "base_2c.html" %}
+{% block page_title %}表情 · 小歪{% endblock %}
+{% block global_setup_suppress_device %}1{% endblock %}
+{% block extra_head %}
+<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<script src="{{ url_for('static', filename='generated/primitive_spec.js') }}?v=20260819-primitive-spec"></script>
+<script src="{{ url_for('static', filename='face_preview_2c.js') }}?v=20260819-primitive-spec"></script>
+<script src="{{ url_for('static', filename='face_parts_editor_2c.js') }}?v=20260819-primitive-spec"></script>
+<style>
+.face-editor-svg{overflow:visible;touch-action:none;user-select:none;cursor:default}
+.face-editor-svg.is-interactive{cursor:grab}
+.face-editor-svg.is-drawing{cursor:crosshair}
+.face-editor-hit-surface{fill:transparent;pointer-events:all}
+.face-part-selection{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4;pointer-events:none;vector-effect:non-scaling-stroke}
+.face-resize-handle{fill:var(--panel);stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.face-resize-handle.handle-n,.face-resize-handle.handle-s{cursor:ns-resize}
+.face-resize-handle.handle-e,.face-resize-handle.handle-w{cursor:ew-resize}
+.face-resize-handle.handle-ne,.face-resize-handle.handle-sw{cursor:nesw-resize}
+.face-resize-handle.handle-nw,.face-resize-handle.handle-se{cursor:nwse-resize}
+.expr-left-column{display:flex;flex-direction:column;gap:14px;min-width:0;width:100%}
+.expr-library-save{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:14px}
+.expr-library-save .tinput{min-width:0}
+.system-expression-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.user-expression-library{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.expression-choice{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.expression-choice .expression-name{margin-right:auto}
+.expression-choice .btn{min-height:40px}
+.system-expression-row .expression-choice{flex:0 0 auto}
+.system-expression-row .expression-name{margin-right:0}
+.expression-choice .remove-expression{width:30px;min-height:30px;padding:0;color:#b42318}
+.expr-stage-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-areas:"prev next play reset" "add delete brush undo";gap:8px}
+.expr-stage-actions .btn{min-width:0;padding-inline:8px;white-space:nowrap}
+.expr-stage-actions .btn:disabled,.expr-stage-actions .btn:disabled:hover{opacity:.68;background:var(--panel);border-color:var(--line);color:var(--dim)}
+.expr-action-prev{grid-area:prev}
+.expr-action-next{grid-area:next}
+.expr-action-play{grid-area:play}
+.expr-action-reset{grid-area:reset}
+.expr-action-add{grid-area:add}
+.expr-action-delete{grid-area:delete}
+.expr-action-brush{grid-area:brush}
+.expr-action-brush.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.expr-action-undo{grid-area:undo}
+.brush-settings{display:grid;grid-template-columns:minmax(0,1fr) minmax(160px,2fr);align-items:center;gap:12px;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.brush-setting{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--dim);font-size:12px}
+.brush-setting input[type=color]{width:42px;height:32px;padding:2px;border:1px solid var(--line);border-radius:7px;background:var(--panel)}
+.brush-setting input[type=range]{min-width:100px;flex:1}
+.frame-status{color:var(--dim);font-size:12px;text-align:center;margin-top:8px}
+.part-selector{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.part-chip{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:42px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);cursor:pointer}
+.part-chip.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.part-chip:active{transform:translateY(1px)}
+.part-visibility{font-size:11px;color:var(--dim)}
+.part-chip.on .part-visibility{color:var(--accent)}
+.part-editor-fieldset{border:0;padding:0;margin:0;min-width:0}
+.part-editor-fieldset[disabled]{opacity:.46}
+.blocktitle-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.blocktitle-row .blocktitle{margin:0}
+.shape-card,.color-card{grid-column:1/-1}
+.shape-card select{width:100%;min-height:38px;margin-top:8px}
+.face-color-control{display:flex;align-items:center;justify-content:flex-end;gap:12px}
+.face-color-control input[type=color]{width:48px;height:38px;padding:3px;border:1px solid var(--line);border-radius:7px;background:var(--panel);cursor:pointer}
+.face-color-control input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.face-color-control input[type=color]::-webkit-color-swatch{border:0;border-radius:4px}
+.face-color-control input[type=color]::-moz-color-swatch{border:0;border-radius:4px}
+.editor-playback-note{margin:0 0 12px;padding:10px 12px;border-radius:10px;background:var(--accent-soft);color:var(--dim);font-size:12px}
+.user-expression-empty{margin:8px 0 0;color:var(--dim);font-size:12px}
+.device-expression-state{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:12px;color:var(--dim);display:grid;gap:5px}
+.device-expression-state b{color:var(--ink)}
+.device-expression-state code{font-size:11px;word-break:break-all;color:var(--accent)}
+.device-expression-parity{display:flex;align-items:flex-start;gap:8px;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--ink);line-height:1.45}
+.device-expression-parity::before{content:"";width:8px;height:8px;margin-top:4px;border-radius:50%;background:var(--dim);box-shadow:0 0 0 3px rgba(86,86,79,.12);flex:none}
+.device-expression-parity.match::before{background:#2f8f4e;box-shadow:0 0 0 3px rgba(47,143,78,.15)}
+.device-expression-parity.overridden::before{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.device-expression-parity.unconfirmed::before{background:#b7791f;box-shadow:0 0 0 3px rgba(183,121,31,.15)}
+.device-expression-parity.failed::before{background:#b42318;box-shadow:0 0 0 3px rgba(180,35,24,.14)}
+.device-expression-correlation{font-family:var(--mono);font-size:10px;word-break:break-all;color:var(--dim)}
+.device-expression-history{margin:2px 0 0;padding:7px 0 0 18px;border-top:1px solid var(--line);display:grid;gap:4px}
+.device-expression-history li{padding-left:2px}
+.device-expression-history time{font-variant-numeric:tabular-nums;color:var(--ink)}
+.device-mouth-overlay{display:flex;align-items:center;gap:7px;color:var(--accent)}
+.device-mouth-overlay::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+@media (max-width:900px){.part-selector{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.expr-library-save{grid-template-columns:1fr}.expr-library-save .btn{width:100%}.expr-stage-actions{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"prev next" "play reset" "add delete" "brush undo"}.brush-settings{grid-template-columns:1fr}.user-expression-library{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div id="app">
+  <div class="pagehd"><div><div class="eyebrow">FACE · CONFIG</div><h1>表情</h1><p>表情库保存在这台电脑上，连接任意一台小歪都会使用同一套内容。</p></div>
+    <div class="page-actions">
+      <button class="btn ghost" type="button" @click="sendPreviewToDevice" :disabled="sending || settingDefault || !deviceId" :title="deviceId ? '' : '设备预览需要先选择一台设备'">[[ sending ? '发送中…' : '设备预览' ]]</button>
+      <button class="btn" type="button" @click="setAsDeviceDefaultExpression" :disabled="settingDefault || sending || mutationBusy || !deviceId" :title="deviceId ? '保存当前表情为待机默认表情，并立即发送到当前设备' : '设置默认表情需要先选择一台设备'">[[ settingDefault ? '设置中…' : '设为设备默认表情' ]]</button>
+    </div>
+  </div>
+  <div class="exprgrid">
+    <div class="expr-left-column">
+      <div class="stage expr-stage">
+      <div class="brackets"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span></div>
+      <div class="stage-hd">
+        <span class="unit">FACE · [[ previewTitle ]]</span>
+        <span class="uid">[[ deviceId || '未连接' ]]</span>
+      </div>
+      <div class="face">
+        <div class="scanline"></div>
+        <svg ref="faceEditorSvg" class="face-editor-svg" :class="{'is-interactive':!previewPlaying&&!brushMode,'is-drawing':brushMode&&!previewPlaying}" width="240" height="200" viewBox="0 0 284 240" role="img" aria-label="表情预览，可点击并拖动部位" @pointerdown.prevent="onPreviewPointerDown" @pointermove.prevent="onPreviewPointerMove" @pointerup.prevent="onPreviewPointerUp" @pointercancel.prevent="onPreviewPointerCancel" @lostpointercapture="onPreviewPointerCancel">
+          <rect class="face-editor-hit-surface" x="0" y="0" width="284" height="240"></rect>
+          <g v-html="customPreviewSvg" aria-hidden="true"></g>
+          <g v-if="selectedPartBounds && !previewPlaying && !brushMode" aria-hidden="true">
+            <rect class="face-part-selection" :x="selectedPartBounds.left" :y="selectedPartBounds.top" :width="selectedPartBounds.width" :height="selectedPartBounds.height"></rect>
+            <rect v-for="handle in selectionHandles" :key="handle.id" class="face-resize-handle" :class="'handle-'+handle.id" :data-resize-handle="handle.id" :x="handle.x-4" :y="handle.y-4" width="8" height="8" rx="1"></rect>
+          </g>
+        </svg>
+      </div>
+      <div class="expr-stage-actions">
+        <button type="button" class="btn ghost expr-action-prev" @click="prevPreviewFrame">上一帧</button>
+        <button type="button" class="btn ghost expr-action-next" @click="nextPreviewFrame">下一帧</button>
+        <button type="button" class="btn expr-action-play" @click="togglePreviewPlayback">[[ previewPlaying ? '停止动画' : '播放动画' ]]</button>
+        <button type="button" class="btn ghost expr-action-reset" @click="resetCurrentFrame" :disabled="previewPlaying">重置</button>
+        <button type="button" class="btn ghost expr-action-add" @click="addPreviewFrame" :disabled="previewPlaying">新增一帧</button>
+        <button type="button" class="btn ghost expr-action-delete" @click="deletePreviewFrame" :disabled="previewPlaying || previewFrameCount<=1">删除本帧</button>
+        <button type="button" class="btn ghost expr-action-brush" :class="{on:brushMode}" @click="toggleBrushMode" :disabled="previewPlaying">[[ brushMode ? '结束画笔' : '画笔' ]]</button>
+        <button type="button" class="btn ghost expr-action-undo" @click="undoDrawing" :disabled="previewPlaying || brushUndoDepth<=0">撤销绘画</button>
+      </div>
+      <div v-if="brushMode && !previewPlaying" class="brush-settings" aria-label="画笔参数">
+        <label class="brush-setting"><span>颜色</span><input type="color" v-model="brushColor" aria-label="画笔颜色"></label>
+        <label class="brush-setting"><span>粗细 [[ brushSize ]]</span><input type="range" min="1" max="12" step="1" v-model.number="brushSize" aria-label="画笔粗细"></label>
+      </div>
+      <div class="frame-status">[[ previewFrameLabel ]]</div>
+      <div class="device-expression-state" v-if="deviceId" aria-live="polite">
+        <div><b>设备已确认执行的完整表情：</b>[[ runtimeDisplayLabel ]]</div>
+        <div><b>来源：</b>[[ runtimeSourceLabel ]] · <b>原因：</b>[[ runtimeReasonLabel ]] · <b>RTC 目标：</b>[[ runtimeDesiredState ]]</div>
+        <div v-if="runtimeFrameCount"><b>本次完整表情：</b>[[ runtimeFrameSummary ]]。这些是同一表情的动画帧，不是设备随机切换了多个表情。</div>
+        <div v-if="lastWebPreview" class="device-expression-parity" :class="webPreviewParity.state"><b>Web 下发校验：</b><span>[[ webPreviewParity.label ]]</span></div>
+        <div v-if="lastWebPreview" class="device-expression-correlation">操作 [[ lastWebPreview.operationId ]] · [[ webPreviewFrameSummary ]] · 预期设备 CRC [[ shortFingerprint(lastWebPreview.expectedDisplayCrc32) ]] · 设备回报 CRC [[ shortFingerprint(lastWebPreview.deviceDisplayCrc32) ]] · [[ lastWebPreview.title ]]</div>
+        <div class="device-mouth-overlay" v-if="runtimeMouthOverlay.active"><b>完整脸未切换：</b>[[ runtimeMouthOverlayLabel ]]</div>
+        <code v-if="runtimeFingerprint">当前时间线 [[ shortFingerprint(runtimeFingerprint) ]] · 最终帧 [[ shortFingerprint(runtimeFinalFingerprint) ]]</code>
+        <ol class="device-expression-history" v-if="runtimeHistory.length" aria-label="最近表情切换记录">
+          <li v-for="entry in runtimeHistory" :key="String(entry.generation)+'-'+String(entry.operation_id||entry.displayed_at)"><time>[[ runtimeHistoryTime(entry) ]]</time> · 完整换脸 # [[ entry.generation ]] · [[ entry.title || entry.expression ]] · [[ runtimeTimelineLabel(entry) ]] · [[ sourceLabel(entry.source) ]] · [[ reasonLabel(entry.reason) ]] · [[ statusLabel(entry.status) ]]</li>
+        </ol>
+        <small v-if="runtimeError">[[ runtimeError ]]</small>
+      </div>
+      </div>
+      <div class="expr-library-save" aria-label="保存到表情库">
+        <input class="tinput" v-model.trim="savedVectorName" placeholder="表情名称" @input="markSaveTitleChanged" @keyup.enter="saveExpressionCopy" :disabled="mutationBusy">
+        <button type="button" class="btn primary" @click="saveExpressionCopy" :disabled="mutationBusy">[[ mutationBusy ? '保存中…' : '保存到库' ]]</button>
+      </div>
+    </div>
+    <div class="expr-editor">
+      <div class="expr-tabs" role="tablist" aria-label="表情编辑模式">
+        <button type="button" :class="{on: exprTab==='face'}" @click="setExprTab('face')" role="tab" :aria-selected="String(exprTab==='face')">基础捏脸</button>
+        <button type="button" :class="{on: exprTab==='professional'}" @click="setExprTab('professional')" role="tab" :aria-selected="String(exprTab==='professional')">专业设计</button>
+      </div>
+      <section v-show="exprTab==='face'" class="expr-tabpane" role="tabpanel">
+        <div class="blocktitle-row">
+          <div class="blocktitle top">捏脸参数 / BASIC</div>
+          <button type="button" class="btn ghost" @click="toggleSelectedPart" :disabled="previewPlaying || !currentEditorPart">[[ currentEditorPart && currentEditorPart.visible ? '隐藏部位' : '显示部位' ]]</button>
+        </div>
+        <p class="editor-playback-note" v-if="previewPlaying">动画播放期间不可编辑。点击“停止动画”会回到第一帧。</p>
+        <div class="part-selector" aria-label="基础捏脸部位">
+          <button v-for="part in faceParts" :key="part.id" type="button" class="part-chip" :class="{on:selectedPartId===part.id}" @click="selectFacePart(part.id)" :disabled="previewPlaying">
+            <span>[[ part.label ]]</span><span class="part-visibility">[[ partState(part.id).visible ? '显示' : '隐藏' ]]</span>
+          </button>
+        </div>
+        <fieldset class="part-editor-fieldset" :disabled="previewPlaying || !currentEditorPart">
+          <div class="editor-grid basic-face-controls">
+            <label class="slider-card shape-card"><span>形状</span><select :value="currentEditorPart && currentEditorPart.shape" @change="updateSelectedPart({shape:$event.target.value})"><option v-for="shape in shapeOptions" :key="shape.value" :value="shape.value">[[ shape.label ]]</option></select></label>
+            <label class="slider-card"><span>宽度</span><b>[[ partNumber('width') ]]</b><input type="range" min="1" max="284" :value="partNumber('width')" @input="updateSelectedPart({width:Number($event.target.value)})"></label>
+            <label class="slider-card"><span>高度</span><b>[[ partNumber('height') ]]</b><input type="range" min="1" max="240" :value="partNumber('height')" @input="updateSelectedPart({height:Number($event.target.value)})"></label>
+            <label class="slider-card"><span>大小</span><b>[[ partNumber('size') ]]%</b><input type="range" min="25" max="200" :value="partNumber('size')" @input="updateSelectedPart({size:Number($event.target.value)})"></label>
+            <label class="slider-card"><span>上下</span><b>[[ partNumber('y') ]]</b><input type="range" min="0" max="240" :value="partNumber('y')" @input="updateSelectedPart({y:Number($event.target.value)})"></label>
+            <label class="slider-card"><span>左右</span><b>[[ partNumber('x') ]]</b><input type="range" min="0" max="284" :value="partNumber('x')" @input="updateSelectedPart({x:Number($event.target.value)})"></label>
+            <label class="slider-card color-card"><span>颜色</span><span class="face-color-control"><b>[[ currentEditorPart && currentEditorPart.color ]]</b><input type="color" :value="currentEditorPart && currentEditorPart.color" @input="updateSelectedPart({color:$event.target.value})" :aria-label="selectedPartLabel+'颜色'"></span></label>
+          </div>
+        </fieldset>
+
+        <div class="blocktitle top">系统表情 / SYSTEM</div>
+        <div class="system-expression-row">
+          <div class="expression-choice" v-for="s in systemExampleScenes" :key="s.name">
+            <button type="button" class="btn ghost expression-name" @click="editExpressionScene(s)">[[ s.title || s.name ]]</button>
+          </div>
+        </div>
+
+        <div class="blocktitle top">我的表情 / USER</div>
+        <div class="user-expression-library" v-if="userExpressionScenes.length">
+          <div class="expression-choice" v-for="s in userExpressionScenes" :key="s.name">
+            <button type="button" class="btn expression-name" :class="{primary:s.name===activeSavedExpressionId}" @click="editExpressionScene(s)">[[ s.title || s.name ]]</button>
+            <button type="button" class="btn" @click="updateUserExpression(s)" :disabled="mutationBusy">更新</button>
+            <button type="button" class="btn ghost remove-expression" @click="removeUserExpression(s)" :disabled="mutationBusy" :aria-label="'删除表情 '+(s.title || s.name)" title="删除">×</button>
+          </div>
+        </div>
+        <p v-else class="user-expression-empty">还没有用户表情。调整上方参数后保存到库即可创建。</p>
+        <div class="blocktitle">情绪 → 表情 / MAP</div>
+        <div class="maprow" v-for="[k,emoji,label] in emotions" :key="k">
+          <div class="lab"><span class="e">[[ emoji ]]</span>[[ label ]]</div>
+          <select v-model="map[k]" @change="markMapChanged(k)" :disabled="mutationBusy">
+            <option value="">（不指定）</option>
+            <option v-for="s in scenes" :key="s.name" :value="s.name">[[ s.title || s.name ]]</option>
+          </select>
+        </div>
+        <div class="debug-actionbar"><button type="button" class="btn primary" @click="saveMap" :disabled="!mapDirty || mutationBusy">保存映射</button></div>
+      </section>
+      <section v-show="exprTab==='professional'" class="expr-tabpane image-design" role="region" aria-label="图片生成">
+        <div class="blocktitle top">图片生成 / ARK SEED</div>
+        <div class="design-loader image-ai">
+          <input ref="imageExpressionFile" class="file-input-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectImageExpressionFile">
+          <div>
+            <b>图片表情包生成</b>
+            <small>上传的图片会发送至火山引擎 Ark 第三方服务，由 Ark Seed 2.1 生成可预览的 SVG，并转成当前设备可保存的表情 scene。凭证优先使用「高级」页的 ARK_API_KEY；未配置 Ark Key 时将复用 LLM Key。</small>
+          </div>
+          <div class="design-actions">
+            <button type="button" class="btn" @click="$refs.imageExpressionFile && $refs.imageExpressionFile.click()">选择图片</button>
+            <button type="button" class="btn primary" @click="generateImageExpression" :disabled="generatingImageExpression || !imageExpressionFile">[[ generatingImageExpression ? '生成中…' : '生成 SVG' ]]</button>
+          </div>
+        </div>
+        <div class="image-generation-progress progress-strip" v-if="imageExpressionProgressVisible" aria-live="polite">
+          <div class="progress-meta">
+            <b>[[ imageExpressionProgressLabel ]]</b>
+            <span>[[ imageExpressionProgressValue ]]%</span>
+          </div>
+          <progress max="100" :value="imageExpressionProgressValue"></progress>
+        </div>
+        <div class="image-ai-body" v-show="imageExpressionFile || imageExpressionResult">
+          <div class="image-file-name" v-if="imageExpressionFileName">[[ imageExpressionFileName ]]</div>
+          <textarea class="tinput debug-textarea image-prompt" v-model="imageExpressionPrompt" placeholder="可选：补充你想保留的情绪、嘴型或风格，例如：保留坏笑和眼神，做成小歪 OLED 表情"></textarea>
+          <div class="generated-result-card" v-if="imageExpressionResult">
+            <div class="generated-result-meta">
+              <b>[[ imageExpressionResult.title || imageExpressionResult.name ]]</b>
+              <small>[[ imageExpressionResult.model || 'doubao-seed-2-1-pro-260628' ]]</small>
+              <div class="debug-actionbar">
+                <button type="button" class="btn primary" @click="applyImageExpressionScene">加入当前表情</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section v-show="exprTab==='professional'" class="expr-tabpane professional-design" role="tabpanel">
+        <div class="blocktitle top">专业设计 / VISEMESYNC</div>
+        <div class="design-loader design-ai">
+          <div>
+            <b>AI 辅助生成</b>
+            <small>输入一句风格描述，调用当前 LLM 生成 VisemeSync JSON，生成后仍需手动应用保存。</small>
+          </div>
+          <button type="button" class="btn ghost" @click="professionalAiOpen=!professionalAiOpen">
+            [[ professionalAiOpen ? '收起配置' : '展开配置' ]]
+          </button>
+        </div>
+        <div class="design-ai-body" v-show="professionalAiOpen">
+          <textarea class="tinput debug-textarea" v-model="professionalPrompt" placeholder="例如：生成一套开心、困困、惊讶、思考、待机的圆润表情，嘴型适合中文说话"></textarea>
+          <div class="debug-actionbar">
+            <button type="button" class="btn primary" @click="generateProfessionalDesign" :disabled="generatingProfessional || !professionalPrompt.trim()">[[ generatingProfessional ? '生成中…' : 'AI 生成设计' ]]</button>
+            <button type="button" class="btn ghost" @click="professionalPrompt='做一套小歪默认表情：开心、困困、惊讶、思考、待机，风格圆润，嘴型适合中文拼音。'">默认表情</button>
+            <button type="button" class="btn ghost" @click="professionalPrompt='做一套可爱夸张的儿童向表情，强调大眼睛、微笑、惊讶和打哈欠。'">可爱夸张</button>
+          </div>
+        </div>
+        <div class="design-loader">
+          <input ref="professionalFile" class="file-input-hidden" type="file" accept=".json,application/json" @change="importProfessionalFile">
+          <div>
+            <b>VisemeSync JSON</b>
+            <small>导入 phonemes / emotions 后，可把情绪表情写入当前表情库，嘴型会同步到拼音口型配置。</small>
+          </div>
+          <div class="design-actions">
+            <button type="button" class="btn" @click="$refs.professionalFile && $refs.professionalFile.click()">选择 JSON</button>
+            <button type="button" class="btn ghost" @click="loadProfessionalFromCurrent">从当前生成</button>
+            <button type="button" class="btn ghost" @click="exportProfessionalDesign">导出 JSON</button>
+            <button type="button" class="btn primary" @click="saveProfessionalDesign" :disabled="savingProfessional || mutationBusy || !professionalDesign">[[ savingProfessional ? '保存中…' : '应用并保存' ]]</button>
+          </div>
+        </div>
+        <div class="metric-grid pro-metrics">
+          <div class="metric accent">
+            <span>设计名</span>
+            <b>[[ professionalStats.name ]]</b>
+            <small>[[ professionalFileName || '当前页面' ]]</small>
+          </div>
+          <div class="metric">
+            <span>PHONEMES</span>
+            <b>[[ professionalStats.phonemes ]]</b>
+            <small>拼音/音素嘴型</small>
+          </div>
+          <div class="metric">
+            <span>EMOTIONS</span>
+            <b>[[ professionalStats.emotions ]]</b>
+            <small>可导入表情</small>
+          </div>
+          <div class="metric">
+            <span>FRAMES</span>
+            <b>[[ professionalStats.frames ]]</b>
+            <small>动画帧总数</small>
+          </div>
+        </div>
+        <div class="design-warnings" v-if="professionalWarnings.length">
+          <b>配置状态</b>
+          <ul>
+            <li v-for="w in professionalWarnings" :key="w">[[ w ]]</li>
+          </ul>
+        </div>
+        <div class="adv-table-wrap pro-table" v-if="professionalPreviewRows.length">
+          <table class="adv-table">
+            <thead><tr><th>类型</th><th>名称</th><th>别名</th><th>帧数</th></tr></thead>
+            <tbody>
+              <tr v-for="row in professionalPreviewRows" :key="row.kind + row.name">
+                <td>[[ row.kind ]]</td>
+                <td><b>[[ row.title ]]</b><small>[[ row.name ]]</small></td>
+                <td><small>[[ row.alias || '-' ]]</small></td>
+                <td>[[ row.frames ]]</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+  <p class="lead" v-if="msg">[[ msg ]]</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+const FACE_PARTS_EDITOR = window.DeskbotFaceParts;
+
+createApp({
+  delimiters:['[[',']]'],
+  data(){ return {
+    revision:0, scenes:[], selected:0, map:{}, persistedMap:{}, mapDirty:false,
+    draftScene:null, editingSourceName:'', draftDirty:false, activeSavedExpressionId:'',
+    sourceExpressionTitle:'我的表情', savedVectorName:'我的表情', saveTitleChanged:false,
+    editorParts:{}, selectedPartId:'eye_l', frameResetSnapshots:[],
+    previewFrameIndex:0, previewProgress:1, previewPlaying:false, previewLoop:true, previewTimer:null, previewStartedAt:0,
+    brushMode:false, brushColor:'#f4f4ef', brushSize:3, activeBrushStroke:[], previewPointerGesture:null,
+    exprTab:'face', deviceId:'', sending:false, settingDefault:false, mutationBusy:false, savingProfessional:false, loadSeq:0, _stopDeviceListener:null,
+    runtimeState:null, runtimeError:'', runtimeTimer:null, runtimePollSeq:0, lastWebPreview:null,
+    faceParts:FACE_PARTS_EDITOR.parts, shapeOptions:FACE_PARTS_EDITOR.shapeOptions,
+    emotions:[['happy','😄','开心'],['surprised','😲','惊讶'],['thinking','🤔','思考'],['sleepy','😴','困'],['idle','😐','待机']],
+    msg:'', professionalDesign:null, professionalFileName:'',
+    imageExpressionFile:null, imageExpressionFileName:'', imageExpressionResult:null,
+    generatingImageExpression:false, imageExpressionProgress:0, imageExpressionProgressLabel:'', imageExpressionProgressTimer:null,
+    imageExpressionPrompt:'保留原图最鲜明的情绪和嘴型，做成小歪 OLED 表情。',
+    llmNeedsConfig:false, llmConfigMessage:'', professionalAiOpen:false, generatingProfessional:false,
+    professionalPrompt:'做一套小歪默认表情：开心、困困、惊讶、思考、待机，风格圆润，嘴型适合中文拼音。'
+  }; },
+  computed:{
+    selectedScene(){ return this.scenes[this.selected] || null; },
+    homePreviewScene(){
+      const preview=window.DeskbotFacePreview;
+      return preview ? preview.pickScene(this.scenes,this.map,'idle') : this.selectedScene;
+    },
+    previewScene(){ return this.draftScene || this.selectedScene || this.homePreviewScene || this.buildCustomScene(); },
+    previewTitle(){
+      const scene=this.previewScene||{};
+      return scene.title || this.sourceExpressionTitle || scene.name || '我的表情';
+    },
+    customPreviewSvg(){ return this.renderSceneSvg(this.previewSceneWithActiveBrush(),this.previewFrameIndex); },
+    previewFrameCount(){ return this.sceneFrameCount(this.previewScene); },
+    previewFrameLabel(){ return this.frameLabel(this.previewScene,this.previewFrameIndex); },
+    runtimeDisplayLabel(){const r=this.runtimeState||{};return r.displayed_title||r.displayed_expression||'尚未确认';},
+    runtimeSourceLabel(){const r=this.runtimeState||{};return r.displayed_source||r.active_source||'未知';},
+    runtimeReasonLabel(){const r=this.runtimeState||{};return r.displayed_reason||'-';},
+    runtimeDesiredState(){return String((this.runtimeState||{}).desired_state||'-');},
+    runtimeMouthOverlay(){const overlay=(this.runtimeState||{}).mouth_overlay;return overlay&&typeof overlay==='object'?overlay:{active:false};},
+    runtimeMouthOverlayLabel(){const overlay=this.runtimeMouthOverlay,kind=String(overlay.kind||'');return kind==='rtc_pcm'?'RTC 实时音量口型叠加中':'TTS 音素口型叠加中';},
+    runtimeFingerprint(){return String((this.runtimeState||{}).frame_fingerprint||'');},
+    runtimeFinalFingerprint(){return String((this.runtimeState||{}).final_frame_fingerprint||'');},
+    runtimeFrameCount(){return Math.max(0,Number((this.runtimeState||{}).frame_count)||0);},
+    runtimeFrameSummary(){const r=this.runtimeState||{};return this.timelineSummary(r.frame_count,r.timeline_ms,r.final_frame_index);},
+    webPreviewFrameSummary(){const sent=this.lastWebPreview||{};return this.timelineSummary(sent.frameCount,sent.timelineMs,sent.finalFrameIndex);},
+    runtimeHistory(){return Array.isArray((this.runtimeState||{}).history)?this.runtimeState.history.slice(0,6):[];},
+    webPreviewParity(){
+      const sent=this.lastWebPreview,r=this.runtimeState||{};
+      if(!sent)return{state:'none',label:''};
+      const currentOperation=String(r.displayed_operation_id||''),sameOperation=!!sent.operationId&&currentOperation===String(sent.operationId);
+      const currentTitle=r.displayed_title||r.displayed_expression||'另一表情',currentSource=this.sourceLabel(r.displayed_source||r.active_source),currentReason=this.reasonLabel(r.displayed_reason),ownership=sameOperation?'；当前屏幕仍由本操作占有':'；当前屏幕归属：'+currentTitle+'（'+currentSource+' / '+currentReason+'）';
+      const failedStates=new Set(['failed','cancelled','coalesced','timeout','disconnected','device_unavailable','request_active','not_found','closed','error','deferred']);
+      if(failedStates.has(String(sent.status||'')))return{state:'failed',label:'操作未显示：'+this.statusLabel(sent.status)+ownership};
+      if(sent.status!=='played')return{state:'unconfirmed',label:'操作进行中：'+this.statusLabel(sent.status)+'，尚未取得固件 played 终态'+ownership};
+      if(!sent.expectedDisplayCrc32||!sent.deviceDisplayCrc32)return{state:'unconfirmed',label:'操作结果未确认：固件已执行，但没有独立显示 CRC'+ownership};
+      if(sent.expectedDisplayCrc32!==sent.deviceDisplayCrc32)return{state:'failed',label:'协议不一致：同一操作的预期 CRC 与设备最终显示 CRC 不同'+ownership};
+      if(sameOperation){
+        const suffix=this.runtimeMouthOverlay.active?'；当前仅叠加嘴型，完整脸没有切换。':'';
+        return{state:'match',label:'协议一致：设备解码后的最终完整脸与 Web 下发内容相同'+suffix};
+      }
+      const title=r.displayed_title||r.displayed_expression||'另一表情',source=this.sourceLabel(r.displayed_source||r.active_source),reason=this.reasonLabel(r.displayed_reason);
+      return{state:'overridden',label:'已被覆盖：'+title+'（'+source+' / '+reason+'）'};
+    },
+    imageExpressionProgressVisible(){ return !!(this.generatingImageExpression||this.imageExpressionProgress>0); },
+    imageExpressionProgressValue(){ return Math.round(this.imageExpressionProgress||0); },
+    userExpressionScenes(){ return (this.scenes||[]).filter(scene=>this.isUserExpressionScene(scene)); },
+    systemExampleScenes(){ return (this.scenes||[]).filter(scene=>scene&&!this.isUserExpressionScene(scene)); },
+    currentEditorPart(){ return this.editorParts&&this.editorParts[this.selectedPartId]||null; },
+    selectedPartBounds(){ return this.previewPlaying||this.brushMode?null:FACE_PARTS_EDITOR.partBounds(this.editorParts,this.selectedPartId); },
+    selectionHandles(){
+      const box=this.selectedPartBounds;if(!box)return[];const left=box.left,right=box.right,top=box.top,bottom=box.bottom,cx=box.x,cy=box.y;
+      return [{id:'nw',x:left,y:top},{id:'n',x:cx,y:top},{id:'ne',x:right,y:top},{id:'e',x:right,y:cy},{id:'se',x:right,y:bottom},{id:'s',x:cx,y:bottom},{id:'sw',x:left,y:bottom},{id:'w',x:left,y:cy}];
+    },
+    brushUndoDepth(){ return FACE_PARTS_EDITOR.brushUndoDepth(this.editorParts); },
+    selectedPartLabel(){ const part=(this.faceParts||[]).find(item=>item.id===this.selectedPartId);return part?part.label:'部位'; },
+    professionalStats(){
+      const design=this.professionalDesign||{},phonemes=Array.isArray(design.phonemes)?design.phonemes:[],emotions=Array.isArray(design.emotions)?design.emotions:[];
+      return {name:design.name||'未导入',phonemes:phonemes.length,emotions:emotions.length,frames:phonemes.concat(emotions).reduce((sum,item)=>sum+(Array.isArray(item.frames)?item.frames.length:0),0)};
+    },
+    professionalWarnings(){
+      if(!this.professionalDesign)return ['还没有导入专业设计，也可以先从当前表情生成一份 JSON。'];
+      const rows=[];if(!this.professionalStats.phonemes)rows.push('没有 phonemes，保存时不会更新拼音嘴型。');if(!this.professionalStats.emotions)rows.push('没有 emotions，保存时不会更新情绪表情库。');return rows;
+    },
+    professionalPreviewRows(){
+      const design=this.professionalDesign||{},rows=[];
+      const collect=(items,kind)=>(items||[]).slice(0,8).forEach(item=>rows.push({kind,name:item.name||'-',title:item.title||item.name||'-',alias:(item.alias||[]).join(', '),frames:Array.isArray(item.frames)?item.frames.length:0}));
+      collect(design.emotions,'emotion');collect(design.phonemes,'phoneme');return rows.slice(0,12);
+    }
+  },
+  methods:{
+    clamp(value,min,max){const number=Number(value);return Math.max(min,Math.min(Number.isFinite(number)?number:min,max));},
+    copyJson(value,fallback){if(value===undefined||value===null)return fallback;try{return JSON.parse(JSON.stringify(value));}catch(_){return fallback;}},
+    emptyElements(){return {bg:[],nose:[],mouth:[],eye_l:[],eye_r:[],extra:[]};},
+    slugName(value,fallback){const raw=String(value||fallback||'').trim(),slug=raw.toLowerCase().replace(/[^a-z0-9_\-\u4e00-\u9fa5]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,64);return slug||fallback||'item';},
+    aliasList(value){if(Array.isArray(value))return value.map(item=>String(item||'').trim()).filter(Boolean);if(typeof value==='string')return value.split(/[,\s/]+/).map(item=>item.trim()).filter(Boolean);return [];},
+    normalizeMap(map){const out=Object.assign({},map&&typeof map==='object'?map:{});this.emotions.forEach(([key])=>{if(out[key]===undefined)out[key]='';});return out;},
+    isUserExpressionScene(scene){return String(scene&&scene.origin||'').trim().toLowerCase()==='user';},
+    sceneByName(name){return (this.scenes||[]).find(scene=>scene&&scene.name===name)||null;},
+    expressionVersionBase(title){return String(title||'').trim().replace(/\uFF08\d+\uFF09$/,'')||'我的表情';},
+    defaultCopyTitle(scene){
+      const base=this.expressionVersionBase(scene&&(scene.title||scene.name)||this.sourceExpressionTitle);
+      const used=new Set((this.scenes||[]).map(row=>String(row&&(row.title||row.name)||'').trim()).filter(Boolean));
+      let index=1;while(used.has(base+'（'+index+'）'))index+=1;return base+'（'+index+'）';
+    },
+    markSaveTitleChanged(){this.saveTitleChanged=true;},
+    desiredCopyTitle(scene){const typed=String(this.savedVectorName||'').trim();return this.saveTitleChanged&&typed?typed:this.defaultCopyTitle(scene);},
+    setExprTab(tab){this.exprTab=tab==='professional'?'professional':'face';if(this.exprTab==='face')this.ensurePartEditing();},
+    ensurePartEditing(){if(!this.draftScene)this.editExpressionScene(this.selectedScene||this.homePreviewScene||this.buildCustomScene(),{silent:true});else this.syncEditorForFrame();},
+    partState(partId){return this.editorParts&&this.editorParts[partId]||{};},
+    partNumber(field){const value=this.currentEditorPart&&Number(this.currentEditorPart[field]);return Number.isFinite(value)?Math.round(value*10)/10:0;},
+    selectFacePart(partId){if(!this.previewPlaying&&FACE_PARTS_EDITOR.partById[partId])this.selectedPartId=partId;},
+    toggleSelectedPart(){if(!this.previewPlaying&&this.currentEditorPart)this.updateSelectedPart({visible:!this.currentEditorPart.visible});},
+    previewSceneWithActiveBrush(){
+      if(!Array.isArray(this.activeBrushStroke)||!this.activeBrushStroke.length)return this.previewScene;
+      const scene=this.copyJson(this.previewScene,null);if(!scene||!Array.isArray(scene.frames)||!scene.frames.length)return this.previewScene;
+      const index=this.activeFrameIndex(scene,this.previewFrameIndex),frame=this.copyJson(scene.frames[index]||{},{}),elements=this.copyJson(frame.elements&&typeof frame.elements==='object'?frame.elements:this.emptyElements(),this.emptyElements());
+      elements.extra=(Array.isArray(elements.extra)?elements.extra:[]).concat(this.copyJson(this.activeBrushStroke,[]));frame.elements=elements;scene.frames.splice(index,1,frame);return scene;
+    },
+    previewPoint(event){
+      const svg=this.$refs.faceEditorSvg;if(!svg)return null;
+      try{const point=svg.createSVGPoint();point.x=Number(event.clientX);point.y=Number(event.clientY);const local=point.matrixTransform(svg.getScreenCTM().inverse());return {x:this.clamp(local.x,0,FACE_PARTS_EDITOR.CANVAS_WIDTH),y:this.clamp(local.y,0,FACE_PARTS_EDITOR.CANVAS_HEIGHT)};}catch(_){}
+      const rect=svg.getBoundingClientRect?svg.getBoundingClientRect():null;if(!rect||!rect.width||!rect.height)return null;return {x:this.clamp((Number(event.clientX)-rect.left)*FACE_PARTS_EDITOR.CANVAS_WIDTH/rect.width,0,FACE_PARTS_EDITOR.CANVAS_WIDTH),y:this.clamp((Number(event.clientY)-rect.top)*FACE_PARTS_EDITOR.CANVAS_HEIGHT/rect.height,0,FACE_PARTS_EDITOR.CANVAS_HEIGHT)};
+    },
+    capturePreviewPointer(event){const svg=this.$refs.faceEditorSvg;try{if(svg&&svg.setPointerCapture&&event.pointerId!=null)svg.setPointerCapture(event.pointerId);}catch(_){}},
+    releasePreviewPointer(event){const svg=this.$refs.faceEditorSvg;try{if(svg&&svg.releasePointerCapture&&event&&event.pointerId!=null&&svg.hasPointerCapture(event.pointerId))svg.releasePointerCapture(event.pointerId);}catch(_){}},
+    cancelPreviewGesture(event){this.releasePreviewPointer(event);this.previewPointerGesture=null;this.activeBrushStroke=[];},
+    onPreviewPointerDown(event){
+      if(this.previewPlaying||event.button>0)return;const point=this.previewPoint(event);if(!point)return;
+      this.capturePreviewPointer(event);
+      if(this.brushMode){this.activeBrushStroke=[];this.previewPointerGesture={type:'brush',pointerId:event.pointerId,last:point};return;}
+      const handle=String(event.target&&event.target.getAttribute&&event.target.getAttribute('data-resize-handle')||'');
+      let partId=this.selectedPartId;
+      if(!handle){const hits=FACE_PARTS_EDITOR.hitTestParts(this.editorParts,point.x,point.y,7);if(!hits.length){this.cancelPreviewGesture(event);return;}partId=hits.includes(this.selectedPartId)?this.selectedPartId:hits[0];this.selectedPartId=partId;}
+      const current=this.editorParts&&this.editorParts[partId],bounds=FACE_PARTS_EDITOR.partBounds(this.editorParts,partId);if(!current||!bounds){this.cancelPreviewGesture(event);return;}
+      this.previewPointerGesture={type:handle?'resize':'move',handle,partId,pointerId:event.pointerId,start:point,bounds:this.copyJson(bounds,{}),initial:this.copyJson(current,{})};
+    },
+    onPreviewPointerMove(event){
+      const gesture=this.previewPointerGesture;if(!gesture||gesture.pointerId!==event.pointerId)return;const point=this.previewPoint(event);if(!point)return;
+      if(gesture.type==='brush'){
+        const last=gesture.last,dx=point.x-last.x,dy=point.y-last.y;if(Math.hypot(dx,dy)<1.2)return;
+        const remaining=FACE_PARTS_EDITOR.brushRemainingSegments(this.editorParts)-this.activeBrushStroke.length;
+        if(remaining<=0){gesture.last=point;return;}
+        this.activeBrushStroke=this.activeBrushStroke.concat([{shape:'line',x1:last.x,y1:last.y,x2:point.x,y2:point.y,sw:this.clamp(this.brushSize,1,12),color:this.brushColor}]);gesture.last=point;return;
+      }
+      const dx=point.x-gesture.start.x,dy=point.y-gesture.start.y,initial=gesture.initial||{};this.selectedPartId=gesture.partId;
+      if(gesture.type==='move'){this.updateSelectedPart({x:Number(initial.x||0)+dx,y:Number(initial.y||0)+dy});return;}
+      const handle=gesture.handle||'',patch={};
+      if(handle.length===2){
+        const sx=handle.includes('e')?1:-1,sy=handle.includes('s')?1:-1,bounds=gesture.bounds||{},ratio=Math.max(.25,1+((sx*dx/Math.max(1,bounds.width))+(sy*dy/Math.max(1,bounds.height)))/2);patch.size=Number(initial.size||100)*ratio;
+      }else if(handle==='e'||handle==='w'){
+        const sign=handle==='e'?1:-1,scale=Math.max(.25,Number(initial.size||100)/100);patch.width=Number(initial.width||1)+sign*dx*2/scale;
+      }else if(handle==='n'||handle==='s'){
+        const sign=handle==='s'?1:-1,scale=Math.max(.25,Number(initial.size||100)/100);patch.height=Number(initial.height||1)+sign*dy*2/scale;
+      }
+      this.updateSelectedPart(patch);
+    },
+    finishPreviewPointer(event,commit){
+      const gesture=this.previewPointerGesture;if(!gesture||gesture.pointerId!==event.pointerId)return;
+      const stroke=this.copyJson(this.activeBrushStroke,[]);this.previewPointerGesture=null;this.activeBrushStroke=[];this.releasePreviewPointer(event);
+      if(commit&&gesture.type==='brush'&&stroke.length)this.commitBrushStroke(stroke);
+    },
+    onPreviewPointerUp(event){this.finishPreviewPointer(event,true);},
+    onPreviewPointerCancel(event){this.finishPreviewPointer(event,false);},
+    toggleBrushMode(){if(this.previewPlaying)return;this.cancelPreviewGesture();this.brushMode=!this.brushMode;this.msg=this.brushMode?'画笔已开启：按住并拖动即可绘制线条':'画笔已关闭';},
+    commitBrushStroke(stroke){
+      if(this.previewPlaying||!Array.isArray(stroke)||!stroke.length)return;
+      const draft=this.copyJson(this.ensureDraftScene(),this.buildCustomScene()),index=this.activeFrameIndex(draft,this.previewFrameIndex),frame=this.copyJson(draft.frames[index]||{},{}),elements=frame.elements&&typeof frame.elements==='object'?frame.elements:this.emptyElements();
+      const metadata=FACE_PARTS_EDITOR.initializeEditorParts(frame,elements),next=FACE_PARTS_EDITOR.addBrushStroke(metadata,stroke);frame[FACE_PARTS_EDITOR.EDITOR_META_KEY]=this.copyJson(next,{});frame.elements=FACE_PARTS_EDITOR.composeElements(elements,next);draft.frames.splice(index,1,frame);this.draftScene=draft;this.editorParts=this.copyJson(next,{});this.draftDirty=true;this.msg='已绘制一笔，可撤销最近 '+FACE_PARTS_EDITOR.MAX_BRUSH_UNDO_STEPS+' 笔';
+    },
+    undoDrawing(){
+      if(this.previewPlaying||this.brushUndoDepth<=0)return;this.cancelPreviewGesture();
+      const draft=this.copyJson(this.ensureDraftScene(),this.buildCustomScene()),index=this.activeFrameIndex(draft,this.previewFrameIndex),frame=this.copyJson(draft.frames[index]||{},{}),elements=frame.elements&&typeof frame.elements==='object'?frame.elements:this.emptyElements();
+      const metadata=FACE_PARTS_EDITOR.initializeEditorParts(frame,elements),next=FACE_PARTS_EDITOR.undoBrushStroke(metadata);frame[FACE_PARTS_EDITOR.EDITOR_META_KEY]=this.copyJson(next,{});frame.elements=FACE_PARTS_EDITOR.composeElements(elements,next);draft.frames.splice(index,1,frame);this.draftScene=draft;this.editorParts=this.copyJson(next,{});this.draftDirty=true;this.msg=this.brushUndoDepth>0?'已撤销上一笔绘画':'已撤销绘画，当前帧没有更多可撤销笔画';
+    },
+    selectSceneByName(name){const index=(this.scenes||[]).findIndex(scene=>scene&&scene.name===name);if(index>=0)this.selected=index;},
+    applySnapshot(payload,options){
+      const keepDraft=!!(options&&options.keepDraft),selectedName=this.selectedScene&&this.selectedScene.name;
+      const pendingMapPatch=options&&options.pendingMapPatch&&typeof options.pendingMapPatch==='object'?options.pendingMapPatch:null;
+      this.revision=Math.max(0,Number(payload&&payload.revision)||0);this.scenes=Array.isArray(payload&&payload.config)?payload.config:[];
+      this.persistedMap=this.copyJson(payload&&payload.map||{},{});this.map=this.normalizeMap(this.persistedMap);this.mapDirty=false;
+      if(pendingMapPatch){Object.keys(pendingMapPatch).forEach(key=>{const value=pendingMapPatch[key];this.map[key]=value===null?'':String(value||'');});this.mapDirty=Object.keys(this.changedMapPatch()).length>0;}
+      if(selectedName)this.selectSceneByName(selectedName);if(!this.selectedScene&&this.scenes.length)this.selected=0;
+      if(!keepDraft){this.cancelPreviewGesture();this.brushMode=false;this.draftScene=null;this.editingSourceName='';this.activeSavedExpressionId='';this.draftDirty=false;this.saveTitleChanged=false;this.editorParts={};this.frameResetSnapshots=[];}
+    },
+    async load(options){
+      const sequence=++this.loadSeq;
+      try{
+        const response=await fetch('/api/face_expression_transaction'),payload=await response.json();if(sequence!==this.loadSeq)return;
+        if(!response.ok||!payload.ok)throw new Error(payload.error||'表情数据加载失败');this.applySnapshot(payload,options);
+        if(!this.draftScene){const preview=window.DeskbotFacePreview,idle=preview?preview.pickScene(this.scenes,this.map,'idle'):this.selectedScene;if(idle&&idle.name)this.selectSceneByName(idle.name);const source=this.selectedScene||idle||this.buildCustomScene();this.editExpressionScene(source,{silent:true});}
+        this.stopPreviewPlayback();
+      }catch(error){if(sequence!==this.loadSeq)return;this.msg='表情数据加载失败：'+(error&&error.message?error.message:error);}
+    },
+    async postExpressionTransaction(mutation,options){
+      if(this.mutationBusy)throw new Error('表情保存正在进行，请稍候');
+      const pendingMapPatch=this.mapDirty?this.changedMapPatch():null;
+      this.mutationBusy=true;
+      try{
+        const body=Object.assign({expected_revision:this.revision},mutation||{}),response=await fetch('/api/face_expression_transaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),payload=await response.json();
+        if(response.status===409){await this.load({keepDraft:true,pendingMapPatch});throw new Error('表情库已被其他页面更新；已刷新最新版本，请检查后重试');}
+        if(!response.ok||!payload.ok)throw new Error(payload.error||'表情事务保存失败');this.applySnapshot(payload,options);return payload;
+      }finally{this.mutationBusy=false;}
+    },
+    changedMapPatch(){
+      const patch={},keys=new Set(Object.keys(this.persistedMap||{}).concat(Object.keys(this.map||{})));keys.forEach(key=>{const before=String((this.persistedMap||{})[key]||''),after=String((this.map||{})[key]||'');if(before!==after)patch[key]=after||null;});return patch;
+    },
+    markMapChanged(key){this.mapDirty=true;if(key==='idle'&&!this.draftScene){const scene=this.sceneByName(this.map.idle);if(scene)this.selectSceneByName(scene.name);}},
+    async saveMap(){if(!this.mapDirty||this.mutationBusy)return;try{await this.postExpressionTransaction({map_patch:this.changedMapPatch()},{keepDraft:true});this.msg='情绪映射已保存';}catch(error){this.msg='映射保存失败：'+(error.message||error);}},
+    sceneFrameCount(scene){const preview=window.DeskbotFacePreview;return preview&&preview.frameCount?preview.frameCount(scene):1;},
+    sceneFrameMs(scene,index){const preview=window.DeskbotFacePreview;return preview&&preview.frameMs?preview.frameMs(scene,index):500;},
+    activeFrameIndex(scene,index){return Math.max(0,Math.min(Number(index)||0,this.sceneFrameCount(scene)-1));},
+    frameLabel(scene,index){const current=this.activeFrameIndex(scene,index);return '帧 '+(current+1)+'/'+this.sceneFrameCount(scene)+' · '+this.sceneFrameMs(scene,current)+'ms';},
+    renderSceneSvg(scene,index){const preview=window.DeskbotFacePreview;return preview?preview.sceneToSvg(scene,this.activeFrameIndex(scene,index),this.previewPlaying?this.previewProgress:null):'';},
+    clearPreviewTimer(){if(this.previewTimer){cancelAnimationFrame(this.previewTimer);this.previewTimer=null;}},
+    schedulePreviewPlayback(){
+      this.clearPreviewTimer();if(!this.previewPlaying||this.previewFrameCount<=1)return;
+      const started=this.previewStartedAt||performance.now();this.previewStartedAt=started;
+      const tick=(now)=>{if(!this.previewPlaying)return;const activeDuration=Math.max(40,this.sceneFrameMs(this.previewScene,this.previewFrameIndex));this.previewProgress=this.clamp((now-this.previewStartedAt)/activeDuration,0,1);if(this.previewProgress>=1){if(!this.previewLoop&&this.previewFrameIndex>=this.previewFrameCount-1){this.previewPlaying=false;this.previewProgress=1;this.previewTimer=null;this.syncEditorForFrame();return;}this.previewFrameIndex=(this.previewFrameIndex+1)%this.previewFrameCount;this.previewProgress=0;this.previewStartedAt=now;}this.previewTimer=requestAnimationFrame(tick);};
+      this.previewTimer=requestAnimationFrame(tick);
+    },
+    setPreviewFrame(index){this.cancelPreviewGesture();this.previewFrameIndex=this.activeFrameIndex(this.previewScene,index);this.previewProgress=1;if(!this.previewPlaying)this.syncEditorForFrame();},
+    stopPreviewPlayback(){this.cancelPreviewGesture();this.previewPlaying=false;this.previewLoop=true;this.clearPreviewTimer();this.previewFrameIndex=0;this.previewProgress=1;this.previewStartedAt=0;this.syncEditorForFrame();},
+    prevPreviewFrame(){if(this.previewPlaying)this.stopPreviewPlayback();this.setPreviewFrame((this.previewFrameIndex+this.previewFrameCount-1)%this.previewFrameCount);},
+    nextPreviewFrame(){if(this.previewPlaying)this.stopPreviewPlayback();this.setPreviewFrame((this.previewFrameIndex+1)%this.previewFrameCount);},
+    startPreviewPlayback(loop){this.cancelPreviewGesture();this.brushMode=false;this.previewPlaying=true;this.previewLoop=loop!==false;this.previewFrameIndex=0;this.previewProgress=0;this.previewStartedAt=performance.now();this.schedulePreviewPlayback();},
+    togglePreviewPlayback(){if(this.previewPlaying){this.stopPreviewPlayback();return;}this.startPreviewPlayback(true);},
+    buildCustomScene(){return FACE_PARTS_EDITOR.defaultScene(this.sourceExpressionTitle||'我的表情');},
+    ensureDraftScene(){if(!this.draftScene){const source=this.selectedScene||this.homePreviewScene;this.draftScene=this.copyJson(source||this.buildCustomScene(),this.buildCustomScene());this.editingSourceName=source&&source.name||'';this.activeSavedExpressionId=this.isUserExpressionScene(source)?source.name:'';}if(!Array.isArray(this.draftScene.frames)||!this.draftScene.frames.length)this.draftScene.frames=this.buildCustomScene().frames;return this.draftScene;},
+    addPreviewFrame(){
+      if(this.previewPlaying)return;
+      this.cancelPreviewGesture();
+      const draft=this.copyJson(this.ensureDraftScene(),this.buildCustomScene()),index=this.activeFrameIndex(draft,this.previewFrameIndex),defaultScene=FACE_PARTS_EDITOR.defaultScene(this.sourceExpressionTitle||'我的表情'),frame=this.copyJson(defaultScene.frames&&defaultScene.frames[0],null);
+      if(!frame){this.msg='无法创建默认帧';return;}
+      const snapshots=Array.isArray(this.frameResetSnapshots)&&this.frameResetSnapshots.length===draft.frames.length?this.copyJson(this.frameResetSnapshots,[]):this.copyJson(draft.frames,[]);
+      draft.frames.splice(index+1,0,frame);snapshots.splice(index+1,0,this.copyJson(frame,{}));this.draftScene=draft;this.frameResetSnapshots=snapshots;this.previewFrameIndex=index+1;this.draftDirty=true;this.syncEditorForFrame();this.msg='已在当前帧后新增默认帧';
+    },
+    deletePreviewFrame(){
+      if(this.previewPlaying)return;
+      this.cancelPreviewGesture();
+      const draft=this.copyJson(this.ensureDraftScene(),this.buildCustomScene());
+      if(!Array.isArray(draft.frames)||draft.frames.length<=1){this.msg='至少需要保留一帧';return;}
+      const index=this.activeFrameIndex(draft,this.previewFrameIndex),snapshots=Array.isArray(this.frameResetSnapshots)&&this.frameResetSnapshots.length===draft.frames.length?this.copyJson(this.frameResetSnapshots,[]):this.copyJson(draft.frames,[]);
+      draft.frames.splice(index,1);snapshots.splice(index,1);this.draftScene=draft;this.frameResetSnapshots=snapshots;this.previewFrameIndex=Math.min(index,draft.frames.length-1);this.draftDirty=true;this.syncEditorForFrame();this.msg='已删除当前帧';
+    },
+    syncEditorForFrame(){
+      if(!this.draftScene)return;
+      const draft=this.copyJson(this.draftScene,this.buildCustomScene()),index=this.activeFrameIndex(draft,this.previewFrameIndex),frame=this.copyJson(draft.frames[index]||{},{}),elements=frame.elements&&typeof frame.elements==='object'?frame.elements:this.emptyElements();
+      const metadata=FACE_PARTS_EDITOR.initializeEditorParts(frame,elements);if(metadata.nose&&metadata.nose.visible&&(!Array.isArray(elements.nose)||!elements.nose.length))elements.nose=FACE_PARTS_EDITOR.composeElements(elements,metadata).nose;frame.elements=elements;frame[FACE_PARTS_EDITOR.EDITOR_META_KEY]=metadata;draft.frames.splice(index,1,frame);this.draftScene=draft;this.editorParts=this.copyJson(metadata,{});
+    },
+    updateSelectedPart(patch){
+      if(this.previewPlaying||!FACE_PARTS_EDITOR.partById[this.selectedPartId])return;
+      const draft=this.copyJson(this.ensureDraftScene(),this.buildCustomScene()),index=this.activeFrameIndex(draft,this.previewFrameIndex),frame=this.copyJson(draft.frames[index]||{},{}),elements=frame.elements&&typeof frame.elements==='object'?frame.elements:this.emptyElements();
+      const metadata=FACE_PARTS_EDITOR.initializeEditorParts(frame,elements),next=FACE_PARTS_EDITOR.updateEditorPart(metadata,this.selectedPartId,patch);
+      frame[FACE_PARTS_EDITOR.EDITOR_META_KEY]=this.copyJson(next,{});frame.elements=FACE_PARTS_EDITOR.composeElements(elements,next);draft.frames.splice(index,1,frame);this.draftScene=draft;this.editorParts=this.copyJson(next,{});this.draftDirty=true;
+    },
+    resetCurrentFrame(){
+      if(this.previewPlaying)return;
+      this.cancelPreviewGesture();
+      const draft=this.copyJson(this.ensureDraftScene(),this.buildCustomScene()),index=this.activeFrameIndex(draft,this.previewFrameIndex),snapshot=this.copyJson(this.frameResetSnapshots[index],null);
+      if(!snapshot){this.msg='当前帧没有可恢复的初始快照';return;}
+      draft.frames.splice(index,1,snapshot);this.draftScene=draft;this.draftDirty=true;this.syncEditorForFrame();this.msg='已恢复当前帧；其他帧保持不变';
+    },
+    editExpressionScene(scene, options){
+      if(!scene) return;
+      this.cancelPreviewGesture();this.brushMode=false;
+      if(scene.name) this.selectSceneByName(scene.name);
+      this.draftScene=this.copyJson(scene,this.buildCustomScene()); this.editingSourceName=String(scene.name||'');
+      this.activeSavedExpressionId=this.isUserExpressionScene(scene) ? scene.name : '';
+      this.sourceExpressionTitle=String(scene.title||scene.name||'我的表情');
+      this.savedVectorName=this.defaultCopyTitle(scene); this.saveTitleChanged=false; this.draftDirty=false;
+      this.frameResetSnapshots=this.copyJson(this.draftScene.frames,[]);this.previewPlaying=false;this.clearPreviewTimer();this.previewFrameIndex=0;this.syncEditorForFrame();
+      if(!(options&&options.silent)) this.msg=(this.activeSavedExpressionId?'正在编辑我的表情：':'正在编辑系统表情：')+this.sourceExpressionTitle;
+    },
+    sceneMutation(scene, title, name){
+      const row=this.copyJson(scene,{}); row.title=String(title||row.title||'我的表情').trim()||'我的表情';
+      if(name) row.name=name; else delete row.name;
+      delete row.origin;
+      return row;
+    },
+    async createExpression(scene, title, options){
+      const payload=await this.postExpressionTransaction({scenes:{create:[this.sceneMutation(scene,title)]}});
+      const created=payload.created&&payload.created[0];
+      const saved=created&&this.sceneByName(created.name);
+      if(saved) this.editExpressionScene(saved,{silent:true});
+      return saved||created||null;
+    },
+    async saveExpressionCopy(){
+      if(this.mutationBusy)return;
+      const scene=this.draftScene||this.previewScene, title=this.desiredCopyTitle(scene);
+      try{ await this.createExpression(scene,title); this.msg='已保存到库：'+title; }
+      catch(error){ this.msg='保存到库失败：'+(error.message||error); }
+    },
+    async updateUserExpression(scene){
+      if(this.mutationBusy)return;
+      const target=scene&&this.isUserExpressionScene(scene)?scene:this.sceneByName(this.activeSavedExpressionId);
+      if(!target||!this.isUserExpressionScene(target)){ this.msg='系统表情不可更新，请使用“保存到库”创建我的表情'; return; }
+      const source=this.editingSourceName===target.name&&this.draftScene?this.draftScene:target;
+      const typed=String(this.savedVectorName||'').trim(), useTyped=this.editingSourceName===target.name&&this.saveTitleChanged&&typed;
+      const title=useTyped?typed:String(target.title||target.name);
+      try{
+        await this.postExpressionTransaction({scenes:{update:[this.sceneMutation(source,title,target.name)]}});
+        const saved=this.sceneByName(target.name); if(saved) this.editExpressionScene(saved,{silent:true});
+        this.msg='已更新用户表情：'+title;
+      }catch(error){ this.msg='更新失败：'+(error.message||error); }
+    },
+    async removeUserExpression(scene){
+      if(this.mutationBusy)return;
+      if(!this.isUserExpressionScene(scene)){ this.msg='系统表情不可删除'; return; }
+      try{
+        await this.postExpressionTransaction({scenes:{delete:[scene.name]}});
+        this.sourceExpressionTitle='我的表情';this.editorParts={};this.frameResetSnapshots=[];
+        this.savedVectorName=this.defaultCopyTitle(null); this.msg='已删除表情：'+(scene.title||scene.name);
+      }catch(error){ this.msg='删除表情失败：'+(error.message||error); }
+    },
+    clearImageExpressionProgressTimer(){ if(this.imageExpressionProgressTimer){clearInterval(this.imageExpressionProgressTimer);this.imageExpressionProgressTimer=null;} },
+    startImageExpressionProgress(label,start,cap){
+      this.clearImageExpressionProgressTimer(); this.imageExpressionProgress=start||10; this.imageExpressionProgressLabel=label||'正在生成 SVG';
+      const limit=cap||90; this.imageExpressionProgressTimer=setInterval(()=>{if(this.imageExpressionProgress<limit)this.imageExpressionProgress=Math.min(limit,this.imageExpressionProgress+Math.max(1,(limit-this.imageExpressionProgress)*.08));},400);
+    },
+    finishImageExpressionProgress(label,value){
+      this.clearImageExpressionProgressTimer(); this.imageExpressionProgress=value||0; this.imageExpressionProgressLabel=label||'';
+    },
+    selectImageExpressionFile(event){
+      const input=event&&event.target,file=input&&input.files&&input.files[0]; if(!file)return;
+      this.imageExpressionFile=file;this.imageExpressionFileName=file.name||'image';this.imageExpressionResult=null;
+      this.finishImageExpressionProgress('',0);this.msg='已选择图片：'+this.imageExpressionFileName;
+    },
+    async generateImageExpression(){
+      if(this.generatingImageExpression)return;
+      if(!this.imageExpressionFile){this.msg='请先选择一张图片';return;}
+      this.generatingImageExpression=true;this.startImageExpressionProgress('正在上传图片并生成 SVG',12,90);
+      try{
+        const form=new FormData();form.append('prompt',String(this.imageExpressionPrompt||'').trim());form.append('image',this.imageExpressionFile);
+        const response=await fetch('/api/face_design/generate-from-image',{method:'POST',body:form}),payload=await response.json();
+        if(!response.ok||!payload.ok)throw new Error(payload.error||'图片表情包生成失败');
+        this.imageExpressionResult=payload;this.applyImageExpressionScene({silent:true});
+        this.finishImageExpressionProgress('SVG 已生成，可预览后保存',100);this.msg='已生成多帧动画表情，检查后保存到库';
+      }catch(error){this.msg='图片表情包生成失败：'+(error.message||error);this.finishImageExpressionProgress('',0);}
+      finally{this.generatingImageExpression=false;}
+    },
+    applyImageExpressionScene(options){
+      const scene=this.imageExpressionResult&&this.imageExpressionResult.scene;if(!scene){if(!(options&&options.silent))this.msg='没有可加入的表情 scene';return;}
+      const draft=this.copyJson(scene,null);if(!draft)return;delete draft.origin;
+      this.draftScene=draft;this.editingSourceName='';this.activeSavedExpressionId='';this.sourceExpressionTitle=String(draft.title||draft.name||'图片表情');
+      this.savedVectorName=this.defaultCopyTitle(draft);this.saveTitleChanged=false;this.draftDirty=true;this.frameResetSnapshots=this.copyJson(draft.frames,[]);this.previewPlaying=false;this.clearPreviewTimer();this.previewFrameIndex=0;this.syncEditorForFrame();
+      if(!(options&&options.silent))this.msg='图片表情已加入预览；保存到库后会进入我的表情';
+    },
+    normalizeDesignItem(item,prefix,index){
+      const source=item&&typeof item==='object'?item:{},alias=this.aliasList(source.alias),name=this.slugName(source.name||alias[0],prefix+'_'+(index+1));
+      const frameSource=Array.isArray(source.frames)?source.frames:(source.elements?[{ms:source.ms||320,elements:source.elements}]:[]);
+      const frames=frameSource.map(raw=>{const frame=this.copyJson(raw,{}),elements=frame.elements&&typeof frame.elements==='object'?frame.elements:null;if(!elements||!Object.keys(elements).length)return null;frame.ms=this.clamp(frame.ms||frame.duration||320,40,5000);delete frame.duration;return frame;}).filter(Boolean);
+      return {name,title:String(source.title||source.label||source.name||name),alias,frames};
+    },
+    normalizeProfessionalDesign(raw){
+      const source=raw&&typeof raw==='object'?raw:{},phonemes=Array.isArray(source.phonemes)?source.phonemes:[],emotions=Array.isArray(source.emotions)?source.emotions:(Array.isArray(source.scenes)?source.scenes:[]);
+      return {name:String(source.name||source.title||'deskbot-face-design'),description:String(source.description||''),
+        phonemes:phonemes.map((item,index)=>this.normalizeDesignItem(item,'phoneme',index)).filter(item=>item.frames.length),
+        emotions:emotions.map((item,index)=>this.normalizeDesignItem(item,'emotion',index)).filter(item=>item.frames.length)};
+    },
+    setProfessionalDesign(raw,fileName){
+      this.professionalDesign=this.normalizeProfessionalDesign(raw);this.professionalFileName=fileName||'';this.exprTab='professional';this.msg='已载入专业设计：'+this.professionalDesign.name;return this.professionalDesign;
+    },
+    async importProfessionalFile(event){
+      const input=event&&event.target,file=input&&input.files&&input.files[0];if(!file)return;
+      try{this.setProfessionalDesign(JSON.parse(await file.text()),file.name);}catch(error){this.msg='专业设计导入失败：'+(error.message||error);}finally{if(input)input.value='';}
+    },
+    async loadLlmConfigStatus(){
+      try{const data=await window.DeskbotConsole.apiJson('/api/advanced'),llm=data&&data.llm||{};this.llmNeedsConfig=!!llm.needs_config;this.llmConfigMessage=llm.config_message||'';}
+      catch(error){this.llmNeedsConfig=false;this.llmConfigMessage='模型配置状态读取失败：'+(error.message||'请稍后重试');}
+    },
+    faceDesignGeneratePayload(prompt){return {prompt};},
+    async generateProfessionalDesign(){
+      if(this.generatingProfessional)return;
+      if(this.llmNeedsConfig){this.msg=this.llmConfigMessage||'请先到「高级 · 模型配置」完成 AI 能力配置';return;}
+      const prompt=String(this.professionalPrompt||'').trim();if(!prompt){this.msg='请先输入想要的表情风格';return;}
+      this.generatingProfessional=true;
+      try{const response=await fetch('/api/face_design/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.faceDesignGeneratePayload(prompt))}),payload=await response.json();if(!response.ok||!payload.ok)throw new Error(payload.error||'AI 生成失败');this.setProfessionalDesign(payload.design,'ai-generated.json');this.msg='AI 已生成专业设计，检查后可应用保存';}
+      catch(error){this.msg='AI 生成失败：'+(error.message||error);}finally{this.generatingProfessional=false;}
+    },
+    loadProfessionalFromCurrent(){
+      this.setProfessionalDesign({name:'deskbot-current-face',description:'Generated from current Deskbot 2C face scenes',phonemes:[],emotions:(this.scenes||[]).map(scene=>({name:scene.name,title:scene.title||scene.name,alias:scene.alias||[],frames:this.copyJson(scene.frames,[])}))},'current-face.json');
+    },
+    professionalTransaction(design){
+      const creates=[],updates=[],lookups={},allScenes=this.scenes||[];
+      (design.emotions||[]).forEach((item,index)=>{
+        const stableAlias='professional_'+this.slugName(item.name,'emotion_'+(index+1))+'_'+index;
+        const existing=allScenes.find(scene=>this.isUserExpressionScene(scene)&&this.aliasList(scene.alias).some(alias=>alias.toLowerCase()===stableAlias.toLowerCase()));
+        const scene={title:item.title||item.name,alias:[stableAlias],frames:this.copyJson(item.frames,[])};
+        if(existing){scene.name=existing.name;updates.push(scene);lookups[item.name]=existing.name;}else{creates.push(scene);lookups[item.name]=stableAlias;}
+      });
+      return {scenes:{create:creates,update:updates,delete:[]},phonemes:{upsert:this.copyJson(design.phonemes||[],[])}};
+    },
+    async saveProfessionalDesign(){
+      if(this.savingProfessional||this.mutationBusy)return;
+      if(!this.professionalDesign){this.msg='请先导入或生成专业设计';return;}
+      this.savingProfessional=true;
+      try{const design=this.normalizeProfessionalDesign(this.professionalDesign),mutation=this.professionalTransaction(design);this.professionalDesign=design;await this.postExpressionTransaction(mutation);this.msg='专业设计已原子保存：'+(mutation.scenes.create.length+mutation.scenes.update.length)+' 个情绪表情，'+mutation.phonemes.upsert.length+' 组拼音嘴型';}
+      catch(error){this.msg='专业设计保存失败：'+(error.message||error);}finally{this.savingProfessional=false;}
+    },
+    exportProfessionalDesign(){
+      const design=this.professionalDesign||this.normalizeProfessionalDesign({name:'deskbot-current-face',phonemes:[],emotions:(this.scenes||[]).map(scene=>({name:scene.name,title:scene.title||scene.name,alias:scene.alias||[],frames:this.copyJson(scene.frames,[])}))});
+      const blob=new Blob([JSON.stringify(design,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+      link.href=url;link.download=(this.slugName(design.name,'deskbot-face-design')||'deskbot-face-design')+'.json';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);this.msg='已导出专业设计 JSON';
+    },
+    applyDeviceState(state){
+      const next=state&&state.phase==='ready'?state.targetId||'':'';
+      if(next===this.deviceId)return;
+      this.deviceId=next;this.runtimeState=null;this.runtimeError='';this.lastWebPreview=null;this.scheduleRuntimePoll(0);
+    },
+    clearRuntimeTimer(){if(this.runtimeTimer){clearTimeout(this.runtimeTimer);this.runtimeTimer=null;}},
+    shortFingerprint(value){const text=String(value||'');return text?text.slice(0,12):'-';},
+    timelineSummary(frameCount,timelineMs,finalFrameIndex){const count=Math.max(0,Number(frameCount)||0),duration=Math.max(0,Number(timelineMs)||0),finalIndex=Number(finalFrameIndex);if(!count)return'动画信息未知';const seconds=(duration/1000).toFixed(duration%1000?1:0);return count+' 帧 / '+seconds+' 秒 / 最终停留第 '+(Number.isFinite(finalIndex)?Math.max(0,finalIndex)+1:count)+' 帧';},
+    runtimeTimelineLabel(entry){return this.timelineSummary(entry&&entry.frame_count,entry&&entry.timeline_ms,entry&&entry.final_frame_index);},
+    sourceLabel(value){const key=String(value||'').trim(),labels={web:'Web',rtc:'语音生命周期',agent:'Agent 显式表情',tts:'TTS 嘴型',tts_image:'对话图片',manual_tts:'手工 TTS',playbook:'场景编排',boot:'启动'};return labels[key]||key||'未知';},
+    reasonLabel(value){const key=String(value||'').trim(),labels={http_device_pb_anim:'Web 设备预览',http_device_face_play:'Web 表情播放',http_device_pb_scene:'Web PB 场景',http_device_pb_expr_scene:'Web 表情库场景',http_device_servo_with_scene:'Web 动作附带表情',usb_session_ready:'USB 初始化待机',user_speech_start:'检测到说话',user_speech_confirmed_end:'确认说话结束',agent_state:'Agent 状态',barge_in:'用户打断',chat_tts_image:'对话图片',phoneme_playback:'TTS 音素嘴型',tool_play_expression:'Agent 工具'};if(key.startsWith('restore_desired:'))return'恢复语音目标（'+this.reasonLabel(key.slice(16))+'）';if(key.startsWith('scene_playbook:'))return'场景编排';return labels[key]||key||'-';},
+    statusLabel(value){const key=String(value||'').trim(),labels={accepted:'固件已接收',played:'固件已执行',unchanged:'无需重绘',failed:'失败',cancelled:'已取消',coalesced:'已合并',timeout:'超时',disconnected:'设备已断开',device_unavailable:'设备不可用',request_active:'请求冲突',not_found:'表情不存在',closed:'运行时已关闭',error:'异常',deferred:'被高优先级来源延后'};return labels[key]||key||'-';},
+    runtimeHistoryTime(entry){const timestamp=Number(entry&&entry.displayed_at||0);if(!timestamp)return '--:--:--';try{return new Date(timestamp*1000).toLocaleTimeString('zh-CN',{hour12:false});}catch(_){return '--:--:--';}},
+    runtimeWebHistoryEntry(operationId,runtime){const operation=String(operationId||''),operations=Array.isArray((runtime||{}).operations)?runtime.operations:[];return operations.find(entry=>entry&&entry.source==='web'&&String(entry.operation_id||'')===operation)||null;},
+    restoreLastWebPreview(runtime){const operations=Array.isArray((runtime||{}).operations)?runtime.operations:[],entry=operations.find(item=>item&&item.source==='web'&&item.operation_id);if(!entry)return;const candidateTime=Number(entry.updated_at||0),current=this.lastWebPreview;if(current&&String(current.operationId||'')!==String(entry.operation_id||'')&&Number(current.confirmedAt||0)>=candidateTime)return;this.lastWebPreview={operationId:String(entry.operation_id||''),title:String(entry.title||entry.expression||'Web 表情'),name:String(entry.expression||'adhoc_web'),status:String(entry.status||''),frameFingerprint:String(entry.frame_fingerprint||''),finalFrameFingerprint:String(entry.final_frame_fingerprint||''),expectedDisplayCrc32:String(entry.expected_display_crc32||''),deviceDisplayCrc32:String(entry.device_display_crc32||''),finalFrameIndex:Number.isInteger(entry.final_frame_index)?entry.final_frame_index:Math.max(0,Number(entry.frame_count||1)-1),frameCount:Math.max(0,Number(entry.frame_count)||0),timelineMs:Math.max(0,Number(entry.timeline_ms)||0),generation:Math.max(0,Number((runtime||{}).display_generation)||0),confirmedAt:candidateTime};},
+    scheduleRuntimePoll(delay){this.clearRuntimeTimer();if(!this.deviceId)return;this.runtimeTimer=setTimeout(()=>void this.pollExpressionRuntime(),Math.max(0,Number(delay)||0));},
+    async pollExpressionRuntime(){
+      const deviceId=this.deviceId,sequence=++this.runtimePollSeq;if(!deviceId)return;
+      try{
+        const response=await fetch('/proxy/deskbot/api/expression_runtime?device_id='+encodeURIComponent(deviceId),{cache:'no-store'}),payload=await response.json();
+        if(sequence!==this.runtimePollSeq||deviceId!==this.deviceId)return;
+        if(!response.ok||!payload.ok)throw new Error(payload.error||'表情运行时不可用');
+        this.runtimeState=payload.runtime||null;this.restoreLastWebPreview(this.runtimeState);this.runtimeError='';
+      }catch(error){if(sequence===this.runtimePollSeq){this.runtimeError='状态读取失败：'+(error&&error.message?error.message:error);}}
+      finally{if(sequence===this.runtimePollSeq&&deviceId===this.deviceId)this.scheduleRuntimePoll(1200);}
+    },
+    sceneAnimation(scene){const frames=scene&&Array.isArray(scene.frames)?scene.frames:[];return frames.map(frame=>({ms:this.clamp(frame&&frame.ms||500,40,5000),elements:this.copyJson(frame&&frame.elements,{})}));},
+    async submitSceneToDevice(scene){
+      const anim=this.sceneAnimation(scene);if(!anim.length)throw new Error('当前表情没有可预览的帧');
+      const operationId=window.DeskbotConsole.newControlOperationId('expr-preview');
+      const result=await window.DeskbotConsole.submitControlOperation({
+        url:'/proxy/deskbot/api/device_pb_anim',
+        requestOptions:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.deviceId,operation_id:operationId,action:'replace',expression_name:String(scene&&scene.name||'adhoc_web'),expression_title:String(scene&&(scene.title||scene.name)||this.previewTitle),anim})},
+        baseUrl:'/proxy/deskbot',deviceId:this.deviceId,operationId
+      });
+      const terminal=result&&result.terminal&&result.terminal.operation,expression=terminal&&terminal.result&&terminal.result.expression;
+      await this.pollExpressionRuntime();
+      return{expression:expression||null,operationId:String(result&&result.operationId||operationId),terminal:terminal||null};
+    },
+    async queueDefaultSceneToDevice(scene){
+      const anim=this.sceneAnimation(scene);if(!anim.length)throw new Error('当前表情没有可发送的帧');
+      const operationId=window.DeskbotConsole.newControlOperationId('expr-default');
+      return await window.DeskbotConsole.submitControlOperation({
+        url:'/proxy/deskbot/api/device_pb_anim',
+        requestOptions:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.deviceId,operation_id:operationId,action:'replace',expression_name:String(scene&&scene.name||'adhoc_web'),expression_title:String(scene&&(scene.title||scene.name)||this.previewTitle),anim})},
+        baseUrl:'/proxy/deskbot',deviceId:this.deviceId,operationId
+      });
+    },
+    async setAsDeviceDefaultExpression(){
+      if(this.settingDefault||this.sending||this.mutationBusy)return;
+      if(!this.deviceId){this.msg='设置默认表情需要先选择一台设备';return;}
+      const draft=this.copyJson(this.ensureDraftScene(),this.buildCustomScene()),source=this.sceneByName(this.editingSourceName),pendingMap=this.changedMapPatch();
+      let targetName=source&&source.name||'',mutation=null;
+      if(source&&!this.draftDirty){
+        mutation={map_patch:Object.assign({},pendingMap,{idle:targetName})};
+      }else if(source&&this.isUserExpressionScene(source)){
+        const title=String(source.title||source.name||this.sourceExpressionTitle||'我的表情');
+        mutation={scenes:{update:[this.sceneMutation(draft,title,targetName)]},map_patch:Object.assign({},pendingMap,{idle:targetName})};
+      }else{
+        const title=this.desiredCopyTitle(draft);
+        mutation={scenes:{create:[this.sceneMutation(draft,title)]},map_patch:pendingMap,map_create_refs:{idle:0}};
+      }
+      this.settingDefault=true;
+      try{
+        let payload=await this.postExpressionTransaction(mutation);const created=payload.created&&payload.created[0];
+        if(created&&created.name)targetName=created.name;
+        if(String(payload.map&&payload.map.idle||'')!==targetName)payload=await this.postExpressionTransaction({map_patch:{idle:targetName}});
+        if(String(payload.map&&payload.map.idle||'')!==targetName)throw new Error('默认表情映射未保存，请刷新后重试');
+        const saved=this.sceneByName(targetName),deviceScene=saved||created||draft;
+        if(saved)this.editExpressionScene(saved,{silent:true});
+        const title=String(deviceScene.title||deviceScene.name||this.previewTitle);
+        try{await this.queueDefaultSceneToDevice(deviceScene);this.msg='已设为设备默认表情并在设备播放完成：'+title;}
+        catch(error){const detail=error&&error.message?error.message:String(error);this.msg='默认表情映射已保存，但设备应用失败：'+detail;}
+      }catch(error){this.msg='设置设备默认表情失败：'+(error&&error.message?error.message:error);}
+      finally{this.settingDefault=false;}
+    },
+    async sendPreviewToDevice(){
+      if(this.sending)return;
+      if(this.settingDefault)return;
+      if(!this.deviceId){this.msg='设备预览需要先选择一台设备';return;}
+      this.sending=true;
+      try{
+        const sentScene=this.copyJson(this.previewScene,{}),submitted=await this.submitSceneToDevice(sentScene),expression=submitted&&submitted.expression,historyEntry=this.runtimeWebHistoryEntry(submitted.operationId,this.runtimeState),finalIndex=expression&&Number.isInteger(expression.final_frame_index)?expression.final_frame_index:this.previewFrameCount-1;
+        this.lastWebPreview={operationId:submitted.operationId,title:String(sentScene.title||sentScene.name||this.previewTitle),name:String(sentScene.name||'adhoc_web'),status:String(expression&&expression.status||''),frameFingerprint:String(expression&&expression.frame_fingerprint||''),finalFrameFingerprint:String(expression&&expression.final_frame_fingerprint||''),expectedDisplayCrc32:String(expression&&expression.expected_display_crc32||''),deviceDisplayCrc32:String(expression&&expression.device_display_crc32||''),finalFrameIndex:finalIndex,frameCount:Math.max(0,Number(expression&&expression.frame_count)||this.previewFrameCount),timelineMs:Math.max(0,Number(expression&&expression.timeline_ms)||this.sceneAnimation(sentScene).reduce((sum,frame)=>sum+Number(frame.ms||0),0)),generation:Math.max(0,Number((this.runtimeState||{}).display_generation)||0),confirmedAt:Number(historyEntry&&historyEntry.updated_at||Date.now()/1000)};
+        this.previewPlaying=false;this.clearPreviewTimer();this.setPreviewFrame(Math.min(this.previewFrameCount-1,Math.max(0,finalIndex)));
+        this.msg=this.webPreviewParity.state==='match'?'设备已确认执行，渲染协议一致（未保存、未修改待机映射）':'设备已确认执行；状态卡已给出独立 CRC 核验结果';
+      }catch(error){this.stopPreviewPlayback();const detail=error&&error.message?error.message:String(error);this.lastWebPreview={operationId:String(error&&error.payload&&error.payload.operation_id||''),title:this.previewTitle,status:'failed',finalFrameFingerprint:'',confirmedAt:Date.now()/1000};this.msg=detail.includes('执行状态未知')?detail:'设备预览失败：'+detail;}
+      finally{this.sending=false;}
+    }
+  },
+  mounted(){
+    const tab=new URLSearchParams(window.location.search).get('tab');this.exprTab=(tab==='professional'||tab==='image')?'professional':'face';
+    this._stopDeviceListener=window.DeskbotConsole.onChange(this.applyDeviceState,false);
+    void window.DeskbotConsole.refresh().then(this.applyDeviceState).catch(()=>{});
+    void this.load().then(()=>{if(this.exprTab==='face')this.ensurePartEditing();});
+    void this.loadLlmConfigStatus();
+  },
+  beforeUnmount(){
+    if(this._stopDeviceListener)this._stopDeviceListener();this.cancelPreviewGesture();this.clearPreviewTimer();this.clearRuntimeTimer();this.clearImageExpressionProgressTimer();
+  }
+}).mount('#app');
+</script>
+{% endblock %}

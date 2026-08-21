@@ -1,0 +1,133 @@
+{% extends "base_2c.html" %}
+{% block page_title %}它记得的事 · 小歪{% endblock %}
+{% block extra_head %}<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>{% endblock %}
+{% block content %}
+<div id="app">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">MEMORY · [[ items.length ]] ENTRIES</div>
+      <h1>它记得的事</h1>
+      <p>机器人记住的关于你的小事，随时可改可删。</p>
+    </div>
+  </div>
+
+  <div v-if="loading" class="ui-state loading" role="status" aria-label="正在加载记忆">
+    <div class="ui-state-line"></div><div class="ui-state-line short"></div>
+  </div>
+  <div v-else-if="error" class="ui-state error" role="alert">
+    <b>记忆加载失败</b><p>[[ error ]]</p>
+    <div class="btngroup"><button class="btn ghost" @click="load">重试</button></div>
+  </div>
+  <template v-else>
+    <form class="inline-create-form" @submit.prevent="add">
+      <label class="form-label">
+        新记忆
+        <input class="tinput" v-model="draft" maxlength="2000" placeholder="加一条它该记住的事…" required>
+      </label>
+      <button class="btn primary" type="submit" :disabled="busy || !draft.trim()">[[ busyKey==='add' ? '正在添加…' : '＋ 加一条' ]]</button>
+    </form>
+
+    <div v-if="!items.length" class="ui-state">
+      <b>还没有记忆</b>
+      <p>可以在上方手动添加，也可以在对话中告诉小歪需要长期记住的事。</p>
+    </div>
+
+    <div class="colwrap">
+      <div class="note" v-for="(m,i) in items" :key="m.id">
+        <span class="memtag">MEM_[[ String(i+1).padStart(2,'0') ]]</span>
+        <textarea
+          v-if="editing===m.id"
+          class="tinput editarea"
+          v-model="editText"
+          maxlength="2000"
+          aria-label="编辑记忆"
+          @keyup.meta.enter="saveEdit(m)"
+          @keyup.ctrl.enter="saveEdit(m)"
+        ></textarea>
+        <p v-else>[[ m.text ]]</p>
+        <small>[[ m.created_at_fmt || formatTime(m.created_at) ]]</small>
+        <div class="btngroup" style="margin-top:12px">
+          <template v-if="editing===m.id">
+            <button class="btn primary" :disabled="busy" @click="saveEdit(m)">[[ busyKey==='save:'+m.id ? '保存中…' : '保存' ]]</button>
+            <button class="btn ghost" :disabled="busy" @click="cancelEdit">取消</button>
+          </template>
+          <template v-else>
+            <button class="btn ghost" :disabled="busy" @click="startEdit(m)">编辑</button>
+            <button class="btn ghost" :disabled="busy" @click="del(m)">删除</button>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+  <p class="lead" :class="{'form-error':messageKind==='error'}" v-if="message" role="status" aria-live="polite">[[ message ]]</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){ return {
+    items:[],draft:'',message:'',messageKind:'info',editing:'',editText:'',
+    loading:true,error:'',busyKey:'',loadSeq:0,
+  }; },
+  computed:{ busy(){ return !!this.busyKey; } },
+  methods:{
+    formatTime(value){
+      const d=new Date(value||'');
+      return Number.isFinite(d.getTime())?d.toLocaleString('zh-CN'):'';
+    },
+    async load(){
+      const seq=++this.loadSeq;
+      this.loading=true; this.error='';
+      try{
+        const r=await window.DeskbotConsole.apiJson('/app/api/memories');
+        if(seq!==this.loadSeq) return;
+        this.items=r.memories||[];
+      }catch(e){
+        if(seq===this.loadSeq) this.error=e.message||'加载失败';
+      }finally{
+        if(seq===this.loadSeq) this.loading=false;
+      }
+    },
+    async add(){
+      const text=this.draft.trim(); if(!text || this.busy) return;
+      this.busyKey='add'; this.message='';
+      try{
+        await window.DeskbotConsole.apiJson('/app/api/memories',{
+          method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),
+        });
+        this.draft=''; this.message='记忆已添加'; this.messageKind='info';
+        await this.load();
+      }catch(e){ this.message=e.message||'添加失败'; this.messageKind='error'; }
+      finally{ this.busyKey=''; }
+    },
+    startEdit(m){ if(this.busy)return; this.editing=m.id; this.editText=m.text||''; },
+    cancelEdit(){ this.editing=''; this.editText=''; },
+    async saveEdit(m){
+      const text=this.editText.trim(); if(!text || this.busy){ if(!text)this.message='记忆内容不能为空'; return; }
+      this.busyKey='save:'+m.id; this.message='';
+      try{
+        await window.DeskbotConsole.apiJson('/app/api/memories/'+encodeURIComponent(m.id),{
+          method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),
+        });
+        this.cancelEdit(); this.message='记忆已保存'; this.messageKind='info';
+        await this.load();
+      }catch(e){ this.message=e.message||'保存失败'; this.messageKind='error'; }
+      finally{ this.busyKey=''; }
+    },
+    async del(m){
+      if(this.busy || !confirm('确定删除这条记忆？')) return;
+      this.busyKey='delete:'+m.id; this.message='';
+      try{
+        await window.DeskbotConsole.apiJson('/app/api/memories/'+encodeURIComponent(m.id),{method:'DELETE'});
+        this.message='记忆已删除'; this.messageKind='info';
+        await this.load();
+      }catch(e){ this.message=e.message||'删除失败'; this.messageKind='error'; }
+      finally{ this.busyKey=''; }
+    },
+  },
+  mounted(){ void this.load(); },
+}).mount('#app');
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base_2c.html" %}
+{% block page_title %}提醒 · 小歪{% endblock %}
+{% block extra_head %}
+<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<style>
+  .reminder-grid{display:grid;grid-template-columns:minmax(280px,380px) minmax(0,1fr);gap:20px;align-items:start}
+  .reminder-editor,.reminder-list{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel);box-shadow:var(--shadow-sm)}
+  .reminder-editor{padding:17px;position:sticky;top:78px}
+  .reminder-form{display:grid;gap:13px;margin-top:14px}
+  .reminder-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .reminder-actions,.reminder-row-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .reminder-list-head{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:14px;border-bottom:var(--bw) solid var(--line)}
+  .reminder-list-head .tinput{max-width:190px}
+  .reminder-row{padding:15px;border-bottom:1px solid var(--soft-line)}
+  .reminder-row:last-child{border-bottom:0}
+  .reminder-row-main{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .reminder-row h3{font-size:15px;margin:0 0 5px}
+  .reminder-meta{display:flex;gap:7px;flex-wrap:wrap;color:var(--dim);font:11px var(--mono)}
+  .reminder-status{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px 8px;background:var(--bg);font:10px var(--mono)}
+  .reminder-status.active{background:#e9f8ef;color:#116432}.reminder-status.failed{background:#fff0ef;color:#a1261d}
+  .reminder-status.running{background:#fff8d9;color:#755b00}.reminder-status.paused{background:#f2f2f2;color:#555}
+  .reminder-result{display:block;margin-top:8px;padding:8px 10px;background:var(--wash);border-radius:var(--rs);color:var(--dim);font-size:12px}
+  .reminder-row-actions{margin-top:11px}
+  .reminder-pages{display:flex;justify-content:space-between;align-items:center;padding:13px}
+  @media(max-width:820px){.reminder-grid{grid-template-columns:1fr}.reminder-editor{position:static}.reminder-form .row2{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div id="remindersApp">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">REMINDERS · RELIABLE DELIVERY</div>
+      <h1>提醒</h1>
+      <p>一次性提醒保留到秒；设备短暂离线会在宽限期内重试，不再显示假成功。</p>
+    </div>
+  </div>
+
+  <div class="state-panel" v-if="phase==='loading'" role="status">正在加载提醒…</div>
+  <div class="state-panel error" v-else-if="phase==='error'" role="alert">
+    <b>提醒加载失败</b><small>[[ error ]]</small>
+    <button type="button" class="btn ghost" @click="load">重试</button>
+  </div>
+  <div class="reminder-grid" v-else>
+    <section class="reminder-editor">
+      <h2>[[ editingId ? '编辑提醒' : '新建提醒' ]]</h2>
+      <small>所有时间按浏览器本地时区输入，保存后会回读完整绝对时间。</small>
+      <form class="reminder-form" @submit.prevent="save">
+        <label class="form-label">提醒内容
+          <textarea class="tinput" rows="3" v-model.trim="form.description" maxlength="1000" required placeholder="例如：起来活动一下"></textarea>
+        </label>
+        <div class="row2">
+          <label class="form-label">类型
+            <select class="tinput" v-model="form.task_kind" :disabled="!!editingId">
+              <option value="once">一次性</option>
+              <option value="recurring">周期性</option>
+            </select>
+          </label>
+          <label class="form-label" v-if="form.task_kind==='once'">执行时间
+            <input class="tinput" type="datetime-local" step="1" v-model="form.run_at" required>
+          </label>
+          <label class="form-label" v-else>五段 Cron
+            <input class="tinput" v-model.trim="form.cron" required placeholder="0 9 * * *">
+          </label>
+        </div>
+        <small v-if="form.task_kind==='recurring'">格式：分 时 日 月 周，例如每天 09:00 为 <code>0 9 * * *</code>。</small>
+        <div class="reminder-actions">
+          <button type="submit" class="btn primary" :disabled="busy">[[ busy ? '保存中…' : (editingId ? '保存修改' : '创建提醒') ]]</button>
+          <button type="button" class="btn ghost" v-if="editingId" @click="resetForm" :disabled="busy">取消编辑</button>
+        </div>
+      </form>
+      <p class="form-error" v-if="message" role="status">[[ message ]]</p>
+    </section>
+
+    <section class="reminder-list">
+      <div class="reminder-list-head">
+        <div><b>提醒列表</b><small>共 [[ total ]] 条</small></div>
+        <select class="tinput" v-model="statusFilter" @change="applyStatusFilter" aria-label="筛选状态">
+          <option value="">全部状态</option><option value="active">待执行</option>
+          <option value="running">执行中</option><option value="paused">已暂停</option>
+          <option value="failed">失败</option><option value="completed">已完成</option>
+        </select>
+      </div>
+      <article class="reminder-row" v-for="task in tasks" :key="task.id">
+        <div class="reminder-row-main">
+          <div>
+            <h3>[[ task.description || '提醒' ]]</h3>
+            <div class="reminder-meta">
+              <span>[[ task.task_kind==='recurring' ? '周期' : '一次性' ]]</span>
+              <span>下次 [[ humanTime(task.next_run_at) ]]</span>
+              <span v-if="task.task_kind==='recurring'">Cron [[ task.cron_expr ]]</span>
+              <span v-if="task.attempt_count">尝试 [[ task.attempt_count ]] 次</span>
+            </div>
+          </div>
+          <span class="reminder-status" :class="task.status">[[ statusLabel(task.status) ]]</span>
+        </div>
+        <small class="reminder-result" v-if="task.result_summary">[[ task.result_summary ]]</small>
+        <div class="reminder-row-actions">
+          <button type="button" class="btn ghost" @click="edit(task)" :disabled="busy||task.status==='running'">编辑</button>
+          <button type="button" class="btn ghost" v-if="task.enabled&&task.status!=='running'" @click="action(task,'pause')" :disabled="busy">暂停</button>
+          <button type="button" class="btn ghost" v-if="!task.enabled&&task.status==='paused'" @click="action(task,'resume')" :disabled="busy">恢复</button>
+          <button type="button" class="btn ghost" v-if="task.status==='failed'" @click="action(task,'retry')" :disabled="busy">重试</button>
+          <button type="button" class="btn danger" @click="remove(task)" :disabled="busy||task.status==='running'">删除</button>
+        </div>
+      </article>
+      <div class="state-panel compact" v-if="!tasks.length">
+        [[ statusFilter ? '这个筛选下没有提醒。' : '还没有提醒，可以从左侧创建。' ]]
+      </div>
+      <div class="reminder-pages">
+        <button type="button" class="btn ghost" @click="changePage(-1)" :disabled="page<=1">上一页</button>
+        <small>第 [[ page ]] / [[ totalPages ]] 页</small>
+        <button type="button" class="btn ghost" @click="changePage(1)" :disabled="page>=totalPages">下一页</button>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){return{
+    phase:'loading',error:'',message:'',busy:false,
+    tasks:[],page:1,total:0,totalPages:1,statusFilter:'',editingId:'',
+    form:{description:'',task_kind:'once',run_at:'',cron:'0 9 * * *'},unsubscribe:null,loadSeq:0
+  };},
+  methods:{
+    api(url,opts){return window.DeskbotConsole.apiJson(url,opts);},
+    statusLabel(s){return {active:'待执行',running:'执行中',paused:'已暂停',failed:'失败',completed:'已完成'}[s]||s||'未知';},
+    parseServerTime(value){const raw=String(value||'').trim();if(!raw)return null;const d=new Date(raw.includes('T')?raw:raw.replace(' ','T')+'+08:00');return Number.isFinite(d.getTime())?d:null;},
+    humanTime(value){const d=this.parseServerTime(value);return d?d.toLocaleString('zh-CN'):'时间未知';},
+    toLocalInput(value){
+      const d=this.parseServerTime(value);if(!d)return'';
+      const p=n=>String(n).padStart(2,'0');
+      return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+    },
+    defaultRunAt(){const d=new Date(Date.now()+5*60*1000);d.setMilliseconds(0);const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());},
+    resetForm(){this.editingId='';this.form={description:'',task_kind:'once',run_at:this.defaultRunAt(),cron:'0 9 * * *'};this.message='';},
+    async load(){
+      const seq=++this.loadSeq;const requestedPage=this.page;const requestedStatus=this.statusFilter;
+      this.phase='loading';this.error='';
+      try{
+        const u=new URL('/app/api/scheduled-tasks',location.origin);
+        u.searchParams.set('page',String(requestedPage));u.searchParams.set('per_page','10');
+        if(requestedStatus)u.searchParams.set('status',requestedStatus);
+        const d=await this.api(u.pathname+u.search);
+        if(seq!==this.loadSeq||requestedStatus!==this.statusFilter)return;
+        this.tasks=d.tasks||[];this.page=d.page||1;this.total=d.total||0;this.totalPages=d.total_pages||1;this.phase='ready';
+      }catch(e){if(seq===this.loadSeq){this.phase='error';this.error=e.message||'加载失败';}}
+    },
+    async save(){
+      if(!this.form.description){this.message='请填写提醒内容';return;}
+      this.busy=true;this.message='';const wasEditing=!!this.editingId;
+      try{
+        const body={description:this.form.description,task_kind:this.form.task_kind};
+        if(this.form.task_kind==='once'){
+          const d=new Date(this.form.run_at);
+          if(!Number.isFinite(d.getTime())||d.getTime()<=Date.now()){throw new Error('执行时间必须晚于当前时间');}
+          body.run_at=d.toISOString();
+        }else body.cron=this.form.cron;
+        const path=this.editingId?'/app/api/scheduled-tasks/'+encodeURIComponent(this.editingId):'/app/api/scheduled-tasks';
+        const method=this.editingId?'PATCH':'POST';
+        await this.api(path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        this.resetForm();this.page=1;await this.load();this.message=wasEditing?'提醒已更新':'提醒已创建';
+      }catch(e){this.message=e.message||'保存失败';}finally{this.busy=false;}
+    },
+    edit(task){
+      this.editingId=task.id;
+      this.form={description:task.description||'',task_kind:task.task_kind||'once',run_at:this.toLocalInput(task.next_run_at),cron:task.cron_expr||'0 9 * * *'};
+      window.scrollTo({top:0,behavior:'smooth'});
+    },
+    async action(task,action){
+      this.busy=true;this.message='';
+      try{await this.api('/app/api/scheduled-tasks/'+encodeURIComponent(task.id)+'/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});await this.load();this.message={pause:'提醒已暂停',resume:'提醒已恢复',retry:'已安排立即重试'}[action]||'操作完成';}
+      catch(e){this.message=e.message||'操作失败';}finally{this.busy=false;}
+    },
+    async remove(task){
+      if(!confirm('删除提醒“'+(task.description||'提醒')+'”？'))return;
+      this.busy=true;this.message='';
+      try{await this.api('/app/api/scheduled-tasks/'+encodeURIComponent(task.id),{method:'DELETE'});if(this.editingId===task.id)this.resetForm();await this.load();this.message='提醒已删除';}
+      catch(e){this.message=e.message||'删除失败';}finally{this.busy=false;}
+    },
+    applyStatusFilter(){this.page=1;this.load();},
+    changePage(delta){const next=Math.max(1,Math.min(this.totalPages,this.page+delta));if(next!==this.page){this.page=next;this.load();}}
+  },
+  mounted(){this.resetForm();this.load();}
+}).mount('#remindersApp');
+</script>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "base_2c.html" %}
+{% block page_title %}认识的人 · 小歪{% endblock %}
+{% block extra_head %}<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>{% endblock %}
+{% block content %}
+<div id="app">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">FACES · [[ profiles.length ]] KNOWN</div>
+      <h1>认识的人</h1>
+      <p>这台电脑上的人脸档案，连接任意小歪都可继续使用。</p>
+    </div>
+  </div>
+
+  <div v-if="loading" class="ui-state loading" role="status" aria-label="正在加载人脸档案">
+    <div class="ui-state-line"></div><div class="ui-state-line short"></div>
+  </div>
+  <div v-else-if="error" class="ui-state error" role="alert">
+    <b>人脸档案加载失败</b><p>[[ error ]]</p>
+    <div class="btngroup"><button class="btn ghost" @click="load">重试</button></div>
+  </div>
+  <div v-else-if="!profiles.length" class="ui-state">
+    <b>还没有人脸档案</b>
+    <p v-if="faceStackAvailable">摄像头识别到新面孔并建立档案后，会显示在这里。</p>
+    <p v-else>人脸识别组件未随本安装包提供，无法建立新的人脸档案。</p>
+  </div>
+
+  <div class="people" v-else>
+    <div class="person" v-for="p in profiles" :key="p.person_id">
+      <div class="pa">[[ (p.name||'?').slice(0,1) ]]</div>
+      <input
+        v-if="editing===p.person_id"
+        class="tinput nameinput"
+        v-model="editName"
+        maxlength="80"
+        aria-label="人脸档案名称"
+        @keyup.enter="saveName(p)"
+      >
+      <b v-else>[[ p.name || ('#'+p.person_id) ]]</b>
+      <small class="person-seen">[[ p.last_seen_at ? '最近识别 '+formatTime(p.last_seen_at) : '最近识别时间未知' ]]</small>
+      <div class="btngroup compact">
+        <template v-if="editing===p.person_id">
+          <button class="btn primary" :disabled="busy" @click="saveName(p)">[[ busyKey==='save:'+p.person_id ? '保存中…' : '保存' ]]</button>
+          <button class="btn ghost" :disabled="busy" @click="cancelEdit">取消</button>
+        </template>
+        <template v-else>
+          <button class="btn ghost" :disabled="busy" @click="startEdit(p)">改名</button>
+          <button class="btn ghost" :disabled="busy" @click="del(p)">删除</button>
+        </template>
+      </div>
+    </div>
+  </div>
+  <p class="lead" :class="{'form-error':messageKind==='error'}" v-if="message" role="status" aria-live="polite">[[ message ]]</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){return{
+    profiles:[],editing:null,editName:'',message:'',messageKind:'info',
+    loading:true,error:'',busyKey:'',loadSeq:0,faceStackAvailable:true,
+  };},
+  computed:{ busy(){return !!this.busyKey;} },
+  methods:{
+    formatTime(value){
+      const d=new Date(value||'');
+      return Number.isFinite(d.getTime())?d.toLocaleString('zh-CN'):'未知';
+    },
+    async load(){
+      const seq=++this.loadSeq;
+      this.loading=true;this.error='';
+      try{
+        const r=await window.DeskbotConsole.apiJson('/app/api/face-profiles');
+        if(seq!==this.loadSeq)return;
+        this.profiles=r.profiles||[];
+        this.faceStackAvailable=r.face_stack_available!==false;
+      }catch(e){if(seq===this.loadSeq)this.error=e.message||'加载失败';}
+      finally{if(seq===this.loadSeq)this.loading=false;}
+    },
+    startEdit(p){if(this.busy)return;this.editing=p.person_id;this.editName=p.name||'';},
+    cancelEdit(){this.editing=null;this.editName='';},
+    async saveName(p){
+      const name=this.editName.trim();
+      if(!name){this.message='名字不能为空';this.messageKind='error';return;}
+      if(this.busy)return;
+      this.busyKey='save:'+p.person_id;this.message='';
+      try{
+        await window.DeskbotConsole.apiJson('/app/api/face-profiles/'+p.person_id,{
+          method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name}),
+        });
+        this.cancelEdit();this.message='名字已保存';this.messageKind='info';
+        await this.load();
+      }catch(e){this.message=e.message||'保存失败';this.messageKind='error';}
+      finally{this.busyKey='';}
+    },
+    async del(p){
+      const name=p.name||('#'+p.person_id);
+      if(this.busy||!confirm('确定永久删除人脸档案“'+name+'”？'))return;
+      this.busyKey='delete:'+p.person_id;this.message='';
+      try{
+        await window.DeskbotConsole.apiJson('/app/api/face-profiles/'+p.person_id,{method:'DELETE'});
+        this.message='已删除 '+name;this.messageKind='info';await this.load();
+      }catch(e){this.message=e.message||'删除失败';this.messageKind='error';}
+      finally{this.busyKey='';}
+    },
+  },
+  mounted(){void this.load();},
+}).mount('#app');
+</script>
+{% endblock %}

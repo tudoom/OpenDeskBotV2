@@ -1,0 +1,129 @@
+{% extends "base_2c.html" %}
+{% block page_title %}USB 设备 · 小歪{% endblock %}
+{% block global_setup_suppress_device %}1{% endblock %}
+{% block extra_head %}<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>{% endblock %}
+{% block content %}
+<div id="app">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">USB DIRECT · [[ devices.length ]] DEVICES</div>
+      <h1>USB 设备</h1>
+      <p>机器人完成 USB 握手后会自动出现在这里，不需要额外配置。</p>
+    </div>
+    <span v-if="current" class="target-chip">当前目标 · [[ currentName ]]</span>
+  </div>
+
+  <div v-if="loading" class="ui-state loading" role="status" aria-label="正在扫描 USB 设备">
+    <div class="ui-state-line"></div><div class="ui-state-line short"></div>
+  </div>
+  <div v-else-if="loadError" class="ui-state error" role="alert">
+    <b>USB 设备状态加载失败</b>
+    <p>[[ loadError ]]</p>
+    <div class="btngroup"><button class="btn ghost" @click="reload">重试</button></div>
+  </div>
+
+  <template v-else>
+    <div class="ui-state warning" v-if="controlPlaneDown" role="status">
+      <b>实时服务暂时不可达</b>
+      <p>请确认 PC Core 服务正在监听 9000 端口。</p>
+    </div>
+
+    <div class="ui-state" v-if="!devices.length && !controlPlaneDown">
+      <b>尚未检测到机器人</b>
+      <p>请使用支持数据传输的 USB 线连接机器人。设备启动并完成握手后会自动出现在这里。</p>
+      <div class="btngroup"><button class="btn ghost" @click="reload">重新扫描</button></div>
+    </div>
+
+    <div class="dev" v-for="d in devices" :key="d.device_id">
+      <div class="di" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M11 18h2"/></svg></div>
+      <div style="flex:1;min-width:180px">
+        <b>[[ d.display_name || d.device_id ]]</b>
+        <small>
+          <span class="led" :class="{off: d.online !== true}"></span>
+          [[ statusLabel(d) ]]
+          <span v-if="d.device_id===current"> · 当前目标</span>
+        </small>
+        <small>[[ d.device_id ]] · [[ lastSeenLabel(d) ]]</small>
+        <small>连接方式：[[ d.transport==='usb_cdc' ? 'USB CDC 直连' : '等待 USB' ]]</small>
+      </div>
+      <div class="btngroup">
+        <button
+          class="btn"
+          :class="d.device_id===current?'primary':'ghost'"
+          :disabled="busy || d.device_id===current"
+          @click="select(d)"
+        >[[ d.device_id===current ? '当前设备' : '切换到此设备' ]]</button>
+      </div>
+    </div>
+
+    <p class="device-id-hint">
+      单台设备会自动成为当前目标；同时连接多台时，可在这里切换。拔掉 USB 不会删除设备历史，再次连接会自动恢复。
+    </p>
+    <div class="btngroup" v-if="devices.length">
+      <button class="btn ghost" type="button" :disabled="busy" @click="reload">刷新状态</button>
+    </div>
+  </template>
+
+  <p class="lead" :class="{'form-error': messageKind==='error'}" v-if="message" role="status" aria-live="polite">[[ message ]]</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){ return {
+    devices:[], current:'', loading:true, loadError:'', controlPlaneDown:false,
+    action:'', message:'', messageKind:'info', unsubscribe:null,
+  }; },
+  computed:{
+    busy(){ return !!this.action; },
+    currentName(){
+      const d=this.devices.find(x=>x.device_id===this.current);
+      return d ? (d.display_name||d.device_id) : this.current;
+    },
+  },
+  methods:{
+    applySnapshot(s){
+      if(s.phase==='loading') return;
+      this.loading=false;
+      if(s.phase==='error'){
+        this.loadError=s.error||'无法读取 USB 设备状态';
+        return;
+      }
+      this.loadError='';
+      this.devices=s.devices||[];
+      this.current=s.currentId||'';
+      this.controlPlaneDown=!!(s.controlPlane && s.controlPlane.ok===false);
+    },
+    statusLabel(d){ return window.DeskbotConsole.presenceLabel(d); },
+    lastSeenLabel(d){
+      if(d.online===true) return '刚刚在线';
+      if(d.last_seen) return '最后在线 '+d.last_seen;
+      if(d.online===null || d.presence_state==='control_plane_down') return '在线状态未知';
+      return '当前未连接';
+    },
+    async reload(){
+      this.loading=true; this.loadError='';
+      await window.DeskbotConsole.refresh();
+    },
+    async select(d){
+      if(this.busy || d.device_id===this.current) return;
+      this.action='select'; this.message='';
+      try{
+        await window.DeskbotConsole.selectDevice(d.device_id);
+        this.message='当前操作目标已切换到 '+(d.display_name||d.device_id);
+        this.messageKind='info';
+      }catch(e){
+        this.message=e.message||'切换失败'; this.messageKind='error';
+      }finally{ this.action=''; }
+    },
+  },
+  mounted(){
+    this.unsubscribe=window.DeskbotConsole.onChange(this.applySnapshot);
+    void window.DeskbotConsole.refresh();
+  },
+  beforeUnmount(){ if(this.unsubscribe) this.unsubscribe(); },
+}).mount('#app');
+</script>
+{% endblock %}

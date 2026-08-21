@@ -1,0 +1,103 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deskbot-server"
+version = "0.1.0"
+description = "OpenDesk voice robot backend (ASR + LLM + TTS + ESP32 pb protocol)"
+readme = "README.md"
+# NumPy 1.26 is intentionally retained for compatibility with the optional
+# MediaPipe runtime (the `face` extra).  It has no Python 3.13 wheels, so
+# advertising 3.13 support makes lock resolution nondeterministic and
+# installation impossible.
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "websockets==14.2",
+    "PyYAML==6.0.2",
+    "numpy==1.26.4",
+    "opuslib_next==1.1.5",
+    "PyOgg==0.6.14a1; sys_platform == 'win32'",
+    "setuptools>=83",
+    "Flask==3.1.3",
+    "SQLAlchemy==2.0.41",
+    # Pillow/numpy stay in the main dependencies: the audio pipeline and the
+    # camera JPEG validation (validate_jpeg / vision_input) use them even in
+    # the default faceless install.
+    "Pillow>=12.3.0",
+    # onnxruntime is NOT part of the `face` extra even though InsightFace
+    # uses it: livekit-plugins-silero (the voice VAD, pulled in through
+    # lampgo-livekit-agent-sdk) requires it at runtime, so it must ship in
+    # every install.
+    "onnxruntime>=1.17.0",
+    "croniter==2.0.7",
+    "pypinyin>=0.53.0",
+    "g2p-en>=2.1.0",
+    "aiohttp>=3.14.1",
+    "aiofiles>=25.1.0",
+    "cryptography>=46.0.6",
+    "pydantic>=2.13.4",
+    "pyserial==3.5",
+    "tzdata==2025.2",
+    "livekit>=1.1,<2",
+    "livekit-api>=1.0.7,<2",
+    "lampgo-livekit-agent-sdk==0.3.0",
+    "psutil>=7.0,<8",
+]
+
+[project.optional-dependencies]
+# 人脸视觉栈（检测 + 识别）。产品默认不带人脸功能：默认安装/默认客户端
+# 构建（Build-Client.ps1 不加 -IncludeFaceStack）都不含这些包，运行时对
+# 缺包做明确降级（人脸检测/识别/注册不可用，相机预览与拍照问答不受影响）。
+# 需要人脸功能时：pip install -e '.[face]'。
+# 传递依赖核实（pip 反向依赖，2026-08-20）：
+#   mediapipe   -> absl-py, matplotlib(含 contourpy/cycler/fonttools/
+#                  kiwisolver/pyparsing), opencv-contrib-python, flatbuffers*,
+#                  sounddevice*, numpy*
+#   insightface -> onnx, opencv-python, scipy, scikit-image(含 imageio/
+#                  tifffile/lazy-loader/networkx), tqdm*, requests*, numpy*
+#   带 * 的包被语音/主路径共享（flatbuffers/sounddevice 被 onnxruntime /
+#   livekit-agents 依赖，tqdm 被 g2p-en→nltk 依赖），不随人脸栈移除。
+#   onnxruntime 被 livekit-plugins-silero（语音 VAD）依赖，保留在主依赖。
+face = [
+    "mediapipe==0.10.33",
+    "opencv-contrib-python>=4.10,<4.11",
+    "insightface>=0.7.3",
+    "onnx>=1.16",
+]
+local-asr = [
+    "funasr==1.2.7",
+    "funasr-onnx>=0.4.1",
+    "librosa>=0.10.0",
+]
+dev = [
+    "sounddevice==0.5.3",
+    "ruff>=0.9",
+    "pytest>=8.0",
+]
+# miloco-miot 需从 iotctl/wheels 本地安装：
+#   pip install --no-deps src/deskbot_server/iotctl/wheels/miloco_miot-*.whl
+miot = [
+    "aiohttp>=3.14.1",
+    "aiofiles>=25.1.0",
+    "cryptography>=46.0.6",
+    "pydantic>=2.13.4",
+]
+
+[project.scripts]
+deskbot-server = "deskbot_server.__main__:cli"
+deskbot-server-web = "deskbot_server.web.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501", "E741"]

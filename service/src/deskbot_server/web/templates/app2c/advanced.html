@@ -1,0 +1,843 @@
+{% extends "base_2c.html" %}
+{% block page_title %}高级 · 小歪{% endblock %}
+{% block global_setup_suppress_model %}1{% endblock %}
+{% block extra_head %}<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<style>
+  .system-config-fieldset{border:0;padding:0;margin:0;min-width:0}
+  .system-config-note{margin:10px 0;padding:10px 12px;border:var(--bw) solid var(--line);
+    border-radius:var(--r);background:var(--soft);color:var(--dim)}
+	</style>{% endblock %}
+{% block content %}
+<div id="advancedApp">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">ADVANCED · API</div>
+      <h1>高级</h1>
+      <p>对话模型、语音识别、语音合成和本机调试都在这里直接配置。</p>
+      <p>本机数据目录：<code>{{ local_data_dir }}</code>（桌面客户端与开发者启动使用各自独立的数据目录，切换启动方式后这里的数据不会互通）。</p>
+    </div>
+  </div>
+
+  <div class="adv-tabs">
+    <button type="button" :class="{on: active==='llm'}" @click="setActive('llm')">AI 配置</button>
+    <button type="button" :class="{on: active==='debug'}" @click="setActive('debug')">调试</button>
+  </div>
+
+  <div class="adv-panel" v-if="active==='llm'">
+    <div class="panel-head">
+      <div><b>模型配置</b><small>对话与生成模型、语音服务分别配置；密钥由本机服务保存，请按部署环境做好权限隔离</small></div>
+    </div>
+
+    <div class="model-config-stack">
+      <section class="model-card primary-model-card">
+        <div class="model-card-head">
+          <div>
+            <span class="model-step">01 · 必需配置</span>
+            <h2>通用大模型</h2>
+            <p>选择提供方后自动填入推荐模型与接入点，也可手动修改任意字段。此处仅管理对话大模型，不与豆包语音共用凭证；图片表情生成优先使用下方独立的 Ark Key，未配置 Ark Key 时会复用这里的 LLM Key。</p>
+          </div>
+          <div class="secondary-actions">
+            <span class="model-status" :class="{ok: setup.api_key_set}">[[ setup.api_key_set ? '已配置' : '待配置' ]]</span>
+            <a class="btn ghost" v-if="setupPreset" :href="setupPreset.key_url" target="_blank" rel="noopener">打开 Key 管理</a>
+          </div>
+        </div>
+        <div class="model-guide">
+          <b>去哪里复制？</b>
+          <ol v-if="setupPreset">
+            <li>打开[[ setupPreset.console ]]的 <a :href="setupPreset.key_url" target="_blank" rel="noopener">API Key 管理</a>，新建或复制一个 API Key。</li>
+            <li>复制新建的 API Key，回到这里粘贴到输入框「API Key」。</li>
+            <li>这个 Key 只用于机器人对话，保存后写入本机配置，不会下发到设备。</li>
+          </ol>
+          <ol v-else>
+            <li>自定义提供方：请在所用平台的控制台新建或复制一个 API Key。</li>
+            <li>复制 API Key 粘贴到输入框「API Key」，并手动填写模型与 Base URL。</li>
+            <li>这个 Key 只用于机器人对话，保存后写入本机配置，不会下发到设备。</li>
+          </ol>
+        </div>
+        <form class="llm-form model-core-form" @submit.prevent="saveSetup">
+          <fieldset class="system-config-fieldset">
+          <label class="model-field">
+            <span>提供方</span>
+            <select class="tinput" v-model="setup.provider" @change="applySetupProvider">
+              <option value="deepseek">DeepSeek</option>
+              <option value="doubao">豆包（火山方舟）</option>
+              <option value="mimo">Xiaomi MiMo</option>
+              <option value="custom">自定义</option>
+            </select>
+          </label>
+          <label class="model-field model-field-key">
+            <span>API Key</span>
+            <input class="tinput" v-model="setup.api_key" type="password" autocomplete="new-password" :placeholder="setup.api_key_set ? '更新 API Key（留空则保留原值）' : '粘贴提供方的 API Key'">
+          </label>
+          <label class="model-field">
+            <span>默认模型</span>
+            <input class="tinput" v-model="setup.model_name" list="setupModels" :placeholder="setupPreset ? setupPreset.model : (setup.default_model || '模型名称')">
+          </label>
+          <label class="model-field">
+            <span>协议</span>
+            <select class="tinput" v-model="setup.protocol">
+              <option v-for="p in setup.protocols" :key="p" :value="p">[[ p ]]</option>
+            </select>
+          </label>
+          <label class="model-field">
+            <span>Base URL</span>
+            <input class="tinput" v-model.trim="setup.base_url" :placeholder="setupPreset ? setupPreset.base_url : 'https://api.example.com/v1'">
+          </label>
+          <datalist id="setupModels"><option v-for="m in setup.models" :key="m.id" :value="m.id"></option></datalist>
+          <div class="model-form-actions">
+            <button type="submit" class="btn primary" :disabled="setupBusy">[[ setup.saving ? '保存并应用中…' : '保存并应用' ]]</button>
+            <button type="button" class="btn ghost" @click="detectSetupModels" :disabled="setupBusy">[[ setup.detecting ? '检测中…' : (setup.models.length ? '已检测 '+setup.models.length+' 个' : '检测可用模型') ]]</button>
+            <button type="button" class="btn ghost" @click="testSetup" :disabled="setupBusy">[[ setup.testing ? '测试中…' : '测试连接' ]]</button>
+          </div>
+          </fieldset>
+        </form>
+        <div class="debug-output" v-if="setup.result">
+          <b>[[ setup.result.ok ? (setup.result.reply || '连接/保存成功') : (setup.result.error || '失败') ]]</b>
+          <small v-if="setup.revision">配置版本 [[ setup.revision ]] · [[ setup.applied_revision===setup.revision ? '实时服务已应用' : '等待实时服务应用' ]]</small>
+        </div>
+        <small class="setup-hint">API Key 留空表示保留原值。所有连接到这台电脑的小歪共用这里的配置；凭证不会下发到设备。</small>
+      </section>
+
+      <section class="model-card secondary-model-card">
+        <div class="model-card-head">
+          <div>
+            <span class="model-step">02 · 必需配置</span>
+            <h2>语音识别 ASR</h2>
+            <p>机器人只通过 USB 把音频交给 PC；PC 默认调用火山豆包大模型流式 ASR，设备本身不保存凭证、也不直接访问云端。此处的 Provider 选择影响连通性测试与文本兼容路径；设备实时语音固定使用豆包流式（RTC 内硬编码），不随此选择切换。</p>
+          </div>
+          <div class="secondary-actions">
+            <span class="model-status" :class="{ok: asr.configured}">[[ asr.configured ? '已配置' : '待配置' ]]</span>
+          </div>
+        </div>
+        <div class="model-guide">
+          <b>凭证边界</b>
+          <ol>
+            <li>默认模式只需填写新版火山语音 API Key；不会复用大模型对话的 LLM_API_KEY，也不会把凭证下发到设备。</li>
+            <li>PC 通过 WSS 连接火山豆包流式 ASR。保存后，核心 :9000 进程会在下一轮语音自动读取新配置。</li>
+            <li>FunASR 为实验性选项、仅供本地测试：需自行安装可选依赖和准备 SenseVoice 模型，服务不会自动下载；设备实时语音仍固定走豆包流式，不受此选项影响。</li>
+          </ol>
+        </div>
+        <form class="llm-form model-core-form" @submit.prevent="saveAsrConfig">
+          <fieldset class="system-config-fieldset">
+            <label class="model-field">
+              <span>Provider</span>
+              <select class="tinput" v-model="asr.provider">
+                <option v-for="p in asr.providers" :key="p" :value="p">[[ p==='doubao_streaming' ? '火山豆包流式 ASR' : (p==='openai_compatible' ? 'OpenAI-compatible' : '本地 FunASR（实验性/仅本地测试）') ]]</option>
+              </select>
+            </label>
+            <template v-if="asr.provider==='doubao_streaming'">
+              <label class="model-field model-field-key">
+                <span>火山语音 API Key</span>
+                <input class="tinput" v-model.trim="asr.api_key" type="password" autocomplete="new-password" :placeholder="asr.api_key_set ? '更新 API Key（留空保留）' : '填写新版火山语音 API Key'">
+              </label>
+              <label class="model-field">
+                <span>Resource ID</span>
+                <input class="tinput" v-model.trim="asr.resource_id" placeholder="volc.seedasr.sauc.duration">
+              </label>
+              <label class="model-field">
+                <span>Streaming WebSocket</span>
+                <input class="tinput" v-model.trim="asr.ws_url" placeholder="wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async">
+              </label>
+            </template>
+            <template v-else-if="asr.provider==='openai_compatible'">
+              <label class="model-field model-field-key">
+                <span>ASR API Key</span>
+                <input class="tinput" v-model.trim="asr.api_key" type="password" autocomplete="new-password" :placeholder="asr.api_key_set ? '更新 ASR_API_KEY（留空保留）' : '粘贴语音识别服务 API Key'">
+              </label>
+              <label class="model-field">
+                <span>模型</span>
+                <input class="tinput" v-model.trim="asr.model" placeholder="whisper-1">
+              </label>
+              <label class="model-field">
+                <span>Transcription endpoint</span>
+                <input class="tinput" v-model.trim="asr.endpoint" placeholder="https://api.openai.com/v1/audio/transcriptions">
+              </label>
+            </template>
+            <label class="model-field" v-else>
+              <span>SenseVoice 模型目录</span>
+              <input class="tinput" v-model.trim="asr.model_dir" placeholder="./models/SenseVoiceSmall">
+            </label>
+            <label class="model-field">
+              <span>语言</span>
+              <input class="tinput" v-model.trim="asr.language" placeholder="zh">
+            </label>
+            <div class="model-form-actions">
+              <button type="submit" class="btn primary" :disabled="asr.saving||asr.testing">[[ asr.saving ? '保存中…' : '保存 ASR 配置' ]]</button>
+              <button type="button" class="btn ghost" @click="testAsrConfig" :disabled="asr.saving||asr.testing">[[ asr.testing ? '测试中…' : '保存并测试连接' ]]</button>
+              <button type="button" class="btn ghost" v-if="asr.api_key_set && asr.provider!=='funasr'" @click="clearAsrKey" :disabled="asr.saving||asr.testing">清除 ASR Key</button>
+            </div>
+          </fieldset>
+        </form>
+        <div class="config-state">
+          <span :class="['led', asr.configured ? '' : 'off']"></span>
+          <b>[[ asr.message || (asr.configured ? 'ASR 已配置' : 'ASR 待配置') ]]</b>
+          <small v-if="asr.provider==='doubao_streaming'">[[ asr.resource_id ]] · [[ asr.ws_url ]]</small>
+          <small v-else-if="asr.provider==='openai_compatible'">[[ asr.model ]] · [[ asr.endpoint ]]</small>
+          <small v-else>[[ asr.model_dir ]]</small>
+        </div>
+        <div class="debug-output" v-if="asr.result">
+          <b>[[ asr.result.ok ? (asr.result.text || asr.result.message || 'ASR 操作成功') : (asr.result.error || 'ASR 操作失败') ]]</b>
+          <small v-if="asr.result.code">[[ asr.result.code ]]</small>
+        </div>
+      </section>
+
+      <section class="model-card secondary-model-card">
+        <div class="model-card-head">
+          <div>
+            <span class="model-step">03 · 声音能力</span>
+            <h2>火山引擎豆包流式 TTS 2.0</h2>
+            <p>机器人回复默认通过 V3 双向 WebSocket 调用豆包流式 TTS 2.0；声音复刻另需 App ID / Access Token。</p>
+          </div>
+          <div class="secondary-actions">
+            <span class="model-status" :class="{ok: tts.api_key_set}">[[ tts.api_key_set ? '已配置' : '可稍后' ]]</span>
+            <a class="btn ghost" href="https://console.volcengine.com/speech/new/setting/apikeys?projectName=default" target="_blank" rel="noopener">打开语音 Key 管理</a>
+          </div>
+        </div>
+        <div class="model-guide">
+          <b>去哪里复制？</b>
+          <ol>
+            <li>打开豆包语音控制台的 <a href="https://console.volcengine.com/speech/new/setting/apikeys?projectName=default" target="_blank" rel="noopener">API Key 管理</a>，新建或复制豆包流式语音 API Key。</li>
+            <li>复制新建的 API Key，回到这里粘贴到输入框「豆包语音 API Key」。</li>
+            <li>不要把大模型对话的 LLM_API_KEY 填到豆包语音 API Key；它们不是同一个凭证。</li>
+          </ol>
+        </div>
+        <form class="tts-form voice-config-form" @submit.prevent="saveTtsConfig">
+          <fieldset class="system-config-fieldset">
+          <label class="model-field model-field-key">
+            <span>豆包流式 TTS 2.0 API Key</span>
+            <input class="tinput" v-model.trim="tts.api_key" type="password" autocomplete="off" :placeholder="tts.api_key_set ? '更新语音 API Key（留空则不修改）' : '粘贴 DOUBAO_TTS_API_KEY，不要填 LLM_API_KEY'">
+          </label>
+          <button type="submit" class="btn ghost voice-save-btn" :disabled="tts.saving">[[ tts.saving ? '保存中…' : '保存声音配置' ]]</button>
+          <details class="voice-advanced-fields">
+            <summary>声音高级参数</summary>
+            <div class="voice-advanced-grid">
+              <input class="tinput" v-model.trim="tts.app_id" autocomplete="off" :placeholder="tts.app_id_set ? '更新 App ID（留空则不修改）' : 'DOUBAO_TTS_APP_ID · 声音复刻必填'">
+              <input class="tinput" v-model.trim="tts.access_token" type="password" autocomplete="off" :placeholder="tts.access_token_set ? '更新 Access Token（留空则不修改）' : 'DOUBAO_TTS_ACCESS_TOKEN · 声音复刻必填'">
+              <input class="tinput" v-model.trim="tts.resource_id" placeholder="Resource ID">
+              <input class="tinput" v-model.trim="tts.voice_clone_resource_id" placeholder="声音复刻 Resource ID">
+              <input class="tinput" v-model.trim="tts.model" placeholder="模型">
+              <input class="tinput" v-model.number="tts.sample_rate" type="number" min="8000" step="1000" placeholder="采样率">
+              <input class="tinput wide" v-model.trim="tts.ws_url" placeholder="WebSocket URL">
+              <select v-model="tts.audio_format">
+                <option value="pcm">pcm</option>
+                <option value="wav">wav</option>
+              </select>
+            </div>
+          </details>
+          </fieldset>
+        </form>
+        <div class="config-state">
+          <span :class="['led', tts.api_key_set ? '' : 'off']"></span>
+          <b>[[ tts.api_key_set ? '豆包流式 TTS 2.0 Key 已配置' : '未配置豆包流式 TTS 2.0 Key' ]]</b>
+          <small>[[ tts.speaker ? ('当前音色 ' + tts.speaker) : '未设置当前音色' ]] · 复刻 [[ (tts.app_id_set && tts.access_token_set) ? '可用' : '未配置 App ID/Token' ]]</small>
+        </div>
+        <div class="debug-output" v-if="tts.result">
+          <b>[[ tts.result.ok ? '声音配置已保存' : (tts.result.error || '保存失败') ]]</b>
+        </div>
+      </section>
+
+      <section class="model-card secondary-model-card">
+        <div class="model-card-head">
+          <div>
+            <span class="model-step">04 · 可选配置</span>
+            <h2>图片表情 Ark Key</h2>
+            <p>「表情」页的图片表情包生成走火山引擎 Ark，凭证独立于对话模型。未配置 Ark Key 时将复用 LLM Key。</p>
+          </div>
+          <div class="secondary-actions">
+            <span class="model-status" :class="{ok: setup.ark_api_key_set}">[[ setup.ark_api_key_set ? '已配置' : '可稍后' ]]</span>
+          </div>
+        </div>
+        <form class="llm-form model-core-form" @submit.prevent="saveArkKey">
+          <fieldset class="system-config-fieldset">
+          <label class="model-field model-field-key">
+            <span>ARK_API_KEY</span>
+            <input class="tinput" v-model.trim="setup.ark_api_key" type="password" autocomplete="new-password" :placeholder="setup.ark_api_key_set ? '更新 Ark API Key（留空则保留原值）' : '粘贴火山引擎 Ark API Key'">
+          </label>
+          <div class="model-form-actions">
+            <button type="submit" class="btn primary" :disabled="setup.arkSaving">[[ setup.arkSaving ? '保存中…' : '保存 Ark Key' ]]</button>
+          </div>
+          </fieldset>
+        </form>
+        <div class="debug-output" v-if="setup.arkResult">
+          <b>[[ setup.arkResult.ok ? 'Ark Key 已保存' : (setup.arkResult.error || '保存失败') ]]</b>
+        </div>
+        <small class="setup-hint">Ark Key 留空表示保留原值，保存后不会回显；仅用于图片表情生成，不会下发到设备。</small>
+      </section>
+    </div>
+
+  </div>
+
+  <div class="adv-panel" v-if="active==='debug'">
+    <div class="panel-head">
+      <div><b>系统调试</b><small>设备、LLM、TTS 和模拟器都在本页执行</small></div>
+      <div class="btngroup">
+        <button type="button" class="btn ghost" @click="toggleAdvanced('debug')">[[ advancedOpen.debug ? '收起配置' : '展开配置' ]]</button>
+        <select v-model="currentDeviceId" @change="switchDevice" title="和「连接设备」页的当前设备联动">
+          <option value="">选择设备</option>
+          <option v-for="d in devices" :key="d.device_id" :value="d.device_id">[[ d.display_name ]] · [[ d.device_id ]]</option>
+        </select>
+      </div>
+    </div>
+
+    <div v-show="advancedOpen.debug">
+      <div class="debug-subtabs">
+        <button type="button" :class="{on: debugMode==='devices'}" @click="setDebugMode('devices')">设备</button>
+        <button type="button" :class="{on: debugMode==='llm'}" @click="setDebugMode('llm')">LLM</button>
+        <button type="button" :class="{on: debugMode==='tts'}" @click="setDebugMode('tts')">TTS</button>
+        <button type="button" :class="{on: debugMode==='sim'}" @click="setDebugMode('sim')">模拟器</button>
+      </div>
+
+      <section v-if="debugMode==='devices'">
+      <div class="debug-actionbar">
+        <button type="button" class="btn primary" @click="runDebugHealth">刷新状态</button>
+        <button type="button" class="btn ghost" @click="issueDebugToken">签发调试令牌</button>
+        <button type="button" class="btn ghost" @click="copyDebugToken" :disabled="!debug.token">复制令牌</button>
+      </div>
+      <div class="metric-grid" v-if="debug.health">
+        <div class="metric"><span>DESKBOT</span><b>[[ debug.health.deskbot_server ? '在线' : '离线' ]]</b><small>[[ debug.health.deskbot_target ]]</small></div>
+        <div class="metric"><span>TTS SERVER</span><b>[[ debug.health.tts_server ? '在线' : '离线' ]]</b><small>[[ debug.health.tts_target ]]</small></div>
+        <div class="metric accent"><span>当前设备</span><b>[[ currentDeviceId || '未选择' ]]</b><small>[[ devices.length ]] 台已连接</small></div>
+      </div>
+      <div class="new-key-box" v-if="debug.token">
+        <span>调试令牌</span>
+        <code>[[ debug.token ]]</code>
+      </div>
+      </section>
+
+      <section v-if="debugMode==='llm'">
+      <div class="debug-actionbar">
+        <button type="button" class="btn ghost" @click="loadDebugSystemPrompt">读取全局 Prompt</button>
+        <button type="button" class="btn ghost" @click="saveDebugSystemPrompt">保存全局 Prompt</button>
+        <button type="button" class="btn primary" @click="runDebugLlm">运行 LLM 测试</button>
+      </div>
+      <textarea class="tinput debug-textarea" v-model="debug.systemPrompt" placeholder="系统级 Prompt"></textarea>
+      <div class="inline-form debug-inline">
+        <input class="tinput" v-model="debug.llmText" placeholder="测试输入">
+        <button type="button" class="btn primary" @click="runDebugLlm">发送</button>
+      </div>
+      <div class="debug-output" v-if="debug.llmResult">
+        <b>[[ debug.llmResult.reply || debug.llmResult.error || '无回复' ]]</b>
+        <small v-if="debug.llmResult.model">[[ debug.llmResult.model_display_name || debug.llmResult.model ]] · [[ debug.llmResult.elapsed_ms ]] ms</small>
+        <pre>[[ json(debug.llmResult) ]]</pre>
+      </div>
+      </section>
+
+      <section v-if="debugMode==='tts'">
+      <div class="debug-actionbar">
+        <button type="button" class="btn ghost" @click="loadDebugTts">刷新语音配置</button>
+        <button type="button" class="btn primary" @click="runDebugTts">试听 TTS</button>
+      </div>
+      <div class="config-state">
+        <span :class="['led', debug.tts.api_key_set ? '' : 'off']"></span>
+        <b>[[ debug.tts.api_key_set ? '豆包流式 TTS 2.0 Key 已配置' : '未配置豆包流式 TTS 2.0 Key' ]]</b>
+        <small>[[ debug.tts.model ]] · [[ debug.tts.resource_id ]]</small>
+      </div>
+      <div class="llm-form">
+        <select v-model="debug.tts.speaker" @change="syncDebugTtsSpeaker">
+          <option value="">选择音色</option>
+          <option v-for="s in debug.ttsSpeakers" :key="s.id" :value="s.id">[[ s.label ]] · [[ s.scene ]]</option>
+        </select>
+      </div>
+      <div class="inline-form debug-inline">
+        <input class="tinput" v-model="debug.ttsText" placeholder="试听文本">
+        <button type="button" class="btn primary" @click="runDebugTts">试听</button>
+      </div>
+      <audio ref="debugTtsAudio" class="debug-audio" controls preload="none" :src="debug.ttsAudioUrl"></audio>
+      <div class="debug-output" v-if="debug.ttsResult">
+        <b>[[ debug.ttsResult.error || ('合成完成 · ' + fmtBytes(debug.ttsResult.pcm_total_bytes || 0)) ]]</b>
+        <small v-if="debug.ttsResult.elapsed_ms">[[ debug.ttsResult.elapsed_ms ]] ms · [[ debug.ttsResult.speaker ]]</small>
+      </div>
+      </section>
+
+      <section v-if="debugMode==='sim'">
+      <div class="debug-actionbar">
+        <button type="button" class="btn primary" @click="runDebugSimulation">运行模拟器</button>
+      </div>
+      <div class="inline-form debug-inline">
+        <input class="tinput" v-model="debug.simText" placeholder="模拟文本">
+        <input class="tinput short" v-model.number="debug.simSpkId" type="number" min="0" placeholder="spk">
+        <button type="button" class="btn primary" @click="runDebugSimulation">合成音素</button>
+      </div>
+      <audio ref="debugSimAudio" class="debug-audio" controls preload="none" :src="debug.simAudioUrl"></audio>
+      <div class="debug-output" v-if="debug.simResult">
+        <b>[[ debug.simResult.error || ('音素段 ' + ((debug.simResult.segments || []).length) + ' 个') ]]</b>
+        <small v-if="debug.simResult.ws_url_used">[[ debug.simResult.ws_url_used ]]</small>
+        <pre>[[ json(debug.simResult.segments || debug.simResult) ]]</pre>
+      </div>
+      </section>
+    </div>
+  </div>
+
+  <p class="lead" v-if="msg">[[ msg ]]</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+const LLM_PROVIDER_PRESETS={
+  deepseek:{label:'DeepSeek',model:'deepseek-chat',base_url:'https://api.deepseek.com',
+    key_url:'https://platform.deepseek.com/api_keys',console:'DeepSeek 开放平台'},
+  doubao:{label:'豆包（火山方舟）',model:'doubao-seed-2-0-lite-260428',base_url:'https://ark.cn-beijing.volces.com/api/v3',
+    key_url:'https://console.volcengine.com/ark',console:'火山方舟控制台'},
+  mimo:{label:'Xiaomi MiMo',model:'mimo-v2.5',base_url:'https://api.xiaomimimo.com/v1',
+    key_url:'https://platform.xiaomimimo.com/#/console/api-keys',console:'Xiaomi MiMo 控制台'},
+};
+createApp({
+  delimiters:['[[',']]'],
+  data(){ return {
+    active:'llm', debugMode:'devices', msg:'', loading:false,
+    password:{old_password:'',new_password:'',confirm_password:''},
+    devices:[], currentDeviceId:'',
+    advancedOpen:{debug:false},
+    llm:{protocols:['openai','ark'], models:[], active_model_id:null, active:null, system_default:null, error:''},
+    setup:{
+      provider:'custom',
+      api_key_set:false,model_name:'',default_model:'',api_key:'',protocol:'openai',
+      protocols:['openai','ark'],base_url:'',models:[],revision:null,applied_revision:null,
+      saving:false,detecting:false,testing:false,result:null,
+      ark_api_key:'',ark_api_key_set:false,arkSaving:false,arkResult:null
+    },
+    asr:{
+      provider:'doubao_streaming',providers:['doubao_streaming','openai_compatible','funasr'],
+      api_key:'',api_key_set:false,resource_id:'volc.seedasr.sauc.duration',
+      ws_url:'wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async',
+      endpoint:'https://api.openai.com/v1/audio/transcriptions',
+      model:'whisper-1',language:'zh-CN',model_dir:'',configured:false,message:'',
+      timeout_seconds:30,max_audio_bytes:10485760,saving:false,testing:false,result:null
+    },
+    tts:{
+      api_key:'', api_key_set:false, speaker:'', resource_id:'seed-tts-2.0',
+      model:'seed-tts-2.0-standard', ws_url:'wss://openspeech.bytedance.com/api/v3/tts/bidirection',
+      sample_rate:16000, audio_format:'pcm', app_id:'', app_id_set:false, access_token:'', access_token_set:false,
+      voice_clone_resource_id:'seed-icl-2.0',
+      voice_clone_url:'https://openspeech.bytedance.com/api/v3/tts/voice_clone',
+      voice_status_url:'https://openspeech.bytedance.com/api/v3/tts/get_voice',
+      saving:false, result:null
+    },
+    debug:{
+      health:null, token:'', tokenExpires:0,
+      systemPrompt:'', llmText:'你好，做一个简短自检。', llmResult:null,
+      ttsSpeakers:[], ttsText:'你好，我是小歪调试台。', ttsResult:null, ttsAudioUrl:'',
+      tts:{api_key:'', api_key_set:false, speaker:'', resource_id:'seed-tts-2.0', model:'seed-tts-2.0-standard', ws_url:'wss://openspeech.bytedance.com/api/v3/tts/bidirection', sample_rate:16000, audio_format:'pcm', app_id:'', app_id_set:false, access_token:'', access_token_set:false, voice_clone_resource_id:'seed-icl-2.0'},
+      simText:'你好，我是小歪模拟器。', simSpkId:0, simResult:null, simAudioUrl:'',
+    },
+  }; },
+  computed:{
+    setupBusy(){ return this.setup.saving||this.setup.detecting||this.setup.testing; },
+    setupPreset(){ return LLM_PROVIDER_PRESETS[this.setup.provider]||null; },
+  },
+  methods:{
+    toggleAdvanced(key){
+      this.advancedOpen[key]=!this.advancedOpen[key];
+      if(key==='debug' && this.advancedOpen.debug) this.prepareDebug();
+    },
+    setActive(tab){
+      this.active=tab;
+      this.msg='';
+      const url=new URL(window.location.href);
+      url.searchParams.set('tab',tab);
+      if(this.currentDeviceId)url.searchParams.set('device_id',this.currentDeviceId);
+      window.history.replaceState(window.history.state,'',url);
+      if(tab==='debug' && this.advancedOpen.debug) this.prepareDebug();
+    },
+    setDebugMode(mode){
+      this.debugMode=mode;
+      this.msg='';
+      if(mode==='devices') this.runDebugHealth();
+      if(mode==='llm') this.loadDebugSystemPrompt();
+      if(mode==='tts') this.loadDebugTts();
+    },
+    json(value){ return JSON.stringify(value || {}, null, 2); },
+    fmtBytes(n){
+      n=Number(n)||0;
+      if(n>=1073741824) return (n/1073741824).toFixed(2)+' GB';
+      if(n>=1048576) return (n/1048576).toFixed(1)+' MB';
+      if(n>=1024) return (n/1024).toFixed(1)+' KB';
+      return n+' B';
+    },
+    async api(url, opts){
+      return window.DeskbotConsole.apiJson(url,opts);
+    },
+    normalizeBaseUrl(url){ return String(url||'').trim().replace(/\/+$/,'').toLowerCase(); },
+    // 页面载入时按已保存的 Base URL 反推提供方；无匹配则落到「自定义」态，不改动任何字段。
+    inferSetupProvider(){
+      const base=this.normalizeBaseUrl(this.setup.base_url);
+      const match=Object.keys(LLM_PROVIDER_PRESETS)
+        .find(k=>this.normalizeBaseUrl(LLM_PROVIDER_PRESETS[k].base_url)===base);
+      this.setup.provider=match||'custom';
+    },
+    // 切换提供方：联动填入推荐模型与接入点（协议均为 openai）；API Key 永不联动清空。
+    applySetupProvider(){
+      const preset=LLM_PROVIDER_PRESETS[this.setup.provider];
+      if(!preset)return;
+      this.setup.model_name=preset.model;
+      this.setup.base_url=preset.base_url;
+      this.setup.protocol='openai';
+      this.setup.models=[];
+    },
+    applyPayload(d){
+      this.devices=d.devices||[];
+      this.currentDeviceId=d.current_device_id||'';
+      this.llm=Object.assign({protocols:['openai','ark'],models:[]}, d.llm||{});
+    },
+    async loadSetup(){
+      try{
+        const d = await this.api('/api/setup/llm');
+        const config=d.config||{};
+        this.setup.api_key_set=!!config.api_key_set;
+        this.setup.ark_api_key_set=!!config.ark_api_key_set;
+        this.setup.default_model = d.default_model || '';
+        this.setup.model_name=config.model_name||this.setup.default_model||'';
+        this.setup.protocol=config.protocol||'openai';
+        this.setup.protocols=d.protocols||['openai','ark'];
+        this.setup.base_url=config.base_url||'';
+        this.setup.revision=d.revision??config.revision??null;
+        this.setup.applied_revision=d.applied_revision??config.applied_revision??null;
+        this.inferSetupProvider();
+      }catch(e){
+        this.setup.result={ok:false,error:e.message||'模型配置读取失败'};
+        throw e;
+      }
+    },
+    async detectSetupModels(){
+
+      this.setup.detecting=true; this.setup.result=null;
+      try{
+        const d = await this.api('/api/setup/llm/models', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            api_key:this.setup.api_key,protocol:this.setup.protocol,base_url:this.setup.base_url
+          }),
+          timeoutMs:30000,
+          timeoutMessage:'获取模型列表超过 30 秒，请检查网络后重试'
+        });
+        this.setup.models = d.models || [];
+      }catch(e){ this.setup.result={ok:false,error:e.message||'检测失败'}; }
+      finally{ this.setup.detecting=false; }
+    },
+    async testSetup(){
+
+      this.setup.testing=true; this.setup.result=null;
+      try{ this.setup.result = await this.api('/api/setup/llm/test', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          api_key:this.setup.api_key,model_name:this.setup.model_name,
+          protocol:this.setup.protocol,base_url:this.setup.base_url
+        }),
+        timeoutMs:75000,
+        timeoutMessage:'模型测试超过 75 秒，请检查提供方服务状态后重试'
+      }); }
+      catch(e){ this.setup.result={ok:false,error:e.message||'测试失败'}; }
+      finally{ this.setup.testing=false; }
+    },
+    async saveSetup(){
+
+      this.setup.saving=true; this.setup.result=null;
+      try{
+        const payload={
+          model_name:this.setup.model_name,
+          protocol:this.setup.protocol,
+          base_url:this.setup.base_url,
+        };
+        if(this.setup.api_key.trim())payload.api_key=this.setup.api_key.trim();
+        const d = await this.api('/api/setup/llm', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        this.setup.revision=d.revision??(d.config&&d.config.revision)??this.setup.revision;
+        this.setup.applied_revision=d.applied_revision??(d.config&&d.config.applied_revision)??null;
+        this.setup.result={
+          ok:true,
+          reply:this.setup.revision&&this.setup.applied_revision!==this.setup.revision
+            ? '已保存，等待实时服务应用'
+            : '已保存且实时服务已应用'
+        };
+        this.setup.api_key='';
+        await this.loadSetup();
+        await this.load();
+      }catch(e){ this.setup.result={ok:false,error:e.message||'保存失败'}; }
+      finally{ this.setup.saving=false; }
+    },
+    async saveArkKey(){
+      const key=this.setup.ark_api_key.trim();
+      if(!key){ this.setup.arkResult={ok:false,error:'请先填写 Ark API Key（留空表示保留原值，无需保存）'}; return; }
+      this.setup.arkSaving=true; this.setup.arkResult=null;
+      try{
+        await this.api('/api/setup/llm',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({ark_api_key:key})});
+        this.setup.ark_api_key='';
+        this.setup.arkResult={ok:true};
+        await this.loadSetup();
+      }catch(e){ this.setup.arkResult={ok:false,error:e.message||'保存失败'}; }
+      finally{ this.setup.arkSaving=false; }
+    },
+    applyAsrConfig(config){
+      const previousResult=this.asr.result;
+      this.asr=Object.assign({},this.asr,config||{},{
+        api_key:'',saving:false,testing:false,result:previousResult
+      });
+      if(!this.asr.providers||!this.asr.providers.length)this.asr.providers=['doubao_streaming','openai_compatible','funasr'];
+      if(!this.asr.provider)this.asr.provider='doubao_streaming';
+      if(!this.asr.resource_id)this.asr.resource_id='volc.seedasr.sauc.duration';
+      if(!this.asr.ws_url)this.asr.ws_url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async';
+      if(!this.asr.endpoint)this.asr.endpoint='https://api.openai.com/v1/audio/transcriptions';
+      if(!this.asr.model)this.asr.model='whisper-1';
+      if(!this.asr.language)this.asr.language='zh';
+    },
+    async loadAsrConfig(){
+      try{
+        const d=await this.api('/api/setup/asr');
+        this.applyAsrConfig(d.config||{});
+      }catch(e){
+        this.asr.result={ok:false,error:e.message||'ASR 配置读取失败'};
+        throw e;
+      }
+    },
+    asrUpdatePayload(){
+      const payload={
+        provider:this.asr.provider,
+        language:this.asr.language,
+      };
+      if(this.asr.provider==='doubao_streaming'){
+        payload.resource_id=this.asr.resource_id;
+        payload.ws_url=this.asr.ws_url;
+        if(this.asr.api_key.trim())payload.api_key=this.asr.api_key.trim();
+      }else if(this.asr.provider==='openai_compatible'){
+        payload.endpoint=this.asr.endpoint;
+        payload.model=this.asr.model;
+        if(this.asr.api_key.trim())payload.api_key=this.asr.api_key.trim();
+      }else{
+        payload.model_dir=this.asr.model_dir;
+      }
+      return payload;
+    },
+    async saveAsrConfig(){
+
+      this.asr.saving=true;this.asr.result=null;
+      try{
+        const d=await this.api('/api/setup/asr',{
+          method:'PATCH',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(this.asrUpdatePayload())
+        });
+        this.applyAsrConfig(d.config||{});
+        this.asr.result={ok:true,message:'ASR 配置已保存，核心服务将在下一轮语音自动应用。'};
+        return true;
+      }catch(e){
+        this.asr.result={ok:false,error:e.message||'ASR 配置保存失败'};
+        return false;
+      }finally{this.asr.saving=false;}
+    },
+    async testAsrConfig(){
+
+      if(!await this.saveAsrConfig())return;
+      this.asr.testing=true;this.asr.result=null;
+      try{
+        this.asr.result=await this.api('/api/setup/asr/test',{
+          method:'POST',headers:{'Content-Type':'application/json'},body:'{}'
+        });
+        await this.loadAsrConfig();
+      }catch(e){this.asr.result=Object.assign({ok:false,error:e.message||'ASR 测试失败'},e.payload||{});}
+      finally{this.asr.testing=false;}
+    },
+    async clearAsrKey(){
+
+      if(!confirm('确定清除本机保存的 ASR_API_KEY？清除后语音识别会立即不可用。'))return;
+      this.asr.saving=true;this.asr.result=null;
+      try{
+        const d=await this.api('/api/setup/asr',{
+          method:'PATCH',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({clear_api_key:true})
+        });
+        this.applyAsrConfig(d.config||{});
+        this.asr.result={ok:true,message:'ASR_API_KEY 已清除。'};
+      }catch(e){this.asr.result={ok:false,error:e.message||'清除 ASR Key 失败'};}
+      finally{this.asr.saving=false;}
+    },
+    applyTtsConfig(config){
+      this.tts=Object.assign({}, this.tts, config || {}, {api_key:'', saving:false, result:this.tts.result||null});
+      if(!this.tts.resource_id) this.tts.resource_id='seed-tts-2.0';
+      if(!this.tts.model) this.tts.model='seed-tts-2.0-standard';
+      if(!this.tts.ws_url) this.tts.ws_url='wss://openspeech.bytedance.com/api/v3/tts/bidirection';
+      if(!this.tts.sample_rate) this.tts.sample_rate=16000;
+      if(!this.tts.audio_format) this.tts.audio_format='pcm';
+      if(!this.tts.voice_clone_resource_id) this.tts.voice_clone_resource_id='seed-icl-2.0';
+      if(!this.tts.voice_clone_url) this.tts.voice_clone_url='https://openspeech.bytedance.com/api/v3/tts/voice_clone';
+      if(!this.tts.voice_status_url) this.tts.voice_status_url='https://openspeech.bytedance.com/api/v3/tts/get_voice';
+    },
+    async loadTtsConfig(){
+      try{
+        const d = await this.api('/api/doubao_tts/config');
+        this.applyTtsConfig(d.config || {});
+      }catch(e){
+        this.tts.result={ok:false,error:e.message||'声音配置读取失败'};
+      }
+    },
+    async saveTtsConfig(){
+
+      this.tts.saving=true; this.tts.result=null;
+      try{
+        const d = await this.api('/api/doubao_tts/config', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(this.tts)
+        });
+        this.applyTtsConfig(d.config || {});
+        this.tts.result={ok:true};
+      }catch(e){
+        this.tts.result={ok:false,error:e.message||'保存失败'};
+      }finally{
+        this.tts.saving=false;
+      }
+    },
+    async load(){
+      this.loading=true; this.msg='';
+      const results=await Promise.allSettled([
+        this.loadSetup(),
+        this.loadAsrConfig(),
+        this.loadTtsConfig(),
+        this.api('/api/advanced'),
+      ]);
+      const errors=[];
+      if(results[0].status==='rejected')errors.push('模型配置：'+(results[0].reason.message||'加载失败'));
+      if(results[1].status==='rejected')errors.push('ASR 配置：'+(results[1].reason.message||'加载失败'));
+      if(results[2].status==='rejected')errors.push('语音配置：'+(results[2].reason.message||'加载失败'));
+      if(results[3].status==='fulfilled')this.applyPayload(results[3].value);
+      else errors.push('高级设置数据：'+(results[3].reason.message||'加载失败'));
+      this.msg=errors.join('；');
+      this.loading=false;
+    },
+    async switchDevice(){
+      try{
+        await window.DeskbotConsole.selectDevice(this.currentDeviceId||'',{pinPage:true});
+        await this.load();
+        this.active='debug';
+      }catch(e){ this.msg=e.message||'切换失败'; }
+    },
+    async prepareDebug(){
+      if(this.debugMode==='devices') await this.runDebugHealth();
+      if(this.debugMode==='llm') await this.loadDebugSystemPrompt();
+      if(this.debugMode==='tts') await this.loadDebugTts();
+    },
+    async runDebugHealth(){
+      try{ this.debug.health=await this.api('/api/health'); }
+      catch(e){ this.msg=e.message||'状态刷新失败'; }
+    },
+    async issueDebugToken(){
+      try{
+        const d=await this.api('/api/debug/ws_token');
+        this.debug.token=d.token||'';
+        this.debug.tokenExpires=d.expires_in||0;
+        this.msg='调试令牌已签发';
+      }catch(e){ this.msg=e.message||'令牌签发失败'; }
+    },
+    async copyDebugToken(){
+      try{ await navigator.clipboard.writeText(this.debug.token); this.msg='调试令牌已复制'; }
+      catch(_){ this.msg='复制失败，请手动选择复制'; }
+    },
+    async loadDebugSystemPrompt(){
+
+      try{
+        const d=await this.api('/api/llm/system_prompt');
+        this.debug.systemPrompt=d.system_prompt||'';
+      }catch(e){ this.msg=e.message||'Prompt 读取失败'; }
+    },
+    async saveDebugSystemPrompt(){
+
+      try{
+        await this.api('/api/llm/system_prompt',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({system_prompt:this.debug.systemPrompt})
+        });
+        this.msg='Prompt 已保存';
+      }catch(e){ this.msg=e.message||'Prompt 保存失败'; }
+    },
+    async runDebugLlm(){
+      try{
+        this.debug.llmResult=await this.api('/api/llm/chat',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({device_id:this.currentDeviceId||'', text:this.debug.llmText, system_prompt:this.debug.systemPrompt})
+        });
+      }catch(e){
+        this.debug.llmResult={ok:false,error:e.message||'LLM 测试失败'};
+      }
+    },
+    applyDebugTtsConfig(config){
+      this.debug.tts=Object.assign({}, this.debug.tts, config || {}, {api_key:''});
+      if(!this.debug.tts.resource_id) this.debug.tts.resource_id='seed-tts-2.0';
+      if(!this.debug.tts.model) this.debug.tts.model='seed-tts-2.0-standard';
+      if(!this.debug.tts.ws_url) this.debug.tts.ws_url='wss://openspeech.bytedance.com/api/v3/tts/bidirection';
+      if(!this.debug.tts.sample_rate) this.debug.tts.sample_rate=16000;
+      if(!this.debug.tts.audio_format) this.debug.tts.audio_format='pcm';
+    },
+    async loadDebugTts(){
+      try{
+        const speakers=await this.api('/api/doubao_tts/speakers');
+        this.debug.ttsSpeakers=speakers.speakers||[];
+        const cfg=await this.api('/api/doubao_tts/config');
+        this.applyDebugTtsConfig(cfg.config||{});
+      }catch(e){ this.msg=e.message||'TTS 配置读取失败'; }
+    },
+    syncDebugTtsSpeaker(){
+      const s=(this.debug.ttsSpeakers||[]).find(x=>x.id===this.debug.tts.speaker);
+      if(s && s.resource_id) this.debug.tts.resource_id=s.resource_id;
+    },
+    revokeDebugAudio(key){
+      const url=this.debug[key];
+      if(url && url.startsWith('blob:')) URL.revokeObjectURL(url);
+      this.debug[key]='';
+    },
+    async setDebugAudio(refName, key, wavBase64){
+      this.revokeDebugAudio(key);
+      const bin=Uint8Array.from(atob(wavBase64), c=>c.charCodeAt(0));
+      this.debug[key]=URL.createObjectURL(new Blob([bin], {type:'audio/wav'}));
+      await this.$nextTick();
+      const a=this.$refs[refName];
+      if(a){ a.load(); try{ await a.play(); }catch(_){} }
+    },
+    async runDebugTts(){
+      try{
+        this.debug.ttsResult=await this.api('/api/doubao_tts/synthesize',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(Object.assign({}, this.debug.tts, {text:this.debug.ttsText}))
+        });
+        if(this.debug.ttsResult.wav_base64) await this.setDebugAudio('debugTtsAudio', 'ttsAudioUrl', this.debug.ttsResult.wav_base64);
+      }catch(e){
+        this.debug.ttsResult={ok:false,error:e.message||'TTS 试听失败'};
+      }
+    },
+    async runDebugSimulation(){
+      try{
+        this.debug.simResult=await this.api('/api/tts/phoneme_tts',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({text:this.debug.simText, spk_id:this.debug.simSpkId})
+        });
+        if(this.debug.simResult.wav_base64) await this.setDebugAudio('debugSimAudio', 'simAudioUrl', this.debug.simResult.wav_base64);
+      }catch(e){
+        this.debug.simResult={ok:false,error:e.message||'模拟器运行失败'};
+      }
+    },
+  },
+  mounted(){
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    const allowedTabs=['llm','debug'];
+    if(allowedTabs.includes(tab)) this.active=tab;
+    this._popStateHandler=()=>{
+      const next=new URLSearchParams(window.location.search).get('tab');
+      if(allowedTabs.includes(next))this.active=next;
+    };
+    window.addEventListener('popstate',this._popStateHandler);
+    void (async()=>{
+      const snapshot=await window.DeskbotConsole.refresh();
+      const pinned=new URLSearchParams(window.location.search).get('device_id')||'';
+      if(pinned&&snapshot.target&&snapshot.currentId!==pinned){
+        await window.DeskbotConsole.selectDevice(pinned,{pinPage:true});
+      }
+      await this.load();
+    })();
+  },
+  beforeUnmount(){
+    this.revokeDebugAudio('ttsAudioUrl');
+    this.revokeDebugAudio('simAudioUrl');
+    if(this._popStateHandler)window.removeEventListener('popstate',this._popStateHandler);
+  },
+}).mount('#advancedApp');
+</script>
+{% endblock %}
