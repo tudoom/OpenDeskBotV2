@@ -2,11 +2,13 @@
 
 OpenDeskBotV2 由硬件、固件和软件三部分组成，各部分适用不同的许可证。
 
-| 部分 | 路径 | 许可证 | 全文 |
+| 部分 | 位置 | 许可证 | 全文 |
 |---|---|---|---|
-| Hardware | `hardware/mechanical/` | CERN-OHL-S-2.0 | [LICENSE](hardware/mechanical/LICENSE) |
+| Hardware | [嘉立创开源硬件平台](https://oshwhub.com/eda_hedwaytj/project_asxqsedb) | CERN-OHL-S-2.0 | 见项目页 |
 | Firmware | `hardware/firmware/` | GPL-3.0 | [LICENSE](hardware/firmware/LICENSE) |
 | Service | `service/` | GPL-3.0 | [LICENSE](service/LICENSE) |
+
+结构件、PCB、原理图与 BOM 等硬件设计文件不随本仓库分发，以嘉立创开源硬件平台的项目页为准。
 
 ## 说明
 

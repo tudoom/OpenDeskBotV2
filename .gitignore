@@ -69,7 +69,6 @@ uploadfile
 pkg.sh
 
 # --- Hardware generated (regenerate via generate_kicad.py) ---
-hardware/mechanical/pcb/Board1/Board1_kicad.zip
 
 # --- PC-local runtime config (never tracked; seeded from data/global) ---
 service/data/local/servo.json

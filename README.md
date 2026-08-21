@@ -25,7 +25,7 @@ OpenDeskBotV2 是一台开源的 ESP32-S3 桌面机器人。它能听你说话�
 **立即开始：** [下载客户端](https://github.com/tudoom/OpenDeskBotV2/releases) · [快速开始](#快速开始) · [硬件资料](https://oshwhub.com/eda_hedwaytj/project_asxqsedb) · [反馈问题](https://github.com/tudoom/OpenDeskBotV2/issues)
 
 <p align="center">
-  <img src="hardware/mechanical/poster.jpg" width="420" alt="OpenDeskBotV2 桌面机器人">
+  <img src="assets/poster.jpg" width="420" alt="OpenDeskBotV2 桌面机器人">
 </p>
 
 ## V2 相比 V1 的变化
@@ -122,7 +122,6 @@ Web 控制台 :5050（不打开串口）
 | 目录 | 内容 |
 |---|---|
 | [`hardware/firmware/`](hardware/firmware/) | ESP32-S3 固件源码（PlatformIO） |
-| [`hardware/mechanical/`](hardware/mechanical/) | 结构件、PCB、原理图与 BOM |
 | [`service/`](service/) | Python PC 服务与 Web 控制台 |
 | [`service/client/`](service/client/) | Windows 桌面客户端与安装包构建 |
 | [`service/docs/`](service/docs/) | 架构、协议与接口文档 |
@@ -156,7 +155,7 @@ Web 控制台 :5050（不打开串口）
 
 ## License
 
-- **Hardware** (`hardware/mechanical/`)：[CERN-OHL-S-2.0](hardware/mechanical/LICENSE)
+- **Hardware**（结构、PCB、原理图与 BOM，托管于[嘉立创开源硬件平台](https://oshwhub.com/eda_hedwaytj/project_asxqsedb)）：CERN-OHL-S-2.0
 - **Firmware** (`hardware/firmware/`)：[GPL-3.0](hardware/firmware/LICENSE)
 - **Service** (`service/`)：[GPL-3.0](service/LICENSE)
 

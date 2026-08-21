@@ -97,7 +97,7 @@ open-desk-bot-v2/
 │  ├─ firmware/                 ESP32-S3 固件源码
 │  ├─ partitions/               8 MB Flash 分区表
 │  ├─ scripts/                  构建前契约检查
-│  ├─ mechanical/               结构与 PCB 资料
+│  │                             （结构与 PCB 资料见嘉立创开源硬件平台）
 │  ├─ diagnostics/              v2 硬件/显示探针诊断固件
 │  ├─ platformio.ini            固件构建配置
 │  ├─ platformio.local.ini.example  本机构建覆盖示例
