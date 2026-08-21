@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 import yaml
 
 from deskbot_server.core.settings import AppSettings
+from deskbot_server.env import load_dotenv
 
 logger = logging.getLogger("deskbot-server")
 
@@ -524,6 +525,11 @@ class RtcAgentSdkManager:
         return "", "", ""
 
     def _can_start(self) -> bool:
+        # 控制台在 :5050 进程里把新填的 key 写进 .env，本进程（:9000）的
+        # os.environ 仍停在启动时的快照，于是重试循环每 30s 读一次同样过期的
+        # 空值，永远起不来——首次使用「装好→启动→填 key→说话」必然失败。
+        # 每次尝试前热加载一次，填完 key 等一轮重试即可生效，无需重启。
+        load_dotenv(force_reload=True)
         self._set_last_error("")
         missing: list[str] = []
         if not self.settings.rtc.livekit_url:
