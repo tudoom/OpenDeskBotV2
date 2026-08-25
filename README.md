@@ -50,6 +50,8 @@ V2 版在 V1 的基础上对设备端固件和 PC 端都进行了全面优化。
 | 头部动作 | 双轴舵机，支持点头、摇头、左右看等动作，可在控制台自定义编排 |
 | 摄像头 | 拍照与画面理解，图像不落盘 |
 | 大模型可选 | OpenAI 兼容接口接入，控制台内置 DeepSeek / 豆包 / MiMo 预设，也可自定义 |
+| 家居控制 | 绑定米家账号后可用语音控制智能设备与场景，由 Xiaomi Miloco 的 MIoT SDK 提供 |
+| 声音复刻 | 上传一段音频复刻专属音色，训练完成后可试听并设为当前 |
 | Web 控制台 | 设备管理、供应商配置、动作编排与调试实验台 |
 
 ## 快速开始
@@ -167,12 +169,25 @@ Web 控制台 :5050（不打开串口）
   <img src="assets/wechat-group-qr.png" width="220" alt="OpenDeskBotV2 微信交流群二维码">
 </p>
 
+## 致谢
+
+本项目建立在这些工作之上：
+
+- **[Xiaomi Miloco](https://github.com/XiaoMi/xiaomi-miloco)** —— 家居控制能力由其 MIoT SDK（`miloco-miot`）提供，负责米家账号授权、设备发现与属性读写。安装包内分发的该组件版权归小米所有，依 [Xiaomi Miloco License](https://github.com/XiaoMi/xiaomi-miloco/blob/main/LICENSE.md) 授权，仅限非商业用途使用，其版权标识与免责声明随该组件一并保留。
+- **[LiveKit](https://github.com/livekit/livekit)** —— 本机 SFU 与实时音频管线。
+- **[火山引擎豆包语音](https://www.volcengine.com/product/voice-tech)** —— 语音识别、语音合成与声音复刻。
+- **[ESP-SR](https://github.com/espressif/esp-sr)**（乐鑫）—— 设备端回声消除、降噪与语音活动检测。
+- **[PlatformIO](https://platformio.org/)** 与 **[Arduino-ESP32](https://github.com/espressif/arduino-esp32)** —— 固件构建与运行时。
+
+其余第三方依赖适用其各自的许可证，详见各依赖自带的许可证文件。
+
 ## License
 
 - **Hardware**（结构、PCB、原理图与 BOM，托管于[嘉立创开源硬件平台](https://oshwhub.com/eda_hedwaytj/project_asxqsedb)）：CERN-OHL-S-2.0
 - **Firmware** (`hardware/firmware/`)：[GPL-3.0](hardware/firmware/LICENSE)
 - **Service** (`service/`)：[GPL-3.0](service/LICENSE)
 
-各部分依赖的第三方组件适用其各自的许可证。
+各部分依赖的第三方组件适用其各自的许可证，详见[致谢](#致谢)。其中安装包内
+分发的 `miloco-miot` 依 Xiaomi Miloco License 授权，仅限非商业用途。
 
 Copyright © 2026 OpenDeskBot Contributors
