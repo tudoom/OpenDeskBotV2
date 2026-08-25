@@ -75,8 +75,11 @@ dev = [
     "ruff>=0.9",
     "pytest>=8.0",
 ]
-# miloco-miot 需从 iotctl/wheels 本地安装：
+# miloco-miot（家居控制 SDK）随仓库提交在 iotctl/wheels/ 下，离线安装：
 #   pip install --no-deps src/deskbot_server/iotctl/wheels/miloco_miot-*.whl
+# --no-deps 是刻意的：SDK 声明了 av / fastmcp / paho-mqtt / zeroconf 等重依赖，
+# 而云端家居控制只用 miot.cloud / const / spec / storage / types 五个模块，
+# 下面 miot extra 里的四个依赖就够了。
 miot = [
     "aiohttp>=3.14.1",
     "aiofiles>=25.1.0",

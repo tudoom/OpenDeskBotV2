@@ -1025,6 +1025,30 @@ function Build-Installer {
     Write-Host "  File:   $($setup.FullName)"
 }
 
+function Install-MilocoMiotWheel {
+    # 家居控制依赖 miloco-miot SDK。上游 Release 只发布 darwin/linux 的整包，
+    # 没有任何 wheel 产物，所以 wheel 随仓库提交，构建期离线安装，避免构建机
+    # 联网克隆上游。--no-deps 是刻意的：SDK 声明了 av / fastmcp / paho-mqtt /
+    # zeroconf 等重依赖，而云端家居控制只用到 miot.cloud / const / spec /
+    # storage / types 五个模块，这些依赖一个都不需要。
+    $wheelDir = Join-Path $serviceRoot "src\deskbot_server\iotctl\wheels"
+    $wheel = Get-ChildItem -LiteralPath $wheelDir -Filter "miloco_miot-*.whl" `
+        -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $wheel) {
+        throw "miloco-miot wheel not found under $wheelDir"
+    }
+    $venvPython = Join-Path $serviceRoot ".venv\Scripts\python.exe"
+    if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
+        throw "Virtual environment interpreter not found: $venvPython"
+    }
+    & $venvPython -m pip install --no-deps --quiet --disable-pip-version-check `
+        --no-index --upgrade $wheel.FullName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to install $($wheel.Name)"
+    }
+    Write-Host "  MIOT SDK:     $($wheel.Name)"
+}
+
 $pythonHome = Resolve-PythonHome
 $compiler = Find-CSharpCompiler
 $webView2Sdk = Resolve-WebView2Sdk
@@ -1032,6 +1056,7 @@ Write-Host "Building Open Desk Bot V2 client"
 Write-Host "  Service root: $serviceRoot"
 Write-Host "  Python home:  $pythonHome"
 Write-Host "  Compiler:     $compiler"
+Install-MilocoMiotWheel
 Write-Host "  WebView2 SDK: $webView2Sdk"
 Write-Host "  Output:       $outputExe"
 
@@ -1061,6 +1086,16 @@ try {
             -SitePackages (Join-Path $stageRoot "python\Lib\site-packages")
     } else {
         Write-Host "Keeping the face vision stack in the stage (-IncludeFaceStack)."
+    }
+
+    # The MIoT SDK carries native libraries for linux and darwin only — there
+    # is no windows tree in there at all — and only miot.camera loads them.
+    # Cloud home control never touches that module, so on a Windows-only
+    # client this is ~28 MB that can never execute.
+    $miotLibs = Join-Path $stageRoot "python\Lib\site-packages\miot\libs"
+    if (Test-Path -LiteralPath $miotLibs) {
+        Write-Host "Removing the MIoT SDK's linux/darwin native libraries..."
+        Remove-Item -LiteralPath $miotLibs -Recurse -Force
     }
 
     Write-Host "Staging service and Web frontend sources..."

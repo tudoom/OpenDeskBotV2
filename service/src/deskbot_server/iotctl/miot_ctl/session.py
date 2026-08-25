@@ -18,7 +18,7 @@ from miot.types import (
     MIoTSetPropertyParam,
 )
 
-from miot_ctl.util import (
+from .util import (
     TOKEN_REFRESH_SKEW_SEC,
     api_iid_to_parts,
     auth_path,

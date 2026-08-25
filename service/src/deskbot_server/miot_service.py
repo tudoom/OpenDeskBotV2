@@ -36,9 +36,9 @@ def _load_miot_modules():
     """Load the optional miloco SDK only when a MIOT operation is requested."""
     global _miot_import_error
     try:
-        from miot_ctl.session import MiotSession as session_cls
-        from miot_ctl.util import code_msg as code_message
-        from miot_ctl.util import load_json as json_loader
+        from deskbot_server.iotctl.miot_ctl.session import MiotSession as session_cls
+        from deskbot_server.iotctl.miot_ctl.util import code_msg as code_message
+        from deskbot_server.iotctl.miot_ctl.util import load_json as json_loader
     except Exception as exc:
         _miot_import_error = exc
         raise RuntimeError(

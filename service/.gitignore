@@ -204,3 +204,7 @@ pkg.sh
 .pytest_tmp*/
 
 .cursor/
+
+# miloco-miot SDK wheel 需随仓库分发，供构建期离线安装（覆盖上面的通用 wheels/ 规则）
+!src/deskbot_server/iotctl/wheels/
+!src/deskbot_server/iotctl/wheels/*.whl

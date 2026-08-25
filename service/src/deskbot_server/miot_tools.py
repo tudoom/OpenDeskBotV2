@@ -14,7 +14,7 @@ def _load_miot_util():
     """Import MIOT helpers only after the optional SDK passed availability checks."""
     try:
         # miot_service 已把 iotctl 加入 sys.path
-        from miot_ctl.util import MIOT_OK_CODES, infer_value
+        from deskbot_server.iotctl.miot_ctl.util import MIOT_OK_CODES, infer_value
     except Exception as exc:
         raise RuntimeError(
             "MIOT integration is unavailable: install the optional miloco-miot SDK"

@@ -13,8 +13,8 @@ from urllib.parse import parse_qs, urlparse
 
 import click
 
-from miot_ctl.session import MiotSession
-from miot_ctl.util import code_msg, infer_value, print_json
+from .session import MiotSession
+from .util import code_msg, infer_value, print_json
 
 T = TypeVar("T")
 

@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV="$ROOT/.venv"
 WHEEL_DIR="$ROOT/wheels"
-VERSION="${MIOT_CTL_VERSION:-2026.7.3}"
+VERSION="${MIOT_CTL_VERSION:-2026.8.6}"
 
 info()  { printf '[miot-ctl] %s\n' "$*"; }
 fail()  { printf '[miot-ctl] 错误: %s\n' "$*" >&2; exit 1; }
@@ -83,20 +83,17 @@ download_wheel() {
     fi
   fi
 
-  local urls=(
-    "https://github.com/XiaoMi/xiaomi-miloco/releases/download/v${VERSION}/${wheel}"
-    "https://gh-proxy.com/https://github.com/XiaoMi/xiaomi-miloco/releases/download/v${VERSION}/${wheel}"
-    "https://gh-proxy.org/https://github.com/XiaoMi/xiaomi-miloco/releases/download/v${VERSION}/${wheel}"
-  )
-  info "下载 miloco-miot wheel (${PLATFORM})..."
-  for url in "${urls[@]}"; do
-    if curl -fL --retry 3 --connect-timeout 15 -o "$dest" "$url"; then
-      info "下载完成: $dest"
-      return
-    fi
-    rm -f "$dest"
-  done
-  fail "wheel 未找到。请手动放到 wheels/ 目录，或在 xiaomi-miloco 仓库内运行 install.sh"
+  # 上游 Release 只发布 darwin/linux 的整包，从未提供 wheel 产物，原先的三个
+  # releases/download 地址（含两个 gh-proxy 镜像）一直是 404。wheel 现在随仓库
+  # 提交在 wheels/ 下，正常情况上面已经命中；走到这里说明它被删了，从源码构建。
+  info "wheels/ 下无 wheel，从上游源码构建 (v${VERSION})..."
+  if pip install --no-deps --wheel-dir "$WHEEL_DIR" 2>/dev/null     "git+https://github.com/XiaoMi/xiaomi-miloco.git@v${VERSION}#subdirectory=backend/miot"; then
+    return
+  fi
+  if command -v uv >/dev/null 2>&1 &&     uv pip wheel --no-deps -o "$WHEEL_DIR"       "git+https://github.com/XiaoMi/xiaomi-miloco.git@v${VERSION}#subdirectory=backend/miot"; then
+    return
+  fi
+  fail "wheel 未找到且源码构建失败。请手动放回 wheels/ 目录，或在 xiaomi-miloco 仓库内运行 install.sh"
 }
 
 main() {
