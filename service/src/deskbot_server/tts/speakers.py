@@ -5,11 +5,15 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
-_PKG_ROOT = Path(__file__).resolve().parents[3]
-_SPEAKERS_JSON = _PKG_ROOT / "data" / "global" / "doubao_tts_speakers.json"
+from deskbot_server.paths import DATA_DIR
+
+# 走 DATA_DIR 而不是相对本文件推算：打包后源码位于 <runtime>/app/src/，
+# parents[3] 指向 app/，而 app/ 下只有 bin/models/src，data/global 是作为
+# seed 复制到用户数据目录的。自己推路径会在装机版上永远找不到音色表，
+# 表现为「声音」页一个音色都没有（源码启动却正常，所以一直没被发现）。
+_SPEAKERS_JSON = DATA_DIR / "global" / "doubao_tts_speakers.json"
 
 
 @dataclass(frozen=True)

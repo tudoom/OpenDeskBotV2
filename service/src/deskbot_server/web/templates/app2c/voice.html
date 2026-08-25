@@ -16,8 +16,9 @@
         <div class="blocktitle top">DOUBAO VOICE CLONE</div>
         <h2>声音复刻</h2>
         <small>上传一段清晰的训练音频，提交到火山引擎复刻音色；训练可用后可直接设为当前音色。</small>
+        <small class="clone-hint">请先到火山引擎<a href="https://console.volcengine.com/speech" target="_blank" rel="noopener noreferrer">开通声音复刻功能</a>，否则提交会被拒绝。</small>
       </div>
-      <a v-if="!cloneReady" class="btn ghost" href="{{ url_for('app2c.advanced') }}?tab=llm">配置 App ID / Token</a>
+      <a v-if="!cloneReady" class="btn ghost" href="{{ url_for('app2c.advanced') }}?tab=llm">配置 API Key</a>
       <span v-else class="tagdev">复刻已配置</span>
     </div>
 
@@ -42,9 +43,11 @@
     <div class="clone-progress progress-strip" v-if="cloneProgressVisible" aria-live="polite">
       <div class="progress-meta">
         <b>[[ cloneProgressLabel ]]</b>
-        <span>[[ cloneProgress ]]%</span>
+        <span v-if="cloneProgressKnown">[[ cloneProgress ]]%</span>
       </div>
-      <progress max="100" :value="cloneProgress"></progress>
+      <!-- 进度只在真的知道时才给数字：火山不返回百分比，训练中一律走不确定态。 -->
+      <progress v-if="cloneProgressKnown" max="100" :value="cloneProgress"></progress>
+      <progress v-else max="100"></progress>
     </div>
 
     <div class="clone-state">
@@ -53,8 +56,31 @@
       <small>Resource ID: [[ cloneResourceId ]]</small>
     </div>
     <div class="debug-output" v-if="clone.result">
-      <b>[[ clone.result.ready ? '复刻音色可用' : ('训练状态：' + (clone.result.status_label || '未知')) ]]</b>
+      <b>[[ clone.result.ready ? '复刻音色可用' : (cloneKnownState ? ('训练状态：' + clone.result.status_label) : '训练状态待查询') ]]</b>
       <small>ID: [[ clone.result.speaker_id ]] · [[ clone.result.model_type ? ('model_type=' + clone.result.model_type) : '等待火山引擎返回模型版本' ]]</small>
+    </div>
+
+    <div class="clone-list" v-if="clone.jobs.length">
+      <div class="blocktitle">已复刻音色</div>
+      <div class="vgrid">
+        <div class="vcard" :class="{cur: j.speaker_id===current}"
+             v-for="j in clone.jobs" :key="j.job_id || j.speaker_id">
+          <span class="curtag" v-if="j.speaker_id===current">当前</span>
+          <b>[[ j.display_name || '未命名音色' ]]</b>
+          <small>[[ cloneJobStateText(j) ]]</small>
+          <em>[[ j.speaker_id ]]</em>
+          <div class="vbtns">
+            <button type="button" class="vbtn play" @click="previewCloned(j)"
+                    :disabled="!j.ready || playing===j.speaker_id">
+              [[ playing===j.speaker_id ? '合成中…' : '▶ 试听' ]]
+            </button>
+            <button type="button" class="vbtn set" @click="setCurrentCloned(j)"
+                    :disabled="!j.ready || j.speaker_id===current">
+              [[ j.speaker_id===current ? '使用中' : '设为当前' ]]
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -119,7 +145,7 @@ createApp({
     clone:{
       voice_name:'小歪专属音色', custom_speaker_id:'', speaker_id:'', job_id:'', language:0, prompt_text:'',
       audioFile:null, fileName:'', submitting:false, checking:false, result:null,
-      progress:0, progressLabel:'', progressTimer:null
+      progress:0, progressLabel:'', progressTimer:null, jobs:[], lastError:''
     },
     cloneLanguages:[
       {value:0,label:'中文'}, {value:1,label:'英文'}, {value:2,label:'日语'}, {value:3,label:'西班牙语'},
@@ -128,7 +154,8 @@ createApp({
   }; },
   computed:{
     cloneReady(){
-      return !!(this.cfg.app_id_set && this.cfg.access_token_set);
+      // 复刻与流式合成共用同一把 TTS 密钥，不再需要单独的 App ID / Access Token。
+      return !!(this.cfg.api_key_set || (this.cfg.app_id_set && this.cfg.access_token_set));
     },
     cloneResourceId(){
       return this.cfg.voice_clone_resource_id || 'seed-icl-2.0';
@@ -137,24 +164,31 @@ createApp({
       return this.clone.job_id;
     },
     cloneProgressVisible(){
-      return !!(this.clone.submitting || this.clone.checking || this.clone.result || this.clone.progress > 0);
+      // 查询失败时不显示进度条：状态未知却还在走进度，会被误读成训练正常。
+      if(this.clone.lastError) return false;
+      return !!(this.clone.submitting || this.clone.checking || this.clone.result);
+    },
+    cloneKnownState(){
+      const r = this.clone.result;
+      return !!(r && r.status_label && r.status_label !== '未知');
+    },
+    cloneProgressKnown(){
+      return !!(this.clone.result && this.clone.result.ready);
     },
     cloneProgress(){
-      if(this.clone.submitting || this.clone.checking) return Math.round(this.clone.progress || 12);
-      if(this.clone.result && this.clone.result.ready) return 100;
-      if(this.clone.result) return Math.max(64, Math.round(this.clone.progress || 64));
-      return Math.round(this.clone.progress || 0);
+      return this.cloneProgressKnown ? 100 : 0;
     },
     cloneProgressLabel(){
       if(this.clone.submitting) return this.clone.progressLabel || '正在上传训练音频';
       if(this.clone.checking) return this.clone.progressLabel || '正在查询训练状态';
       if(this.clone.result && this.clone.result.ready) return '复刻完成，音色可用';
-      if(this.clone.result) return '训练中：' + (this.clone.result.status_label || '等待火山引擎处理');
+      if(this.clone.result) return this.cloneKnownState ? ('训练中：' + this.clone.result.status_label) : '尚未查询训练状态';
+      if(this.clone.lastError) return '状态查询失败';
       return this.clone.progressLabel || '等待提交';
     },
     cloneStatusText(){
-      if(!this.cloneReady) return '请先在高级页配置火山语音 App ID 和 Access Token';
-      if(this.clone.result) return '当前状态：' + (this.clone.result.status_label || '未知');
+      if(!this.cloneReady) return '请先在高级页配置豆包语音 API Key';
+      if(this.clone.result) return this.cloneKnownState ? ('当前状态：' + this.clone.result.status_label) : '状态待查询，点「查询状态」获取';
       return '可以提交声音复刻';
     },
     sceneOptions(){
@@ -217,7 +251,9 @@ createApp({
         this.preferenceRevision = preferences.revision ?? null;
         if(voice.speaker) this.current = voice.speaker;
         if(voice.resource_id) this.cfg.resource_id = voice.resource_id;
-        if(jobs.jobs && jobs.jobs.length) this.handleCloneResult(jobs.jobs[0]);
+        // 整份列表都要，页面据此渲染「已复刻音色」；第一条仍驱动顶部状态区。
+        this.clone.jobs = jobs.jobs || [];
+        if(this.clone.jobs.length) this.handleCloneResult(this.clone.jobs[0]);
         // 未配置时页顶已有全局提示条引导去「高级 · 模型配置」，这里不再重复提示
       }catch(e){
         if(seq===this.loadSeq)this.msg = '声音配置加载失败：' + this.errText(e);
@@ -276,6 +312,8 @@ createApp({
       this.finishCloneProgress('', 0);
     },
     handleCloneResult(data){
+      // 拿到任何一次成功结果就清掉上次的失败原文，否则进度区会一直被判为失败。
+      this.clone.lastError = '';
       this.clone.result = {
         speaker_id:data.speaker_id || this.clone.speaker_id,
         status:data.status,
@@ -287,6 +325,7 @@ createApp({
       if(data.speaker_id) this.clone.speaker_id = data.speaker_id;
       if(data.job_id) this.clone.job_id = data.job_id;
       if(data.speaker_id && !this.clone.custom_speaker_id) this.clone.custom_speaker_id = data.speaker_id;
+      this.refreshCloneJobs();
       this.finishCloneProgress(
         this.clone.result.ready ? '复刻完成，音色可用' : ('训练中：' + this.clone.result.status_label),
         this.clone.result.ready ? 100 : 68
@@ -338,10 +377,42 @@ createApp({
           })});
         this.handleCloneResult(data);
       }catch(e){
-        this.msg = '查询复刻状态失败：' + this.errText(e);
+        this.clone.lastError = this.errText(e);
+        this.msg = '查询复刻状态失败：' + this.clone.lastError;
         this.finishCloneProgress('', 0);
       }finally{
         this.clone.checking = false;
+      }
+    },
+    async refreshCloneJobs(){
+      // 提交或查状态之后列表要跟着变，否则新复刻的音色要刷新整页才看得到。
+      try{
+        const data = await this.api('/api/doubao_tts/voice-clone/jobs');
+        this.clone.jobs = data.jobs || [];
+      }catch(e){ /* 列表刷新失败不打断主流程 */ }
+    },
+    cloneJobStateText(j){
+      if(j.ready) return '可用 · ' + this.cloneResourceId;
+      if(j.error) return '状态查询失败';
+      if(j.status_label && j.status_label !== '未知') return j.status_label;
+      return '状态待查询';
+    },
+    previewCloned(j){
+      // 复刻音色走与内置音色相同的试听通道，resource 用复刻资源。
+      return this.preview({
+        id: j.speaker_id,
+        label: j.display_name || j.speaker_id,
+        resource_id: this.cloneResourceId,
+      });
+    },
+    async setCurrentCloned(j){
+      if(!this.ensureTtsReady()) return;
+      this.msg = '';
+      try{
+        await this.saveVoicePreference(j.speaker_id, this.cloneResourceId);
+        this.msg = '已设为当前音色：' + (j.display_name || j.speaker_id);
+      }catch(e){
+        this.msg = '设置失败：' + this.errText(e);
       }
     },
     async applyClonedVoice(){

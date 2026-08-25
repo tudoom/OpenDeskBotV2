@@ -235,6 +235,7 @@ def _doubao_voice_clone_cfg_from_payload(payload: dict):
     )
 
     base = load_doubao_tts_config()
+    api_key = resolve_optional_secret(payload.get("api_key"), base.api_key)
     app_key = resolve_optional_secret(payload.get("app_id"), base.app_id)
     access_key = resolve_optional_secret(payload.get("access_token"), base.access_token)
     resource_id = str(
@@ -246,6 +247,7 @@ def _doubao_voice_clone_cfg_from_payload(payload: dict):
     clone_url = base.voice_clone_url
     status_url = base.voice_status_url
     return DoubaoVoiceCloneConfig(
+        api_key=api_key,
         app_key=app_key,
         access_key=access_key,
         resource_id=resource_id,
@@ -461,12 +463,35 @@ def api_doubao_tts_voice_clone_status():
 
 @bp.get("/api/doubao_tts/voice-clone/jobs")
 def api_doubao_tts_voice_clone_jobs():
+    from deskbot_server.tts.voice_clone import get_doubao_voice_clone_status
     from deskbot_server.tts.voice_clone_jobs import (
+        claim_voice_clone_status_poll,
         list_voice_clone_jobs,
+        update_voice_clone_job_result,
         voice_clone_job_payload,
     )
 
     rows = list_voice_clone_jobs()
+
+    # 行里存的是上一次查询的结果，训练是异步完成的，没人再查它就永远停在旧
+    # 状态上——已经训练好的音色因此显示为「未知」且试听/设为当前一直不可点。
+    # 这里对未就绪的行补一次实时查询，频控沿用 status 接口那套 claim。
+    cfg = None
+    for index, row in enumerate(rows):
+        if row.ready or row.state == "failed" or not row.speaker_id:
+            continue
+        if claim_voice_clone_status_poll(job_id=row.id):
+            continue
+        if cfg is None:
+            cfg = _doubao_voice_clone_cfg_from_payload({})
+        try:
+            result = get_doubao_voice_clone_status(cfg, row.speaker_id)
+        except Exception:  # noqa: BLE001 - 单行刷新失败不能拖垮整个列表
+            logger.exception("刷新声音复刻状态失败 speaker=%r", row.speaker_id)
+            continue
+        refreshed = update_voice_clone_job_result(row.id, result)
+        if refreshed is not None:
+            rows[index] = refreshed
 
     return jsonify(
         {

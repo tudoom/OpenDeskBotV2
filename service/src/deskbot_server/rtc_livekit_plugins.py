@@ -770,6 +770,19 @@ def _build_tts():
 
     config = load_doubao_tts_config()
 
+    def _reload_tts_config(fallback):
+        """取当前 .env 里的 TTS 配置，保留构造时确定的 sample_rate。"""
+        import dataclasses
+
+        try:
+            fresh = load_doubao_tts_config()
+        except Exception:
+            return fallback
+        if not fresh.speaker or not fresh.api_key:
+            return fallback
+        return dataclasses.replace(fresh, sample_rate=fallback.sample_rate)
+
+
     class DeskbotSeedSpeechTTS(tts.TTS):
         def __init__(self) -> None:
             super().__init__(
@@ -830,11 +843,17 @@ def _build_tts():
             if not clean:
                 return
             request_id = uuid.uuid4().hex
+            # 每次合成前重新读取配置：换音色是在控制台（:5050）里写 .env 的，
+            # 而这里跑在 Agent 子进程，闭包里的 config 停在进程启动那一刻，
+            # 于是 PC 上明明换了音色、设备仍旧用旧嗓子说话，只有重启才生效。
+            # sample_rate 沿用构造时的值——它已经写进 TTSCapabilities，中途
+            # 改变会和已声明的能力不一致。
+            live = _reload_tts_config(config)
             output_emitter.initialize(
                 request_id=request_id,
-                sample_rate=config.sample_rate,
+                sample_rate=live.sample_rate,
                 num_channels=1,
-                mime_type=f"audio/pcm;rate={config.sample_rate}",
+                mime_type=f"audio/pcm;rate={live.sample_rate}",
                 stream=False,
             )
             try:
@@ -844,7 +863,7 @@ def _build_tts():
                 )
                 await synthesize_doubao_tts(
                     clean,
-                    config,
+                    live,
                     on_pcm=output_emitter.push,
                 )
             except Exception as exc:
