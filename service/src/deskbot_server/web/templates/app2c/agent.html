@@ -1,0 +1,203 @@
+{% extends "base_2c.html" %}
+{% block page_title %}Agent 伙伴 · 小歪{% endblock %}
+{% block extra_head %}<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>{% endblock %}
+{% block content %}
+<div id="app" class="agent-page">
+  <div class="agent-head">
+    <div>
+      <div class="eyebrow">AGENT · 伙伴</div>
+      <h1>Agent 伙伴</h1>
+    </div>
+    <div class="agent-docs">
+      <button type="button" class="btn ghost" v-for="d in docs" :key="d.name"
+              :class="{primary: openDoc===d.name}" @click="toggleDoc(d)">
+        [[ d.name ]]
+      </button>
+      <a class="btn ghost" href="{{ url_for('app2c.reminders') }}">更多功能</a>
+    </div>
+  </div>
+
+  <div class="agent-doc-panel" v-if="openDoc">
+    <div class="agent-doc-bar">
+      <b>[[ openDoc ]]</b>
+      <small>[[ docLabel ]]</small>
+      <span class="grow"></span>
+      <button class="btn primary" :disabled="docSaving" @click="saveDoc">
+        [[ docSaving ? '保存中…' : '保存' ]]
+      </button>
+      <button class="btn ghost" @click="openDoc=''">关闭</button>
+    </div>
+    <textarea class="tinput agent-doc-text" v-model="docText"
+              spellcheck="false" aria-label="编辑文档"></textarea>
+    <small v-if="docMsg" class="agent-doc-msg">[[ docMsg ]]</small>
+  </div>
+
+  <div class="agent-abilities" v-if="abilities.length">
+    <div class="agent-abilities-hd"><span>ABILITIES</span><b>它会做的事</b><small>同一个 Agent 的四项能力</small></div>
+    <a class="agent-ability" v-for="a in abilities" :key="a.key" :href="a.href">
+      <b>[[ a.label ]]</b><span>[[ a.text ]]</span><em>去看看 →</em>
+    </a>
+  </div>
+
+  <div class="agent-chat" ref="scroller">
+    <div v-if="!turns.length" class="ui-state">
+      <b>还没有对话</b>
+      <p>在下面说点什么，这里和语音走同一个大脑。</p>
+    </div>
+    <div class="agent-turn" v-for="(t,i) in turns" :key="i" :class="t.role">
+      <div class="agent-bubble">[[ t.text ]]</div>
+    </div>
+    <div class="agent-turn assistant" v-if="pending">
+      <div class="agent-bubble thinking">正在想…</div>
+    </div>
+  </div>
+
+  <form class="agent-input" @submit.prevent="send">
+    <textarea class="tinput" v-model="draft" rows="2" maxlength="2000"
+              placeholder="和它说点什么…（Enter 发送，Shift+Enter 换行）"
+              @keydown.enter.exact.prevent="send"></textarea>
+    <button class="btn primary" type="submit" :disabled="pending || !draft.trim()">
+      [[ pending ? '发送中…' : '发送' ]]
+    </button>
+  </form>
+  <small v-if="error" class="agent-error">[[ error ]]</small>
+</div>
+
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){ return {
+    turns:[], draft:'', pending:false, error:'',
+    docs:[], openDoc:'', docText:'', docLabel:'', docSaving:false, docMsg:'',
+    abilities:[],
+  }; },
+  methods:{
+    async api(path, opts){
+      return window.DeskbotConsole.apiJson(path, opts);
+    },
+    async loadAbilities(){
+      const rows=[];
+      const safe=async (fn)=>{ try{ return await fn(); }catch(_e){ return null; } };
+      const q=await safe(()=>this.api('/api/quest/overview'));
+      if(q && q.ok){
+        const running=(q.tasks||[]).filter(t=>t.status==='running').map(t=>t.title);
+        const pa=q.proactive||{};
+        rows.push({key:'quest',label:'主动陪伴',href:'{{ url_for("quest.page") }}',
+          text: !q.enabled ? '已关' : (running.length ? `正在做「${running[0]}」，今天开口 ${pa.today_count||0}${q.settings&&q.settings.daily_limit?'/'+q.settings.daily_limit:''} 次` : (q.playbook ? `场景「${q.playbook.title}」暂无进行中的小目标` : '还没选场景'))});
+      }
+      const sc=await safe(()=>this.api('/proxy/deskbot/api/scene_playbooks'));
+      if(sc && sc.ok){
+        const list=Array.isArray(sc.config)?sc.config:(sc.playbooks||[]);
+        rows.push({key:'scenes',label:'表演',href:'{{ url_for("app2c.playbooks") }}',
+          text: list.length ? `${list.length} 段：${list.slice(0,3).map(p=>p.title||p.name).join('、')}${list.length>3?'…':''}` : '还没有表演'});
+      }
+      const rm=await safe(()=>this.api('/app/api/scheduled-tasks?status=active&per_page=50'));
+      if(rm && rm.ok){
+        const n=Array.isArray(rm.tasks)?rm.tasks.length:(rm.total||0);
+        rows.push({key:'reminders',label:'定时提醒',href:'{{ url_for("app2c.reminders") }}', text: n ? `${n} 条待发` : '没有待发的提醒'});
+      }
+      const mi=await safe(()=>this.api('/app/api/miot/status'));
+      if(mi && mi.ok){
+        rows.push({key:'miot',label:'米家',href:'{{ url_for("app2c.miot") }}', text: mi.device_count ? `已连 ${mi.device_count} 个设备` : '还没连接米家'});
+      }
+      this.abilities=rows;
+    },
+    async loadDocs(){
+      try{
+        const r = await this.api('/app/api/agent/docs');
+        this.docs = r.docs || [];
+      }catch(e){ /* 文档列表拿不到不影响对话 */ }
+    },
+    async loadHistory(){
+      // 对话落在 session_store 里；语音轮次由 Agent worker 实时回传落库，
+      // 这里定时读回，网页与语音的对话汇成同一条历史流。
+      if(this.pending) return; // 网页消息发送期间不刷新，避免打断乐观插入
+      try{
+        const r = await this.api('/app/api/sessions?page=1&per_page=1');
+        const sid = r.sessions && r.sessions[0] && r.sessions[0].session_id;
+        if(!sid) return;
+        const d = await this.api('/app/api/sessions/'+encodeURIComponent(sid));
+        const msgs = (d.session && d.session.messages) || [];
+        const next = msgs.map(m=>({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          text: m.message || '',
+        })).filter(t=>t.text);
+        const grown = next.length > this.turns.length;
+        const changed = grown || next.length !== this.turns.length;
+        if(changed){
+          this.turns = next;
+          if(grown) this.scrollDown();
+        }
+      }catch(e){ /* 历史读不到就从空白开始 */ }
+    },
+    async toggleDoc(d){
+      if(this.openDoc === d.name){ this.openDoc=''; return; }
+      this.openDoc = d.name; this.docText=''; this.docMsg=''; this.docLabel=d.label;
+      try{
+        const r = await this.api('/app/api/agent/docs/'+encodeURIComponent(d.name));
+        if(this.openDoc === d.name) this.docText = r.text || '';
+      }catch(e){
+        if(this.openDoc === d.name) this.docMsg = '读取失败：'+(e.message||'');
+      }
+    },
+    async saveDoc(){
+      if(!this.openDoc || this.docSaving) return;
+      this.docSaving = true; this.docMsg='';
+      try{
+        await this.api('/app/api/agent/docs/'+encodeURIComponent(this.openDoc), {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({text:this.docText}),
+        });
+        this.docMsg = '已保存';
+        this.loadDocs();
+      }catch(e){
+        this.docMsg = '保存失败：'+(e.message||'');
+      }finally{
+        this.docSaving = false;
+      }
+    },
+    scrollDown(){
+      this.$nextTick(()=>{
+        const el = this.$refs.scroller;
+        if(el) el.scrollTop = el.scrollHeight;
+      });
+    },
+    async send(){
+      const text = this.draft.trim();
+      if(!text || this.pending) return;
+      this.error=''; this.draft=''; this.pending = true;
+      this.turns.push({role:'user', text});
+      this.scrollDown();
+      // 只回传最近若干轮：对话历史长了会顶掉系统提示里的记忆分区。
+      const history = this.turns.slice(-20).map(t=>({
+        role: t.role, content: t.text,
+      }));
+      try{
+        // 一轮对话可能含工具往返（联网搜索 ~5s + 两次模型调用），远超默认 8s。
+        const r = await this.api('/api/llm/chat', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({text, history: history.slice(0,-1)}),
+          timeoutMs: 90000,
+          timeoutMessage: '这一轮等待超过 90 秒，请检查模型服务后重试',
+        });
+        const reply = r.reply || r.text || r.answer || '';
+        this.turns.push({role:'assistant', text: reply || '（没有返回内容）'});
+      }catch(e){
+        this.error = '对话失败：'+(e.message||'');
+        this.turns.push({role:'assistant', text:'（这一轮没能完成）'});
+      }finally{
+        this.pending = false;
+        this.scrollDown();
+      }
+    },
+  },
+  mounted(){
+    this.loadAbilities(); setInterval(()=>this.loadAbilities(), 30000);
+    this.loadDocs(); this.loadHistory();
+    this._historyTimer = setInterval(()=>this.loadHistory(), 4000);
+  },
+  beforeUnmount(){ if(this._historyTimer) clearInterval(this._historyTimer); },
+}).mount('#app');
+</script>
+{% endblock %}

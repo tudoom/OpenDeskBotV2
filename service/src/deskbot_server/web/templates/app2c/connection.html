@@ -1,0 +1,245 @@
+{% extends "base_2c.html" %}
+{% block page_title %}设备连接 · 小歪{% endblock %}
+{% block global_setup_suppress_device %}1{% endblock %}
+{% block extra_head %}<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>{% endblock %}
+{% block content %}
+<div id="app">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">CONNECTION</div>
+      <h1>设备连接</h1>
+      <p>USB 插上即用；配好 WiFi 后拔线自动改走局域网，插回 USB 仍然优先走 USB。</p>
+    </div>
+    <span v-if="current" class="target-chip">当前目标 · [[ currentName ]]</span>
+  </div>
+
+  <div v-if="loading" class="ui-state loading" role="status" aria-label="正在扫描设备">
+    <div class="ui-state-line"></div><div class="ui-state-line short"></div>
+  </div>
+  <div v-else-if="loadError" class="ui-state error" role="alert">
+    <b>设备状态加载失败</b>
+    <p>[[ loadError ]]</p>
+    <div class="btngroup"><button class="btn ghost" @click="reload">重试</button></div>
+  </div>
+
+  <template v-else>
+    <div class="ui-state warning" v-if="controlPlaneDown" role="status">
+      <b>实时服务暂时不可达</b>
+      <p>请确认 PC Core 服务正在监听 9000 端口。</p>
+    </div>
+
+    <div class="ui-state" v-if="!devices.length && !controlPlaneDown">
+      <b>尚未检测到机器人</b>
+      <p>请用支持数据传输的 USB 线连接机器人；完成一次 WiFi 配网后，之后开机连上同一 WiFi 也会自动出现。</p>
+      <div class="btngroup"><button class="btn ghost" @click="reload">重新扫描</button></div>
+    </div>
+
+    <div class="dev" v-for="d in devices" :key="d.device_id">
+      <div class="di" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M11 18h2"/></svg></div>
+      <div style="flex:1;min-width:180px">
+        <b>[[ d.display_name || d.device_id ]]</b>
+        <small>
+          <span class="led" :class="{off: d.online !== true}"></span>
+          [[ statusLabel(d) ]]
+          <span v-if="d.device_id===current"> · 当前目标</span>
+        </small>
+        <small>[[ d.device_id ]] · [[ lastSeenLabel(d) ]]</small>
+        <small>连接方式：[[ transportLabel(d) ]]<template v-if="d.thermal && d.thermal.temp_c"> · 芯片温度 [[ d.thermal.temp_c ]]℃（今日最高 [[ d.thermal.max_c ]]℃）</template><template v-else-if="d.online===true"> · 芯片温度：固件 0.0.52 起上报</template></small>
+        <small v-if="d.thermal && (d.thermal.level==='warn' || d.thermal.level==='crit')" class="form-error">⚠ [[ d.thermal.message ]]</small>
+      </div>
+      <div class="btngroup">
+        <button
+          class="btn"
+          :class="d.device_id===current?'primary':'ghost'"
+          :disabled="busy || d.device_id===current"
+          @click="select(d)"
+        >[[ d.device_id===current ? '当前设备' : '切换到此设备' ]]</button>
+      </div>
+    </div>
+
+    <div class="blocktitle top" style="margin-top:22px">WiFi 无线连接</div>
+    <div class="ui-state" v-if="!current">
+      <b>先连接一次 USB</b>
+      <p>首次配网需要 USB 通道把 WiFi 信息发给机器人，之后即可离线使用。</p>
+    </div>
+    <template v-else>
+      <div class="dev" v-if="core">
+        <div style="flex:1;min-width:220px">
+          <b>本机 Core</b>
+          <small>[[ core.name || 'PC' ]] · 编号 [[ core.core_id ]] · 当前地址 [[ core.host || '未知' ]]:[[ core.port ]]</small>
+          <small>机器人按编号找它：[[ core.bonjour ? 'Bonjour 已广播' : 'Bonjour 未广播' ]] · [[ core.udp ? ('局域网应答已开（UDP ' + core.udp_port + '）') : '局域网应答未开' ]]，PC 换 IP 不用重新同步。</small>
+        </div>
+      </div>
+      <div class="dev">
+        <div style="flex:1;min-width:220px">
+          <b>机器人 WiFi 状态</b>
+          <template v-if="wifi">
+            <small>[[ wifi.connected ? ('已连接 ' + (wifi.ssid||'') + '（IP ' + wifi.ip + ' · 信号 ' + wifi.rssi + ' dBm）') : (wifi.ssid ? ('未连上（已保存 ' + wifi.ssid + '）') : '未配置') ]]</small>
+          <small>与 PC 的连接：[[ wifi.link_up ? '已建立' : (wifiTransport==='usb_cdc' && wifi.connected ? '待命（USB 优先，拔线后自动建立）' : '未建立') ]]</small>
+          <small v-if="'core_id' in wifi">记住的 Core：[[ coreBindingLabel ]]</small>
+          <small v-else-if="wifi.configured">固件较旧：只记住了地址 [[ wifi.host ]]:[[ wifi.port ]]，PC 换 IP 后需要重新同步（更新固件后可按编号自动找到）。</small>
+          </template>
+          <small v-else>还没有从设备读到 WiFi 状态。</small>
+        </div>
+        <div class="btngroup">
+          <button class="btn ghost" type="button" :disabled="busy" @click="refreshWifi">刷新</button>
+        </div>
+      </div>
+      <div class="dev">
+        <div style="flex:1;min-width:220px">
+          <b>一键同步 PC 的 WiFi</b>
+          <small>把 PC 当前 WiFi 的名称、密码和 PC 地址发给机器人保存（仅本地传输，不上传云端）。机器人只支持 2.4GHz 网络。</small>
+          <template v-if="needsPassword">
+            <small class="form-error">[[ manualHint ]]</small>
+            <div class="btngroup" style="margin-top:6px">
+              <input class="tinput" type="text" v-model="pendingSsid" placeholder="WiFi 名称" list="wifi-candidates" style="max-width:180px">
+              <datalist id="wifi-candidates">
+                <option v-for="n in ssidCandidates" :key="n" :value="n"></option>
+              </datalist>
+              <input class="tinput" type="password" v-model="manualPassword" placeholder="WiFi 密码" style="max-width:200px" @keyup.enter="provision(true)">
+              <button class="btn primary" type="button" :disabled="busy || !pendingSsid || !manualPassword" @click="provision(true)">确认下发</button>
+            </div>
+          </template>
+        </div>
+        <div class="btngroup" v-if="!needsPassword">
+          <button class="btn primary" type="button" :disabled="busy" @click="provision(false)">[[ busy ? '同步中…' : '一键同步' ]]</button>
+        </div>
+      </div>
+    </template>
+
+    <p class="device-id-hint">
+      拔掉 USB 不会删除设备历史。机器人记住的是 Core 的编号：PC 换了 IP 会自动找到，插上 USB 也会自动刷新；只有换了 WiFi 才需要重新同步。
+    </p>
+  </template>
+
+  <p class="lead" :class="{'form-error': messageKind==='error'}" v-if="message" role="status" aria-live="polite">[[ message ]]</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){ return {
+    devices:[], current:'', loading:true, loadError:'', controlPlaneDown:false,
+    action:'', message:'', messageKind:'info', unsubscribe:null,
+    wifi:null, wifiTransport:'', wifiBusy:false, pollTimer:null, core:null,
+    needsPassword:false, pendingSsid:'', manualPassword:'', manualHint:'', ssidCandidates:[],
+  }; },
+  computed:{
+    busy(){ return !!this.action || this.wifiBusy; },
+    currentName(){
+      const d=this.devices.find(x=>x.device_id===this.current);
+      return d ? (d.display_name||d.device_id) : this.current;
+    },
+    coreBindingLabel(){
+      const w=this.wifi||{}; const mine=this.core&&this.core.core_id;
+      const id=w.core_id||'';
+      const src={mdns:'Bonjour 找到',udp:'局域网应答找到',stored:'用记住的地址',none:'还没找过'}[w.host_source]||'';
+      if(!id) return '还没绑定（同步一次 WiFi 或插一次 USB 即可）';
+      const who=(mine&&id===mine)?'就是本机':('另一台 Core '+id);
+      return who+(w.host?('，'+(src?src+' ':'')+w.host+':'+w.port):'');
+    },
+  },
+  methods:{
+    applySnapshot(s){
+      if(s.phase==='loading') return;
+      this.loading=false;
+      if(s.phase==='error'){
+        this.loadError=s.error||'无法读取设备状态';
+        return;
+      }
+      this.loadError='';
+      this.devices=s.devices||[];
+      const previous=this.current;
+      this.current=s.currentId||'';
+      this.controlPlaneDown=!!(s.controlPlane && s.controlPlane.ok===false);
+      if(this.current && this.current!==previous) void this.refreshWifi();
+    },
+    statusLabel(d){ return window.DeskbotConsole.presenceLabel(d); },
+    transportLabel(d){
+      if(d.transport==='usb_cdc') return 'USB 直连';
+      if(d.transport==='wifi_tcp') return 'WiFi 局域网';
+      return '等待连接';
+    },
+    lastSeenLabel(d){
+      if(d.online===true) return '刚刚在线';
+      if(d.last_seen) return '最后在线 '+d.last_seen;
+      if(d.online===null || d.presence_state==='control_plane_down') return '在线状态未知';
+      return '当前未连接';
+    },
+    async reload(){
+      this.loading=true; this.loadError='';
+      await window.DeskbotConsole.refresh();
+    },
+    async select(d){
+      if(this.busy || d.device_id===this.current) return;
+      this.action='select'; this.message='';
+      try{
+        await window.DeskbotConsole.selectDevice(d.device_id);
+        this.message='当前操作目标已切换到 '+(d.display_name||d.device_id);
+        this.messageKind='info';
+      }catch(e){
+        this.message=e.message||'切换失败'; this.messageKind='error';
+      }finally{ this.action=''; }
+    },
+    async refreshWifi(){
+      if(!this.current) return;
+      try{
+        const r=await fetch('/proxy/deskbot/api/wifi_status?device_id='+encodeURIComponent(this.current),{cache:'no-store'});
+        const d=await r.json();
+        if(!r.ok || d.ok===false) throw new Error(d.error||('HTTP '+r.status));
+        this.wifiTransport=d.connected?(d.transport||''):'';
+        this.wifi=d.wifi||this.wifi;
+        if(d.core) this.core=d.core;
+      }catch(e){ /* 会话瞬断窗口读不到，保留上次数据 */ }
+    },
+    async provision(withManualPassword){
+      if(this.wifiBusy || !this.current) return;
+      this.wifiBusy=true; this.message='';
+      try{
+        const body={device_id:this.current};
+        if(withManualPassword){ body.ssid=this.pendingSsid; body.password=this.manualPassword; }
+        const r=await fetch('/proxy/deskbot/api/wifi_provision',{
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body),
+        });
+        const d=await r.json();
+        if(d.needs_password){
+          this.needsPassword=true;
+          this.ssidCandidates=Array.isArray(d.candidates)?d.candidates:[];
+          if(d.needs_ssid){
+            // macOS 藏了当前 SSID：预填第一个非 5G 的已保存网络（机器人只支持 2.4GHz）
+            const guess=this.ssidCandidates.find(n=>!/5g/i.test(n))||this.ssidCandidates[0]||'';
+            this.pendingSsid=this.pendingSsid||guess;
+            this.manualHint='macOS 不允许后台程序读取当前 WiFi 名称，请选择/输入 PC 正在用的 2.4GHz WiFi 并填写密码：';
+          }else{
+            this.pendingSsid=d.ssid||'';
+            this.manualHint=d.enterprise
+              ?('「'+(d.ssid||'')+'」是企业级认证网络，机器人无法加入。请改填普通密码的 WiFi（PC 也要连同一个）：')
+              :('无法自动读取「'+(d.ssid||'')+'」的密码，请手动输入（也可改成别的 WiFi）：');
+          }
+          this.message=d.message||'请输入 WiFi 信息'; this.messageKind='info';
+          return;
+        }
+        if(!r.ok || !d.ok) throw new Error(d.message||d.error||('HTTP '+r.status));
+        this.needsPassword=false; this.manualPassword='';
+        this.wifi=d.wifi||this.wifi;
+        this.message='已同步「'+(d.ssid||'')+'」，机器人会重启一次入网；拔掉 USB 即自动改走 WiFi。';
+        this.messageKind='info';
+      }catch(e){
+        this.message='同步失败：'+(e.message||e); this.messageKind='error';
+      }finally{ this.wifiBusy=false; }
+    },
+  },
+  mounted(){
+    this.unsubscribe=window.DeskbotConsole.onChange(this.applySnapshot);
+    void window.DeskbotConsole.refresh();
+    this.pollTimer=setInterval(()=>{ if(!this.busy) void this.refreshWifi(); },10000);
+  },
+  beforeUnmount(){
+    if(this.unsubscribe) this.unsubscribe();
+    if(this.pollTimer) clearInterval(this.pollTimer);
+  },
+}).mount('#app');
+</script>
+{% endblock %}

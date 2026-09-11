@@ -1,0 +1,316 @@
+{% macro icon(name) -%}
+{% if name == 'home' %}<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+{% elif name == 'expr' %}<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14c1 1.3 6 1.3 7 0"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/></svg>
+{% elif name == 'voice' %}<svg viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 010 6"/><path d="M19 6a8 8 0 010 12"/></svg>
+{% elif name == 'lab' %}<svg viewBox="0 0 24 24"><path d="M8 3v5l-4 8a4 4 0 003.6 5h8.8A4 4 0 0020 16l-4-8V3"/><path d="M9 3h6"/><path d="M7 14h10"/><path d="M10 17h4"/></svg>
+{% elif name == 'memory' %}<svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 011 1v16l-7-4-7 4V4a1 1 0 011-1z"/></svg>
+{% elif name == 'remind' %}<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+{% elif name == 'sessions' %}<svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>
+{% elif name == 'preferences' %}<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+{% elif name == 'people' %}<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+{% elif name == 'device' %}<svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M11 18h2"/></svg>
+{% elif name == 'miot' %}<svg viewBox="0 0 24 24"><path d="M4 10h16v10H4z"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg>
+{% elif name == 'advanced' %}<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7 7 0 000-2l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L15 3h-4l-.7 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4L4.6 11a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L11 21h4l.7-2.6a7 7 0 001.7-1l2.3 1 2-3.4z"/></svg>
+{% elif name == 'wifi' %}<svg viewBox="0 0 24 24"><path d="M2 9a15 15 0 0120 0"/><path d="M5.5 12.5a10 10 0 0113 0"/><path d="M9 16a5 5 0 016 0"/><circle cx="12" cy="19" r="1"/></svg>
+{% elif name == 'fw' %}<svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="M8 9l4 4 4-4"/><path d="M4 17h16v4H4z"/></svg>
+{% elif name == 'playbook' %}<svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M3 8l3-4 4 1-2 3"/><path d="M10 5l4 1-2 3"/><path d="M10 12l5 3-5 3z"/></svg>
+{% endif %}
+{%- endmacro %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block page_title %}小歪 · 专属于你的桌面机器人{% endblock %}</title>
+  {# 不加载外部 webfont（国内环境首屏阻塞）：theme_2c.css 使用系统字栈。 #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme_2c.css') }}?v=20260831-fw-tab">
+  <script>
+    window.__DESKBOT_LOCAL_CONSOLE__ = true;
+  </script>
+  <script src="{{ url_for('static', filename='console_2c.js') }}?v=20260831-stale-tolerant"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+<div class="shell">
+  <!-- ===== topbar ===== -->
+  <div class="topbar">
+    <div class="tb-l">
+      <button
+        type="button"
+        class="mobile-nav-toggle"
+        id="mobileNavToggle"
+        aria-controls="sideNav"
+        aria-expanded="false"
+        aria-label="打开主导航"
+      ><span></span><span></span><span></span></button>
+      <a class="tb-brand" href="{{ url_for('app2c.home') }}" style="text-decoration:none">
+        <span class="tb-mark">歪</span>
+        <span class="tb-name">小歪</span>
+        <span class="tb-sub">CONSOLE</span>
+      </a>
+      <span class="tb-div"></span>
+      <span class="tb-link" id="tbLink" role="status" aria-live="polite">
+        <span class="led state-unknown"></span>
+        <span id="tbLinkText">检查中…</span>
+        <span class="tb-observed" id="tbLinkObserved">更新时间未知</span>
+      </span>
+    </div>
+    <div class="tb-r">
+      <span class="tb-clock" id="tbClock">--:--:--</span>
+      <span class="tb-link">本机控制台</span>
+    </div>
+  </div>
+
+  <div class="app">
+    <aside class="side" id="sideNav" aria-label="主导航">
+      <nav class="navi">
+        <a href="{{ url_for('app2c.home') }}" class="navlink {{ 'on' if active_nav=='home' }}" data-label="首页" aria-label="首页">{{ icon('home') }}<span class="nav-text">首页</span></a>
+        <div class="lbl">核心玩法</div>
+        <a href="{{ url_for('app2c.expr') }}" class="navlink {{ 'on' if active_nav=='expr' }}" data-label="表情" aria-label="表情">{{ icon('expr') }}<span class="nav-text">表情</span></a>
+        <a href="{{ url_for('app2c.voice') }}" class="navlink {{ 'on' if active_nav=='voice' }}" data-label="声音" aria-label="声音">{{ icon('voice') }}<span class="nav-text">声音</span></a>
+        <a href="{{ url_for('app2c.lab') }}" class="navlink {{ 'on' if active_nav=='lab' }}" data-label="动作" aria-label="动作">{{ icon('lab') }}<span class="nav-text">动作</span></a>
+        <a href="{{ url_for('app2c.playbooks') }}" class="navlink {{ 'on' if active_nav=='playbooks' }}" data-label="表演" aria-label="表演">{{ icon('playbook') }}<span class="nav-text">表演</span></a>
+        <a href="{{ url_for('app2c.miot') }}" class="navlink {{ 'on' if active_nav=='miot' }}" data-label="米家" aria-label="米家">{{ icon('miot') }}<span class="nav-text">米家</span></a>
+        <div class="lbl">日常</div>
+        <a href="{{ url_for('app2c.agent') }}" class="navlink {{ 'on' if active_nav=='agent' }}" data-label="Agent 对话" aria-label="Agent 对话">{{ icon('memory') }}<span class="nav-text">Agent 对话</span></a>
+        <a href="{{ url_for('quest.page') }}" class="navlink {{ 'on' if active_nav=='quest' }}" data-label="主动陪伴" aria-label="主动陪伴">{{ icon('playbook') }}<span class="nav-text">主动陪伴</span></a>
+        <div class="gap"></div>
+        <div class="lbl">配置</div>
+        <a href="{{ url_for('app2c.devices') }}" class="navlink {{ 'on' if active_nav=='device' }}" data-label="设备连接" aria-label="设备连接">{{ icon('device') }}<span class="nav-text">设备连接</span></a>
+        <a href="{{ url_for('app2c.advanced') }}" class="navlink {{ 'on' if active_nav=='advanced' }}" data-label="模型配置" aria-label="模型配置">{{ icon('advanced') }}<span class="nav-text">模型配置</span></a>
+        <a href="{{ url_for('app2c.params') }}" class="navlink {{ 'on' if active_nav=='params' }}" data-label="参数设置" aria-label="参数设置">{{ icon('preferences') }}<span class="nav-text">参数设置</span></a>
+        {# 固件更新：无详情页，tab 本体即状态与入口。 #}
+        <button
+          type="button"
+          class="navlink"
+          id="fwUpdateTab"
+          data-label="固件"
+          aria-label="固件"
+          disabled
+        >{{ icon('fw') }}<span class="nav-text">固件</span><span
+          class="nav-text nav-badge"
+          id="fwUpdateBadge"
+        ></span></button>
+      </nav>
+    </aside>
+    <button type="button" class="mobile-nav-scrim" id="mobileNavScrim" aria-label="关闭主导航" hidden></button>
+    <main>
+      <div id="globalDeviceNotice" class="global-device-notice" role="status" aria-live="polite" hidden></div>
+      <style>.global-device-notice{margin:8px 16px 0;padding:8px 12px;border-radius:8px;background:#fff4e5;color:#7a4b00;font-size:13px}.global-device-notice.crit{background:#fdecea;color:#8a1c1c;font-weight:600}</style>
+      <div
+        id="globalSetup"
+        class="global-setup"
+        data-suppress-model="{% block global_setup_suppress_model %}0{% endblock %}"
+        data-suppress-device="{% block global_setup_suppress_device %}0{% endblock %}"
+        hidden
+      ></div>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<script>
+  (function(){
+    var el=document.getElementById('tbClock'); if(!el) return;
+    var p=function(n){return String(n).padStart(2,'0');};
+    var tick=function(){var d=new Date();el.textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());};
+    tick(); setInterval(tick,1000);
+  })();
+  (function(){
+    // 「固件更新」tab：无详情页，tab 上直接呈现三态——
+    //  更新（可点，触发烧录）/ 升级中 / 已最新（灰、不可点）。
+    var tab=null, badge=null, state={ready:false, wifiOnly:false, running:false, deviceId:''};
+    var esc=function(s){return String(s||'');};
+    var CACHE_KEY='fw_tab_state_v1';
+    function readCache(){
+      try{ return JSON.parse(sessionStorage.getItem(CACHE_KEY)||'null'); }catch(e){ return null; }
+    }
+    function writeCache(){
+      try{
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+          text:badge.textContent, clickable:!tab.disabled, title:tab.title,
+          ready:state.ready, wifiOnly:state.wifiOnly, deviceId:state.deviceId,
+        }));
+      }catch(e){}
+    }
+    function render(text, clickable, extraTitle, transient){
+      if(!tab) return;
+      badge.textContent=text;
+      badge.classList.toggle('alert', !!clickable);
+      tab.disabled=!clickable;
+      tab.title=extraTitle||'';
+      // transient=true 的中间态（检查中/升级中）不进缓存
+      if(!transient) writeCache();
+    }
+    function pollJob(){
+      fetch('/proxy/deskbot/api/firmware_update_status',{cache:'no-store'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+          var job=(d&&d.job)||{};
+          if(job.state==='running'){
+            state.running=true;
+            render(job.phase==='flashing'?'烧录中…':'升级中…', false, '固件烧录进行中，请勿拔线');
+            setTimeout(pollJob, 2000);
+            return;
+          }
+          state.running=false;
+          if(job.state==='failed'){
+            render('升级失败', true, '点击重试。'+esc(job.error));
+            return;
+          }
+          // success 或 idle：以 manifest 为准刷新
+          setTimeout(refresh, job.state==='success'?4000:0);
+        })
+        .catch(function(){ state.running=false; setTimeout(refresh, 5000); });
+    }
+    function refresh(){
+      fetch('/app/api/devices',{cache:'no-store'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+          state.deviceId=String((d&&d.current_device_id)||'');
+          var q=state.deviceId?('?device_id='+encodeURIComponent(state.deviceId)):'';
+          return fetch('/proxy/deskbot/api/firmware_manifest'+q,{cache:'no-store'});
+        })
+        .then(function(r){return r.json();})
+        .then(function(d){
+          if(!d || !d.bundled_version){ render('不可用', false, '安装包内未附带固件'); return; }
+          if(d.job && d.job.state==='running'){ pollJob(); return; }
+          if(!d.device_version){ render('等设备', false, '连接机器人后可比对固件版本'); state.ready=false; return; }
+          if(d.update_available){
+            state.ready=!!d.update_ready;
+            state.wifiOnly=!d.update_ready;
+            render('更新', true, state.wifiOnly
+              ?('设备 '+d.device_version+' → '+d.bundled_version+'（需 USB 连接后升级）')
+              :('设备 '+d.device_version+' → '+d.bundled_version));
+          }else{
+            state.ready=false;
+            render('已最新', false, '设备固件 '+esc(d.device_version));
+          }
+        })
+        .catch(function(){ render('检查中…', false, '', true); });
+    }
+    document.addEventListener('DOMContentLoaded',function(){
+      tab=document.getElementById('fwUpdateTab');
+      badge=document.getElementById('fwUpdateBadge');
+      if(!tab||!badge) return;
+      tab.addEventListener('click',function(){
+        if(tab.disabled||state.running) return;
+        if(state.wifiOnly){
+          window.alert('固件升级需要 USB 连接：请用 USB 线连接机器人后再点「更新」。');
+          return;
+        }
+        if(!window.confirm('开始升级机器人固件？\n烧录约 1-2 分钟，期间请勿拔 USB 线，完成后机器人自动重启。')) return;
+        render('升级中…', false, '');
+        fetch('/proxy/deskbot/api/firmware_update',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({device_id:state.deviceId}),
+        }).then(function(r){return r.json();}).then(function(d){
+          if(d&&d.ok){ state.running=true; setTimeout(pollJob,2000); }
+          else{
+            window.alert('无法开始升级：'+((d&&(d.message||d.error))||'未知错误'));
+            refresh();
+          }
+        }).catch(function(e){ window.alert('无法开始升级：'+e); refresh(); });
+      });
+      // 切页先用缓存态渲染（不闪「检查中」），随后总是后台重查一次：
+      // 缓存可能是应用刚启动、机器人还没枚举时记下的「等设备」，不重查就会
+      // 一直卡在那里。升级流程中的状态变化也会主动刷新缓存。
+      var cached=readCache();
+      if(cached && cached.text){
+        state.ready=!!cached.ready;
+        state.wifiOnly=!!cached.wifiOnly;
+        state.deviceId=String(cached.deviceId||'');
+        render(cached.text, !!cached.clickable, cached.title||'');
+        // 烧录中途切页：接管进度轮询，完成后落到终态。
+        if(/升级中|烧录中/.test(cached.text)){ state.running=true; pollJob(); }
+        else{ refresh(); }
+      }else{
+        render('检查中…', false, '', true);
+        refresh();
+      }
+      // 「等设备」是过渡态：机器人随时可能插上，停留本页期间定期重查。
+      setInterval(function(){
+        if(!state.running && badge && /等设备|不可用/.test(badge.textContent||'')) refresh();
+      }, 15000);
+    });
+  })();
+  (function(){
+    document.addEventListener('DOMContentLoaded',function(){
+      var box=document.getElementById('globalSetup'); if(!box) return;
+      var api=window.DeskbotConsole && window.DeskbotConsole.apiJson; if(!api) return;
+      var esc=function(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+      var item=function(kind,title,body,href,label){
+        return '<a class="global-setup-item '+kind+'" href="'+esc(href)+'">'
+          + '<span class="global-setup-dot"></span>'
+          + '<span class="global-setup-copy"><b>'+esc(title)+'</b><small>'+esc(body)+'</small></span>'
+          + '<span class="global-setup-action">'+esc(label)+'</span>'
+          + '</a>';
+      };
+      var suppressModel=String(box.getAttribute('data-suppress-model')||'').trim()==='1';
+      var suppressDevice=String(box.getAttribute('data-suppress-device')||'').trim()==='1';
+      Promise.allSettled([
+        api('/api/setup/llm'),
+        api('/app/api/devices'),
+        api('/api/doubao_tts/config')
+      ]).then(function(results){
+        var setup=results[0].status==='fulfilled' ? results[0].value : null;
+        var devicesPayload=results[1].status==='fulfilled' ? results[1].value : null;
+        var ttsPayload=results[2].status==='fulfilled' ? results[2].value : null;
+        var html=[];
+        var failed=[];
+        if(!setup) failed.push('对话模型');
+        if(!devicesPayload) failed.push('设备');
+        if(!ttsPayload) failed.push('语音');
+        if(failed.length){
+          html.push(item(
+            'error',
+            '部分状态暂时无法读取',
+            failed.join('、')+'状态加载失败。请检查服务连接后刷新，已有配置不会被显示成未配置。',
+            window.location.href,
+            '重新加载'
+          ));
+        }
+        var ttsConfig=ttsPayload ? (ttsPayload.config||{}) : {};
+        var llmMissing=setup ? !!setup.needs_config : false;
+        var ttsMissing=ttsPayload ? !ttsConfig.api_key_set : false;
+        if(!suppressModel && (llmMissing || ttsMissing)){
+          var modelBody='对话需要大模型 LLM_API_KEY；语音合成需要独立的豆包语音 API Key。AI 表情设计和图片生成使用各自独立配置。';
+          if(llmMissing && !ttsMissing) modelBody='对话需要先选择大模型提供方并配置 LLM_API_KEY；AI 表情设计和图片生成使用各自独立配置。';
+          if(!llmMissing && ttsMissing) modelBody='试听和语音合成需要豆包语音 API Key；声音复刻还需要额外凭证。';
+          html.push(item(
+            'model',
+            '还没完成 AI 能力配置',
+            modelBody,
+            '{{ url_for("app2c.advanced") }}?tab=llm',
+            '去配置'
+          ));
+        }
+        var devices=devicesPayload ? (devicesPayload.devices||[]) : [];
+        var currentId=devicesPayload ? (devicesPayload.current_device_id||'') : '';
+        if(devicesPayload && !suppressDevice && !devices.length){
+          html.push(item(
+            'device',
+            '还没检测到通过 USB 连接的小歪',
+            '请用支持数据传输的 USB 线连接机器人；握手完成后会自动出现在控制台。',
+            '{{ url_for("app2c.devices") }}',
+            '查看连接'
+          ));
+        }else if(devicesPayload && !suppressDevice && !currentId){
+          html.push(item(
+            'device',
+            '还没选择当前小歪',
+            '从已连接设备里选择一台，控制台操作会发送到这台设备。',
+            '{{ url_for("app2c.devices") }}',
+            '去选择'
+          ));
+        }
+        if(html.length){
+          box.innerHTML=html.join('');
+          box.hidden=false;
+        }
+      });
+    });
+  })();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,361 @@
+{% extends "base_2c.html" %}
+{% block page_title %}表演 · 小歪{% endblock %}
+{% block extra_head %}<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<style>
+  .pbk-card{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel);
+    box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:14px}
+  .pbk-card-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .pbk-card-head b{font-size:15px}
+  .pbk-card-head small{color:var(--dim)}
+  .pbk-card-head .btngroup{margin-left:auto}
+  .pbk-editor{margin-top:12px;border-top:1.5px dashed var(--line);padding-top:12px}
+  .pbk-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:520px;margin-bottom:10px}
+  .pbk-chunk{display:flex;gap:10px;align-items:flex-start;border:var(--bw) solid var(--line);
+    border-radius:var(--rs);background:var(--panel2);padding:10px;margin-bottom:8px}
+  .pbk-chunk-no{flex:none;width:22px;height:22px;border-radius:50%;background:var(--accent);
+    color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:6px}
+  .pbk-chunk-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+  .pbk-chunk-row{display:grid;grid-template-columns:minmax(90px,120px) 1fr 84px;gap:8px;align-items:center}
+  .pbk-chunk-row>span{font-size:12px;color:var(--dim);font-weight:700}
+  .pbk-chunk-ops{flex:none;display:flex;flex-direction:column;gap:4px}
+  .pbk-chunk-ops button{border:var(--bw) solid var(--line);background:var(--panel);border-radius:6px;
+    width:30px;height:26px;cursor:pointer;font-size:13px;line-height:1}
+  .pbk-chunk-ops button:disabled{opacity:.35;cursor:default}
+  .pbk-extra-badge{font-size:11px;color:var(--dim);background:var(--soft);border-radius:6px;padding:2px 6px}
+  .pbk-warn{color:#b3261e;font-weight:700}
+  @media (max-width:720px){ .pbk-chunk-row{grid-template-columns:1fr} .pbk-meta{grid-template-columns:1fr} }
+</style>{% endblock %}
+{% block content %}
+<div id="app">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">PLAYBOOKS</div>
+      <h1>表演</h1>
+      <p>把口播、表情和动作按步骤编成一段表演，一键让小歪连贯演完。运行前会自动保存。</p>
+    </div>
+    <span v-if="deviceId" class="target-chip">当前设备 · [[ deviceId ]]</span>
+  </div>
+
+  <div class="btngroup" style="margin:14px 0">
+    <button type="button" class="btn primary" @click="addPlaybook">新建表演</button>
+    <button type="button" class="btn primary" @click="aiPanel=!aiPanel">AI 编排</button>
+  </div>
+
+  <div class="pbk-card" v-if="aiPanel">
+    <b>AI 编排</b>
+    <small style="display:block;color:var(--dim);margin:4px 0 8px">
+      描述想要的演出，AI 会用现有的表情和动作库编好步骤，生成后可继续手工调整。
+    </small>
+    <textarea class="tinput" v-model.trim="aiDescription" rows="3" style="width:100%;display:block;box-sizing:border-box"
+      placeholder="可以描述想要的表演，比如“早上好”“生日祝福”“新年快乐”“抱怨抱怨”等，也可以直接给出想让小歪完成的具体动作和表情组合，比如“小歪先打个招呼，然后开心地左右看看，最后点点头说再见”"></textarea>
+    <div class="btngroup" style="margin-top:8px">
+      <button type="button" class="btn primary" :disabled="aiBusy || !aiDescription" @click="aiGenerate">
+        [[ aiBusy ? '生成中…' : '生成编排' ]]</button>
+      <button type="button" class="btn ghost" @click="aiPanel=false">收起</button>
+    </div>
+  </div>
+
+  <p class="lead" v-if="msg" :class="{'pbk-warn': msgKind==='error'}" role="status" aria-live="polite">[[ msg ]]</p>
+  <p class="lead pbk-warn" v-if="missingPresets.length">
+    以下动作预设在 servo.json 中不存在，运行时会被跳过：[[ missingPresets.join('、') ]]
+  </p>
+
+  <div class="ui-state" v-if="!playbooks.length && loaded">
+    <b>还没有表演</b>
+    <p>点「新建表演」开始：每个步骤可以说一句话、做一个表情、摆一个动作，按顺序演出。</p>
+  </div>
+
+  <div class="pbk-card" v-for="(pb, idx) in playbooks" :key="pb._key">
+    <div class="pbk-card-head">
+      <div>
+        <b>[[ pb.title || pb.name || '未命名' ]]</b>
+        <span class="pbk-extra-badge" v-if="pb.builtin">内置</span>
+        <small> · [[ pb.name ]] · [[ pb.chunks.length ]] 个步骤</small>
+      </div>
+      <div class="btngroup">
+        <button type="button" class="btn primary" :disabled="busy || !deviceId" :title="deviceId ? '' : '请先连接设备'"
+          @click="saveAndRun(pb)">[[ runningKey===pb._key ? '演出中…' : '保存并运行' ]]</button>
+        <button type="button" class="btn ghost" @click="togglePlaybook(pb)">[[ pb._open ? '收起' : '编辑' ]]</button>
+        <button type="button" class="btn ghost" v-if="!pb.builtin" @click="removePlaybook(idx)">删除</button>
+      </div>
+    </div>
+
+    <div class="pbk-editor" v-if="pb._open">
+      <div class="pbk-meta">
+        <label><small>标识（英文，唯一）</small><input class="tinput" v-model.trim="pb.name" placeholder="morning_greet"></label>
+        <label><small>标题（展示用）</small><input class="tinput" v-model.trim="pb.title" placeholder="早安问候"></label>
+      </div>
+
+      <div class="pbk-chunk" v-for="(c, cidx) in pb.chunks" :key="c.id">
+        <div class="pbk-chunk-no">[[ cidx+1 ]]</div>
+        <div class="pbk-chunk-main">
+          <div class="pbk-chunk-row">
+            <span>说的话</span>
+            <input class="tinput" v-model.trim="c.text" placeholder="这一步要说的话（可留空）" style="grid-column:2/4">
+          </div>
+          <div class="pbk-chunk-row">
+            <span>表情</span>
+            <select class="tinput" v-model="c.expr.scene">
+              <option value="">（不做表情）</option>
+              <option v-for="s in exprScenes" :key="s" :value="s">[[ s ]]</option>
+              <option v-if="c.expr.scene && !exprScenes.includes(c.expr.scene)" :value="c.expr.scene">[[ c.expr.scene ]]（未知）</option>
+            </select>
+            <input class="tinput" v-model.number="c.expr.ms" type="number" min="100" step="100" placeholder="ms" title="表情时长 ms">
+          </div>
+          <div class="pbk-chunk-row">
+            <span>动作</span>
+            <select class="tinput" v-model="c.servo.preset">
+              <option value="">（不做动作）</option>
+              <option v-for="p in servoPresets" :key="p.id" :value="p.id">[[ p.label || p.id ]]</option>
+              <option v-if="c.servo.preset && !servoPresetIds.includes(c.servo.preset)" :value="c.servo.preset">[[ c.servo.preset ]]（未知）</option>
+            </select>
+            <input class="tinput" v-model.number="c.servo.ms" type="number" min="100" step="100" placeholder="ms" title="动作时长 ms">
+          </div>
+          <div v-if="(c.moves&&c.moves.length)||(c.anims&&c.anims.length)">
+            <span class="pbk-extra-badge">含 [[ (c.moves||[]).length + (c.anims||[]).length ]] 条高级项（保存时原样保留）</span>
+          </div>
+        </div>
+        <div class="pbk-chunk-ops">
+          <button type="button" :disabled="cidx===0" title="上移" @click="moveChunk(pb,cidx,-1)">↑</button>
+          <button type="button" :disabled="cidx===pb.chunks.length-1" title="下移" @click="moveChunk(pb,cidx,1)">↓</button>
+          <button type="button" title="删除本步骤" @click="pb.chunks.splice(cidx,1)">✕</button>
+        </div>
+      </div>
+      <button type="button" class="btn ghost" @click="addChunk(pb)">＋ 新增步骤</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){ return {
+    playbooks:[], loaded:false, saving:false, runningKey:'',
+    deviceId:'', unsubscribe:null,
+    servoPresets:[], exprScenes:[], missingPresets:[],
+    msg:'', msgKind:'info',
+    aiPanel:false, aiDescription:'', aiBusy:false,
+  }; },
+  computed:{
+    busy(){ return this.saving || !!this.runningKey; },
+    servoPresetIds(){ return this.servoPresets.map(p=>String(p.id||'')); },
+  },
+  methods:{
+    async api(url, opts){
+      // 统一走 console_2c.js 的 apiJson（401/嵌套错误/超时处理只写一处）；
+      // 设备类操作可能超过默认 8s，这里保留原先“不截断”的语义给 60s 上限。
+      return window.DeskbotConsole.apiJson(url, Object.assign({timeoutMs:60000}, opts||{}));
+    },
+    note(text, kind){ this.msg=text; this.msgKind=kind||'info'; },
+    // ---- 数据形态：与 scene_playbooks 存储契约互转（首条 move/anim 可视化编辑，
+    // 其余高级项 moves/anims 原样保留，绝不因页面简化而丢数据）。----
+    editable(pb){
+      const out=Object.assign({name:'', title:'', chunks:[]}, pb||{});
+      out.builtin=!!(pb&&pb.builtin);
+      out._key=Math.random().toString(16).slice(2,10);
+      out._open=false;
+      out.chunks=(out.chunks||[]).map((raw)=>{
+        const c=Object.assign({}, raw||{});
+        const moves=Array.isArray(c.moves)?c.moves.map(m=>Object.assign({},m)):[];
+        const anims=Array.isArray(c.anims)?c.anims.map(a=>Object.assign({},a)):[];
+        // 兼容历史单数字段形态：旧草稿把首条动作/表情放在 servo/expr 里。
+        if(c.servo && c.servo.preset) moves.unshift({move:c.servo.preset, ms:Number(c.servo.ms)||800});
+        if(c.expr && c.expr.scene) anims.unshift({anim:c.expr.scene, ms:Number(c.expr.ms)||800});
+        // 只把「纯预设」动作提升到可视化编辑位；__custom__ 坐标动作等
+        // 高级形态留在 moves 里原样保留，避免存取往返丢 x/y 字段。
+        let firstMove={};
+        if(moves.length){
+          const cand=moves[0]||{};
+          if(cand.move && cand.move!=='__custom__' && cand.x==null && cand.y==null){
+            firstMove=moves.shift();
+          }
+        }
+        const firstAnim=anims.shift()||{};
+        return {
+          id:c.id||Math.random().toString(16).slice(2,10),
+          text:String(c.text||''),
+          servo:{preset:String(firstMove.move||''), ms:Number(firstMove.ms)||800},
+          expr:{scene:String(firstAnim.anim||firstAnim.scene||''), ms:Number(firstAnim.ms)||800},
+          moves, anims,
+        };
+      });
+      return out;
+    },
+    clean(pb){
+      const chunks=(pb.chunks||[]).map((c)=>{
+        const out={id:c.id, text:c.text||''};
+        const moves=[];
+        if(c.servo && c.servo.preset) moves.push({move:c.servo.preset, ms:Number(c.servo.ms)||800});
+        moves.push(...(c.moves||[]).map(m=>Object.assign({},m)));
+        if(moves.length) out.moves=moves;
+        const anims=[];
+        if(c.expr && c.expr.scene) anims.push({anim:c.expr.scene, ms:Number(c.expr.ms)||800});
+        anims.push(...(c.anims||[]).map(a=>Object.assign({},a)));
+        if(anims.length) out.anims=anims;
+        return out;
+      }).filter(c=>c.text||c.moves||c.anims);
+      return {name:pb.name||'', title:pb.title||pb.name||'', chunks};
+    },
+    async loadAll(){
+      try{
+        const [pbs, servo]=await Promise.all([
+          this.api('/proxy/deskbot/api/scene_playbooks'),
+          this.api('/proxy/deskbot/api/servo_config'),
+        ]);
+        this.playbooks=(pbs.config||[]).map(pb=>this.editable(pb));
+        this.missingPresets=pbs.missing_servo_presets||[];
+        const cfg=servo.config||servo||{};
+        this.servoPresets=Array.isArray(cfg.presets)?cfg.presets:[];
+        this.loaded=true;
+      }catch(e){ this.note('载入失败：'+(e.message||e), 'error'); }
+      void this.loadExprScenes();
+    },
+    async loadExprScenes(){
+      // 表情场景列表需要设备路由参数；未连接设备时静默留空（下拉仍可手动保留旧值）。
+      if(!this.deviceId) return;
+      try{
+        const d=await this.api('/proxy/deskbot/api/pb_scenes?device_id='+encodeURIComponent(this.deviceId));
+        this.exprScenes=d.scenes||d.keys||[];
+      }catch(_e){}
+    },
+    validate(){
+      const names=new Set();
+      for(const pb of this.playbooks){
+        const cleaned=this.clean(pb);
+        if(!cleaned.name) return '有编排缺少标识（英文名）';
+        if(names.has(cleaned.name)) return '编排标识重复：'+cleaned.name;
+        names.add(cleaned.name);
+        if(!cleaned.chunks.length) return '「'+(cleaned.title||cleaned.name)+'」还没有任何有效步骤';
+      }
+      return '';
+    },
+    async saveAll(options){
+      const problem=this.validate();
+      if(problem){ this.note(problem, 'error'); return false; }
+      this.saving=true;
+      try{
+        const rows=this.playbooks.map(pb=>this.clean(pb));
+        const d=await this.api('/proxy/deskbot/api/scene_playbooks',{
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(rows),
+        });
+        this.missingPresets=d.missing_servo_presets||[];
+        if(!(options&&options.silent)) this.note('已保存全部编排');
+        return true;
+      }catch(e){
+        this.note('保存失败：'+(e.message||e), 'error');
+        return false;
+      }finally{ this.saving=false; }
+    },
+    async saveAndRun(pb){
+      if(this.busy) return;
+      if(!this.deviceId){ this.note('请先连接设备再运行', 'error'); return; }
+      const ok=await this.saveAll({silent:true});
+      if(!ok) return;
+      const operationId=window.DeskbotConsole.newControlOperationId('scene');
+      this.runningKey=pb._key;
+      this.note('「'+(pb.title||pb.name)+'」已开始，小歪演出中…');
+      try{
+        await window.DeskbotConsole.submitControlOperation({
+          url:'/proxy/deskbot/api/scene_playbook/run?device_id='+encodeURIComponent(this.deviceId),
+          requestOptions:{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({device_id:this.deviceId, playbook:this.clean(pb), operation_id:operationId})},
+          baseUrl:'/proxy/deskbot', deviceId:this.deviceId, operationId,
+        });
+        this.note('「'+(pb.title||pb.name)+'」表演已在设备完成');
+      }catch(e){
+        const detail=(e&&e.message)||String(e);
+        this.note(detail.includes('执行状态未知')?detail:('运行失败：'+detail), 'error');
+      }finally{ this.runningKey=''; }
+    },
+    insertPlaybookOnTop(pb){
+      // 置顶插入 + 展开 + 滚到编辑区：追加到底部时新卡在视野外，
+      // 看起来就像「点了没反应」。
+      pb._open=true;
+      this.playbooks.unshift(pb);
+      this.$nextTick(()=>{
+        const el=document.querySelector('.pbk-card .pbk-editor');
+        if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+      });
+    },
+    addPlaybook(){
+      const pb=this.editable({
+        name:'scene_'+(this.playbooks.length+1),
+        title:'新编排',
+        chunks:[{text:'你好，我是小歪。', anims:[], moves:[]}],
+      });
+      this.insertPlaybookOnTop(pb);
+      this.note('已新建表演（在列表顶部），编辑后点「保存并运行」');
+    },
+    async aiGenerate(){
+      if(this.aiBusy || !this.aiDescription) return;
+      this.aiBusy=true;
+      this.note('AI 编排生成中…');
+      try{
+        const d=await this.api('/api/playbooks/ai_generate',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            description:this.aiDescription,
+            expressions:this.exprScenes,
+            presets:this.servoPresets.map(p=>({id:p.id,label:p.label||''})),
+          }),
+        });
+        const pb=this.editable(Object.assign({}, d.playbook, {
+          chunks:(d.playbook.chunks||[]).map(c=>({
+            text:c.text||'',
+            servo:c.servo&&c.servo.preset?{preset:c.servo.preset,ms:c.servo.ms}:null,
+            expr:c.expr&&c.expr.scene?{scene:c.expr.scene,ms:c.expr.ms}:null,
+            moves:[], anims:[],
+          })),
+        }));
+        // 标识避免与已有编排撞名
+        const names=new Set(this.playbooks.map(x=>x.name));
+        let name=pb.name, i=2;
+        while(names.has(name)) name=pb.name+'_'+(i++);
+        pb.name=name;
+        this.insertPlaybookOnTop(pb);
+        this.aiPanel=false;
+        this.note('AI 编排已生成（在列表顶部），确认或微调后点「保存并运行」');
+      }catch(e){
+        this.note('AI 生成失败：'+(e.message||e), 'error');
+      }finally{ this.aiBusy=false; }
+    },
+    addChunk(pb){
+      pb.chunks.push({
+        id:Math.random().toString(16).slice(2,10),
+        text:'', servo:{preset:'', ms:800}, expr:{scene:'', ms:800}, moves:[], anims:[],
+      });
+    },
+    moveChunk(pb, idx, delta){
+      const to=idx+delta;
+      if(to<0 || to>=pb.chunks.length) return;
+      const [c]=pb.chunks.splice(idx,1);
+      pb.chunks.splice(to,0,c);
+    },
+    async removePlaybook(idx){
+      const pb=this.playbooks[idx];
+      if(!window.confirm('删除「'+(pb.title||pb.name||'未命名')+'」？删除后不可恢复。')) return;
+      this.playbooks.splice(idx,1);
+      const ok=await this.saveAll({silent:true});
+      if(ok) this.note('已删除并保存');
+    },
+    async togglePlaybook(pb){
+      pb._open=!pb._open;
+      // 收起视为编辑完成：静默保存，避免没有「保存全部」按钮后改动悬空。
+      if(!pb._open) await this.saveAll({silent:true});
+    },
+  },
+  mounted(){
+    this.unsubscribe=window.DeskbotConsole.onChange((s)=>{
+      const previous=this.deviceId;
+      this.deviceId=s.targetId||'';
+      if(this.deviceId && this.deviceId!==previous) void this.loadExprScenes();
+    });
+    void window.DeskbotConsole.refresh();
+    void this.loadAll();
+  },
+  beforeUnmount(){ if(this.unsubscribe) this.unsubscribe(); },
+}).mount('#app');
+</script>
+{% endblock %}

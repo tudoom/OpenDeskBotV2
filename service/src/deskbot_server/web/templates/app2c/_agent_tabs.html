@@ -1,0 +1,15 @@
+{# Agent 伙伴的子标签。四块各自是独立的 Vue 应用，合并成一个页面会把
+   三份状态机搅在一起；这里只统一入口和外观，每块仍然各跑各的。 #}
+<nav class="agent-tabs" aria-label="Agent 伙伴">
+  <a href="{{ url_for('app2c.memories') }}"
+     class="agent-tab {{ 'on' if agent_tab == 'memory' }}">它记得的事</a>
+  <a href="{{ url_for('app2c.reminders') }}"
+     class="agent-tab {{ 'on' if agent_tab == 'remind' }}">提醒事项</a>
+  <a href="{{ url_for('app2c.sessions') }}"
+     class="agent-tab {{ 'on' if agent_tab == 'sessions' }}">对话记录</a>
+  <a href="{{ url_for('app2c.preferences') }}"
+     class="agent-tab {{ 'on' if agent_tab == 'preferences' }}">行为偏好</a>
+  <a href="{{ url_for('app2c.people') }}"
+     class="agent-tab {{ 'on' if agent_tab == 'people' }}">人脸档案</a>
+  <a href="{{ url_for('app2c.agent') }}" class="agent-tab agent-tab-back">← 返回 Agent 对话</a>
+</nav>

@@ -1,0 +1,88 @@
+camera_face:
+  min_face_detection_confidence: 0.15
+  min_face_presence_confidence: 0.15
+  num_faces: 5
+  frame_width: 320
+  frame_height: 240
+  face_track_max_dist_px: 90
+  face_track_max_lost_frames: 18
+  horizontal_fov_deg: 120
+  frontal_angle_threshold_deg: 15
+  face_embedding_enabled: true
+  identity_similarity_threshold: 0.4
+  undistort:
+    enabled: false
+    use_fov_estimate: true
+    default_dist_coeffs:
+    - -0.28
+    - 0.09
+    - 0.0
+    - 0.0
+    - 0.0
+    calib_width: 320
+    calib_height: 240
+    alpha: 1.0
+debug:
+  asr_auto_reply: true
+server:
+  host: 127.0.0.1
+  port: 9000
+  ws_ping_interval: 120
+  ws_ping_timeout: 300
+  device_pb_only: true
+  minimal_device_downlink: false
+  max_concurrent_asr: 6
+audio:
+  input_codec: opus
+  output_codec: opus
+  sample_rate: 16000
+  channels: 1
+rtc:
+  enabled: true
+  # LiveKit Server and LampGo Worker both run on this PC. The SDK still uses
+  # short-lived JWTs internally, but no cloud token service is required.
+  local_server_enabled: true
+  livekit_url: http://127.0.0.1:7880
+  token_endpoint: http://127.0.0.1:18790/rtc/token
+  agent_name: lampgo-jarvis
+  # Use device-side ESP-SR AEC when the firmware advertises audio_aec.
+  # The server automatically falls back to stable on older/failed AFE builds.
+  # The current firmware advertises ESP-SR AEC/NS/VAD and RTC full duplex.
+  # Permit AgentSession barge-in; capability negotiation still falls back to
+  # stable automatically for older devices without the complete AFE stack.
+  # Full duplex uses the device VC/VoIP AEC as the primary filter, then confirms
+  # barge-in with final Seed ASR text and rejects residual TTS echo per session.
+  call_mode: esp32_aec
+asr:
+  # PC 默认通过 WSS 调用火山豆包大模型流式 ASR。凭证仅从 .env 读取：
+  # ASR_API_KEY 只保存在 PC 的 .env，绝不写入 YAML。
+  provider: doubao_streaming
+  # 以下 endpoint/model 仅供显式切换 openai_compatible 时使用。
+  endpoint: https://api.openai.com/v1/audio/transcriptions
+  model: whisper-1
+  timeout_seconds: 30
+  max_audio_bytes: 10485760
+  language: zh-CN
+  # 可选离线回退：显式设置 provider: funasr，并自行安装
+  # `.[local-asr]`、准备模型及填写 model_dir。服务不会自动下载模型。
+  model_dir: ''
+  hub: hf
+  use_quant_onnx: true
+  onnx_intra_op_threads: 4
+  text_filter:
+    min_text_len: 2
+    min_chinese_ratio: 0.0
+llm:
+  # 通用大模型 OpenAI 兼容 Chat Completions API 对话
+  # （控制台可选 DeepSeek/豆包/MiMo 预设；以下仅为出厂默认值）。
+  # LLM_API_KEY 只保存在 PC 的 .env，绝不写入 YAML 或下发到设备。
+  protocol: openai
+  base_url: https://api.xiaomimimo.com/v1
+  model_name: mimo-v2.5
+  system_prompt_file: data/global/llm_system.txt
+tts:
+  # 默认且唯一运行时后端：火山引擎豆包流式 TTS 2.0（V3 双向 WebSocket）。
+  # 凭证仅从 .env 的 DOUBAO_TTS_API_KEY 读取。
+  provider: doubao
+  # 16k 与设备 Opus/ASR 全链一致，免掉下行重采样；可用 DOUBAO_TTS_SAMPLE_RATE 覆盖。
+  sample_rate: 16000

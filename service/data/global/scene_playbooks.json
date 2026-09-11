@@ -1,0 +1,786 @@
+[
+  {
+    "name": "disco",
+    "title": "小歪蹦迪",
+    "chunks": [
+      {
+        "id": "c1",
+        "text": "来点音乐！",
+        "expr": {
+          "scene": "happy",
+          "ms": 1200
+        },
+        "servo": {
+          "preset": "dj",
+          "ms": 2000
+        }
+      },
+      {
+        "id": "c2",
+        "text": "",
+        "expr": {
+          "scene": "happy",
+          "ms": 1500
+        },
+        "servo": {
+          "preset": "clockwise",
+          "ms": 1500
+        }
+      },
+      {
+        "id": "c3",
+        "text": "",
+        "expr": {
+          "scene": "surprised",
+          "ms": 1500
+        },
+        "servo": {
+          "preset": "counterclockwise",
+          "ms": 1500
+        }
+      },
+      {
+        "id": "c4",
+        "text": "呼，累了累了，收工！",
+        "expr": {
+          "scene": "sleep",
+          "ms": 2200
+        },
+        "servo": {
+          "preset": "center",
+          "ms": 600
+        }
+      }
+    ]
+  },
+  {
+    "name": "want_attention",
+    "title": "求关注",
+    "chunks": [
+      {
+        "id": "c1",
+        "text": "喂，你已经好久没理我了。",
+        "expr": {
+          "scene": "sad",
+          "ms": 2200
+        },
+        "servo": {
+          "preset": "look_left",
+          "ms": 700
+        }
+      },
+      {
+        "id": "c2",
+        "text": "",
+        "expr": {
+          "scene": "shy",
+          "ms": 1000
+        },
+        "servo": {
+          "preset": "look_right",
+          "ms": 700
+        }
+      },
+      {
+        "id": "c3",
+        "text": "看我一眼嘛，就一眼。",
+        "expr": {
+          "scene": "shy",
+          "ms": 2000
+        },
+        "servo": {
+          "preset": "nod_head",
+          "ms": 900
+        }
+      },
+      {
+        "id": "c4",
+        "text": "",
+        "expr": {
+          "scene": "happy",
+          "ms": 1200
+        },
+        "servo": {
+          "preset": "center",
+          "ms": 500
+        }
+      }
+    ]
+  },
+  {
+    "name": "new_year",
+    "title": "新年祝福",
+    "chunks": [
+      {
+        "id": "c1",
+        "text": "",
+        "expr": {
+          "scene": "surprised",
+          "ms": 900
+        },
+        "servo": {
+          "preset": "look_up",
+          "ms": 600
+        }
+      },
+      {
+        "id": "c2",
+        "text": "新年到啦！祝你新的一年顺顺利利，想要的都有！",
+        "expr": {
+          "scene": "happy",
+          "ms": 3000
+        },
+        "servo": {
+          "preset": "clockwise",
+          "ms": 1600
+        }
+      },
+      {
+        "id": "c3",
+        "text": "红包可以不用给我，摸摸头就行啦。",
+        "expr": {
+          "scene": "shy",
+          "ms": 2200
+        },
+        "servo": {
+          "preset": "nod_head",
+          "ms": 900
+        }
+      }
+    ]
+  },
+  {
+    "name": "birthday",
+    "title": "生日祝福",
+    "chunks": [
+      {
+        "id": "c1",
+        "text": "",
+        "expr": {
+          "scene": "surprised",
+          "ms": 800
+        },
+        "servo": {
+          "preset": "look_upper_left",
+          "ms": 500
+        }
+      },
+      {
+        "id": "c2",
+        "text": "生日快乐！",
+        "expr": {
+          "scene": "happy",
+          "ms": 1800
+        },
+        "servo": {
+          "preset": "dj",
+          "ms": 1800
+        }
+      },
+      {
+        "id": "c3",
+        "text": "祝你今天开开心心，蛋糕记得给我留一口！",
+        "expr": {
+          "scene": "happy",
+          "ms": 2600
+        },
+        "servo": {
+          "preset": "nod_head_fast",
+          "ms": 900
+        }
+      },
+      {
+        "id": "c4",
+        "text": "",
+        "expr": {
+          "scene": "shy",
+          "ms": 1200
+        },
+        "servo": {
+          "preset": "center",
+          "ms": 500
+        }
+      }
+    ]
+  },
+  {
+    "name": "good_morning",
+    "title": "早上好",
+    "chunks": [
+      {
+        "id": "c1",
+        "text": "",
+        "expr": {
+          "scene": "wake",
+          "ms": 1400
+        },
+        "servo": {
+          "preset": "look_down",
+          "ms": 700
+        }
+      },
+      {
+        "id": "c2",
+        "text": "早呀，昨晚睡得好吗？",
+        "expr": {
+          "scene": "happy",
+          "ms": 2000
+        },
+        "servo": {
+          "preset": "look_up",
+          "ms": 600
+        }
+      },
+      {
+        "id": "c3",
+        "text": "新的一天，我们一起加油！",
+        "expr": {
+          "scene": "happy",
+          "ms": 2000
+        },
+        "servo": {
+          "preset": "nod_head_slow",
+          "ms": 1100
+        }
+      }
+    ]
+  },
+  {
+    "name": "focused",
+    "title": "专注",
+    "chunks": [
+      {
+        "id": "timeline",
+        "text": "",
+        "moves": [
+          {
+            "move": "center",
+            "ms": 480
+          },
+          {
+            "move": "pose_x90_y89",
+            "ms": 360
+          },
+          {
+            "move": "pose_x90_y89",
+            "ms": 360
+          },
+          {
+            "move": "pose_x90_y88",
+            "ms": 40
+          },
+          {
+            "move": "pose_x90_y88",
+            "ms": 45
+          },
+          {
+            "move": "pose_x90_y87",
+            "ms": 45
+          },
+          {
+            "move": "pose_x90_y87",
+            "ms": 40
+          },
+          {
+            "move": "pose_x88_y87",
+            "ms": 100
+          },
+          {
+            "move": "pose_x93_y88",
+            "ms": 100
+          },
+          {
+            "move": "pose_x86_y86",
+            "ms": 100
+          },
+          {
+            "move": "pose_x94_y87",
+            "ms": 100
+          },
+          {
+            "move": "pose_x90_y88",
+            "ms": 100
+          },
+          {
+            "move": "pose_x92_y87",
+            "ms": 100
+          },
+          {
+            "move": "pose_x87_y86",
+            "ms": 100
+          },
+          {
+            "move": "pose_x91_y88",
+            "ms": 100
+          },
+          {
+            "move": "pose_x90_y87",
+            "ms": 280
+          },
+          {
+            "move": "pose_x90_y88",
+            "ms": 70
+          },
+          {
+            "move": "pose_x89_y87",
+            "ms": 70
+          },
+          {
+            "move": "pose_x90_y87",
+            "ms": 360
+          },
+          {
+            "move": "pose_x90_y88",
+            "ms": 50
+          },
+          {
+            "move": "pose_x90_y89",
+            "ms": 45
+          },
+          {
+            "move": "center",
+            "ms": 40
+          },
+          {
+            "move": "center",
+            "ms": 480
+          }
+        ],
+        "anims": [
+          {
+            "anim": "focused",
+            "ms": 3565
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "shy",
+    "title": "害羞",
+    "chunks": [
+      {
+        "id": "timeline",
+        "text": "",
+        "moves": [
+          {
+            "move": "center",
+            "ms": 400
+          },
+          {
+            "move": "pose_x90_y89",
+            "ms": 320
+          },
+          {
+            "move": "pose_x90_y92",
+            "ms": 45
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 45
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 50
+          },
+          {
+            "move": "pose_x88_y94",
+            "ms": 90
+          },
+          {
+            "move": "pose_x92_y93",
+            "ms": 85
+          },
+          {
+            "move": "pose_x86_y94",
+            "ms": 90
+          },
+          {
+            "move": "pose_x93_y93",
+            "ms": 85
+          },
+          {
+            "move": "pose_x87_y94",
+            "ms": 90
+          },
+          {
+            "move": "pose_x91_y93",
+            "ms": 80
+          },
+          {
+            "move": "pose_x88_y94",
+            "ms": 90
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 85
+          },
+          {
+            "move": "pose_x91_y92",
+            "ms": 70
+          },
+          {
+            "move": "pose_x92_y92",
+            "ms": 55
+          },
+          {
+            "move": "pose_x89_y94",
+            "ms": 65
+          },
+          {
+            "move": "pose_x87_y94",
+            "ms": 60
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 40
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 45
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 40
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 45
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 75
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 70
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 65
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 75
+          },
+          {
+            "move": "pose_x90_y93",
+            "ms": 80
+          },
+          {
+            "move": "pose_x91_y93",
+            "ms": 100
+          },
+          {
+            "move": "pose_x89_y93",
+            "ms": 90
+          },
+          {
+            "move": "pose_x90_y92",
+            "ms": 300
+          },
+          {
+            "move": "pose_x90_y91",
+            "ms": 45
+          },
+          {
+            "move": "center",
+            "ms": 40
+          },
+          {
+            "move": "center",
+            "ms": 400
+          }
+        ],
+        "anims": [
+          {
+            "anim": "shy",
+            "ms": 3315
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "nod",
+    "title": "点头",
+    "chunks": [
+      {
+        "id": "timeline",
+        "text": "",
+        "moves": [
+          {
+            "move": "center",
+            "ms": 161
+          },
+          {
+            "move": "pose_x90_y86",
+            "ms": 112
+          },
+          {
+            "move": "pose_x90_y80",
+            "ms": 87
+          },
+          {
+            "move": "pose_x90_y75",
+            "ms": 124
+          },
+          {
+            "move": "pose_x90_y75",
+            "ms": 74
+          },
+          {
+            "move": "pose_x90_y77",
+            "ms": 65
+          },
+          {
+            "move": "pose_x90_y75",
+            "ms": 99
+          },
+          {
+            "move": "pose_x90_y82",
+            "ms": 87
+          },
+          {
+            "move": "pose_x90_y94",
+            "ms": 99
+          },
+          {
+            "move": "pose_x90_y107",
+            "ms": 124
+          },
+          {
+            "move": "pose_x90_y107",
+            "ms": 87
+          },
+          {
+            "move": "pose_x90_y103",
+            "ms": 74
+          },
+          {
+            "move": "pose_x90_y97",
+            "ms": 99
+          },
+          {
+            "move": "pose_x90_y88",
+            "ms": 74
+          },
+          {
+            "move": "center",
+            "ms": 149
+          }
+        ],
+        "anims": [
+          {
+            "anim": "nod",
+            "ms": 1515
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "patrol_lr",
+    "title": "左右巡查",
+    "chunks": [
+      {
+        "id": "timeline",
+        "text": "",
+        "moves": [
+          {
+            "move": "center",
+            "ms": 580
+          },
+          {
+            "move": "pose_x82_y90",
+            "ms": 520
+          },
+          {
+            "move": "pose_x72_y90",
+            "ms": 720
+          },
+          {
+            "move": "center",
+            "ms": 560
+          },
+          {
+            "move": "pose_x99_y90",
+            "ms": 520
+          },
+          {
+            "move": "pose_x108_y90",
+            "ms": 780
+          },
+          {
+            "move": "pose_x99_y90",
+            "ms": 520
+          },
+          {
+            "move": "pose_x72_y90",
+            "ms": 720
+          },
+          {
+            "move": "center",
+            "ms": 560
+          },
+          {
+            "move": "pose_x99_y90",
+            "ms": 520
+          },
+          {
+            "move": "pose_x108_y90",
+            "ms": 780
+          },
+          {
+            "move": "center",
+            "ms": 580
+          }
+        ],
+        "anims": [
+          {
+            "anim": "patrol_lr",
+            "ms": 7360
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "shake",
+    "title": "摇头",
+    "chunks": [
+      {
+        "id": "timeline",
+        "text": "",
+        "moves": [
+          {
+            "move": "center",
+            "ms": 186
+          },
+          {
+            "move": "pose_x84_y90",
+            "ms": 161
+          },
+          {
+            "move": "pose_x72_y90",
+            "ms": 236
+          },
+          {
+            "move": "pose_x72_y90",
+            "ms": 74
+          },
+          {
+            "move": "pose_x75_y90",
+            "ms": 65
+          },
+          {
+            "move": "pose_x82_y90",
+            "ms": 149
+          },
+          {
+            "move": "center",
+            "ms": 174
+          },
+          {
+            "move": "pose_x99_y90",
+            "ms": 186
+          },
+          {
+            "move": "pose_x108_y90",
+            "ms": 248
+          },
+          {
+            "move": "pose_x111_y90",
+            "ms": 74
+          },
+          {
+            "move": "pose_x104_y90",
+            "ms": 174
+          },
+          {
+            "move": "pose_x96_y90",
+            "ms": 136
+          },
+          {
+            "move": "pose_x87_y90",
+            "ms": 65
+          },
+          {
+            "move": "center",
+            "ms": 186
+          }
+        ],
+        "anims": [
+          {
+            "anim": "shake",
+            "ms": 2114
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "agree",
+    "title": "同意",
+    "chunks": [
+      {
+        "id": "timeline",
+        "text": "嗯嗯, 你的意见太好了, 一下子解开了我的疑惑",
+        "moves": [
+          {
+            "move": "nod_head",
+            "ms": 500
+          },
+          {
+            "move": "nod_head",
+            "ms": 500
+          },
+          {
+            "move": "nod_head",
+            "ms": 500
+          }
+        ],
+        "anims": [
+          {
+            "anim": "big_laugh",
+            "ms": 1800
+          },
+          {
+            "anim": "cat_cute",
+            "ms": 1800
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "angry",
+    "title": "生气",
+    "chunks": [
+      {
+        "id": "timeline",
+        "text": "气死我了",
+        "moves": [
+          {
+            "move": "center",
+            "ms": 500
+          },
+          {
+            "move": "nod_head",
+            "ms": 500
+          }
+        ],
+        "anims": [
+          {
+            "anim": "angry",
+            "ms": 800
+          },
+          {
+            "anim": "angry",
+            "ms": 800
+          }
+        ]
+      }
+    ]
+  }
+]

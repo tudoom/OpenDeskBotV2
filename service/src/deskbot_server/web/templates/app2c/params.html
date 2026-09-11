@@ -1,0 +1,219 @@
+{% extends "base_2c.html" %}
+{% block page_title %}参数设置 · 小歪{% endblock %}
+{% block global_setup_suppress_device %}1{% endblock %}
+{% block extra_head %}
+<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<style>
+  .lab-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .lab-panel{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel);padding:14px;box-shadow:var(--shadow);min-width:0;display:flex;flex-direction:column}
+  .lab-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .lab-head b{display:block;font-size:16px}
+  .lab-head small{display:block;color:var(--dim);font-size:12px;line-height:1.45}
+  .lab-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .lab-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .lab-field>span.lab-lab{font-size:11.5px;font-weight:800;color:var(--ink);letter-spacing:.01em}
+  .lab-field>span.lab-lab em{font-style:normal;color:var(--dim);font-weight:600}
+  .lab-field .tinput,.lab-field select{width:100%}
+  .lab-field .lab-hint{font-size:10.5px;color:var(--dim);line-height:1.35;font-weight:500}
+  .lab-actions{display:flex;justify-content:flex-start;gap:8px;margin-top:auto;padding-top:12px}  /* 贴卡片左下角 */
+  .lab-actions .btn{min-width:150px}
+  /* 开关：静音这类“一按就生效”的项，不用再点「应用到设备」 */
+  .lab-switch{position:relative;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;cursor:pointer;padding:10px 12px;border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel2);margin-bottom:12px}
+  .lab-switch input{position:absolute;opacity:0;width:0;height:0}
+  .lab-switch-track{width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;transition:background .15s;flex:none}
+  .lab-switch-track::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.28);transition:transform .15s}
+  .lab-switch input:checked+.lab-switch-track{background:#f97316}
+  .lab-switch input:checked+.lab-switch-track::after{transform:translateX(18px)}
+  .lab-switch input:focus-visible+.lab-switch-track{outline:2px solid #f97316;outline-offset:2px}
+  .lab-switch input:disabled+.lab-switch-track{opacity:.45}
+  .lab-switch b{font-size:14px}
+  .lab-switch b em{font-style:normal;font-weight:700;color:#f97316;margin-left:8px;font-size:12px}
+  .lab-switch small{grid-column:2;color:var(--dim);font-size:12px;line-height:1.45}
+  @media(max-width:900px){.lab-grid{grid-template-columns:1fr}}
+  @media(prefers-reduced-motion:reduce){.lab-switch-track,.lab-switch-track::after{transition:none}}
+</style>
+{% endblock %}
+{% block content %}
+<div id="paramsApp">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">SETTINGS · DEVICE</div>
+      <h1>参数设置</h1>
+      <p>小歪设备端的麦克风、省电与温度保护参数。所有设置都保存在设备上，换一台电脑也不用重设。</p>
+    </div>
+    <div class="btngroup">
+      <select v-model="currentDeviceId" @change="switchDevice">
+        <option value="">选择设备</option>
+        <option v-for="d in devices" :key="d.device_id" :value="d.device_id">[[ d.display_name ]] · [[ d.device_id ]]</option>
+      </select>
+      <button type="button" class="btn ghost" @click="loadAll">刷新</button>
+    </div>
+  </div>
+  <p class="lead" v-if="msg">[[ msg ]]</p>
+
+  <div class="lab-grid">
+    <div class="lab-panel">
+      <div class="lab-head"><div><b>麦克风</b><small>静音一按即生效；上行模式选好后点「应用到设备」。两项都保存在设备上。</small></div></div>
+      <label class="lab-switch">
+        <input type="checkbox" :checked="power.muted" :disabled="power.busy || !currentDeviceId || power.muteSupported===false" @change="applyMute($event.target.checked)">
+        <span class="lab-switch-track" aria-hidden="true"></span>
+        <b>静音<em v-if="power.muted">已开启，小歪听不见</em></b>
+        <small>开启后小歪不再采集和上传麦克风音频，对它说话没有反应；播放、动作、表情照常。默认关闭。[[ muteHint ]]</small>
+      </label>
+      <div class="lab-form-grid">
+        <label class="lab-field">
+          <span class="lab-lab">麦克风上行</span>
+          <select v-model="power.micMode" :disabled="power.busy || !currentDeviceId">
+            <option value="continuous">持续（默认，会话内全部上行）</option>
+            <option value="vad">按需（检测到人声才上行，省电）</option>
+          </select>
+          <span class="lab-hint">[[ micModeHint ]]</span>
+        </label>
+      </div>
+      <div class="lab-actions">
+        <button type="button" class="btn" :disabled="power.busy || !currentDeviceId" @click="applyMicMode">应用到设备</button>
+      </div>
+    </div>
+
+    <div class="lab-panel">
+      <div class="lab-head"><div><b>温度断电保护</b><small>芯片温度连续 30 秒超过阈值就自动断电（关功放、深睡 10 分钟后自动开机），并通知这台电脑。固件 0.0.53 起可用。</small></div></div>
+      <div class="lab-form-grid">
+        <label class="lab-field">
+          <span class="lab-lab">温度断电阈值 <em>℃</em></span>
+          <input class="tinput" v-model.number="power.cutoffC" type="number" min="0" max="120" :disabled="power.busy || !currentDeviceId" placeholder="如 70">
+          <span class="lab-hint">[[ cutoffHint ]]</span>
+        </label>
+      </div>
+      <div class="lab-actions">
+        <button type="button" class="btn" :disabled="power.busy || !currentDeviceId" @click="applyCutoff">应用到设备</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const { createApp } = Vue;
+createApp({
+  delimiters:['[[',']]'],
+  data(){ return {
+    msg:'',
+    devices:[], currentDeviceId:'',
+    power:{
+      muted:false, muteSupported:null,
+      micMode:'continuous', micSupported:null, micStats:null,
+      cutoffC:70, cutoffSupported:null, cutoffStats:null,
+      busy:false,
+    },
+  }; },
+  computed:{
+    muteHint(){ const p=this.power; if(!this.currentDeviceId) return '先选择设备。'; if(p.muteSupported===false) return '设备固件较旧（需要 0.0.54），先在「设备连接」升级。'; return ''; },
+    micModeHint(){ const p=this.power; if(!this.currentDeviceId) return '先选择设备'; if(p.micSupported===false) return '设备固件较旧（需要 0.0.53）'; const st=p.micStats; if(!st) return '设备当前设置未知，应用后以设备回执为准'; return st.mode==='vad' ? ('设备当前：按需 · 实际上行 '+st.sent_pct+'% 的帧 · 开门 '+st.gate_opens+' 次') : '设备当前：持续（会话内全部上行）'; },
+    cutoffHint(){ const p=this.power; if(!this.currentDeviceId) return '先选择设备'; if(p.cutoffSupported===false) return '设备固件较旧（需要 0.0.53）'; const st=p.cutoffStats; return st ? ('设备当前：'+(st.cutoff_c>0?(st.cutoff_c+'℃'):'已关闭')+' · 芯片 '+st.temp_c+'℃ · 已触发 '+st.trips+' 次') : '0 = 关闭；默认 70℃，连续 30 秒超过才触发'; },
+  },
+  methods:{
+    controlError(label,e){
+      const detail=(e&&e.message)||String(e);
+      return detail.includes('执行状态未知') ? detail : (label+'失败：'+detail);
+    },
+    async api(url, opts){
+      return window.DeskbotConsole.apiJson(url, Object.assign({timeoutMs:60000}, opts||{}));
+    },
+    proxyPath(path, params, includeDevice=true){
+      const url = new URL('/proxy/deskbot' + path, window.location.origin);
+      if(includeDevice && this.currentDeviceId) url.searchParams.set('device_id', this.currentDeviceId);
+      for(const [k,v] of Object.entries(params||{})){
+        if(v !== undefined && v !== null && String(v) !== '') url.searchParams.set(k, v);
+      }
+      return url.toString();
+    },
+    _autoPickOnlineDevice(){
+      // 直接锁定当前连上的设备：优先已选且仍在线的；否则取任一在线设备。
+      const online=(this.devices||[]).filter((x)=>x && x.online===true);
+      if(!online.length) return '';
+      const cur=String(this.currentDeviceId||'');
+      const keep=online.find((x)=>String(x.device_id||x.id||'')===cur);
+      const pick=keep || online[0];
+      const id=String(pick.device_id||pick.id||'');
+      if(id && id!==cur){
+        this.currentDeviceId=id;
+        try{ window.DeskbotConsole.selectDevice(id,{pinPage:true}); }catch(e){}
+        void this.loadPowerSettings();
+      }
+      return id;
+    },
+    async loadDevices(){
+      try{
+        const d=await window.DeskbotConsole.refresh();
+        if(d.phase==='error')throw new Error(d.error||'设备状态加载失败');
+        this.devices=d.devices||[];
+        this.currentDeviceId=d.targetId||'';
+        this._autoPickOnlineDevice();
+      }catch(e){
+        this.msg=(e.message||'设备状态加载失败')+'（将自动重试）';
+      }
+      if(!this.devices.length){
+        this._devicesRetryDelay=Math.min((this._devicesRetryDelay||2000)*1.5,15000);
+        setTimeout(()=>{ if(!this.devices.length) this.loadDevices().catch(()=>{}); }, this._devicesRetryDelay);
+      }
+    },
+    async switchDevice(){
+      await window.DeskbotConsole.selectDevice(this.currentDeviceId,{pinPage:true});
+      this.msg=this.currentDeviceId ? '已切换当前设备' : '已清空当前设备';
+      await this.loadAll();
+    },
+    async loadAll(){
+      await this.loadDevices();
+      await this.loadPowerSettings();
+    },
+    async loadPowerSettings(){
+      if(!this.currentDeviceId) return;
+      try{
+        const m=await this.api(this.proxyPath('/api/mic_mute'));
+        this.power.muteSupported=!!m.supported; if(m.supported){ this.power.muted=!!m.muted; }
+      }catch(e){ this.power.muteSupported=null; }
+      try{
+        const m=await this.api(this.proxyPath('/api/mic_uplink_mode'));
+        this.power.micSupported=!!m.supported; if(m.supported){ this.power.micMode=m.mode||'continuous'; this.power.micStats=m; }
+      }catch(e){ this.power.micSupported=null; }
+      try{
+        const t=await this.api(this.proxyPath('/api/thermal_cutoff'));
+        this.power.cutoffSupported=!!t.supported; if(t.supported){ this.power.cutoffC=Number(t.cutoff_c)||0; this.power.cutoffStats=t; }
+      }catch(e){ this.power.cutoffSupported=null; }
+    },
+    async applyMute(next){
+      if(!this.currentDeviceId||this.power.busy) return; this.power.busy=true;
+      try{
+        const d=await this.api(this.proxyPath('/api/mic_mute'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.currentDeviceId, muted:!!next})});
+        this.power.muteSupported=!!d.supported; if(!d.supported){ this.power.muted=false; this.msg='设备固件较旧，不支持静音（需要 0.0.54）'; return; }
+        this.power.muted=!!d.muted; this.msg=this.power.muted ? '已静音：小歪不再采集和上传音频（设置已保存在设备上）' : '已取消静音：麦克风恢复工作';
+      }catch(e){ this.msg=this.controlError('静音设置',e); } finally{ this.power.busy=false; }
+    },
+    async applyMicMode(){
+      if(!this.currentDeviceId||this.power.busy) return; this.power.busy=true;
+      try{
+        const d=await this.api(this.proxyPath('/api/mic_uplink_mode'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.currentDeviceId, mode:this.power.micMode})});
+        this.power.micSupported=!!d.supported; if(!d.supported){ this.msg='设备固件较旧，不支持切换上行模式（需要 0.0.53）'; return; }
+        this.power.micMode=d.mode; this.power.micStats=d; this.msg='麦克风上行已切到「'+(d.mode==='vad'?'按需':'持续')+'」（设置已保存在设备上）';
+      }catch(e){ this.msg=this.controlError('麦克风上行设置',e); } finally{ this.power.busy=false; }
+    },
+    async applyCutoff(){
+      if(!this.currentDeviceId||this.power.busy) return; this.power.busy=true;
+      try{
+        const d=await this.api(this.proxyPath('/api/thermal_cutoff'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.currentDeviceId, c:Number(this.power.cutoffC)||0})});
+        this.power.cutoffSupported=!!d.supported; if(!d.supported){ this.msg='设备固件较旧，不支持温度断电（需要 0.0.53）'; return; }
+        this.power.cutoffC=Number(d.cutoff_c)||0; this.power.cutoffStats=d; this.msg=this.power.cutoffC>0?('温度断电阈值已设为 '+this.power.cutoffC+'℃'):'温度断电保护已关闭';
+      }catch(e){ this.msg=this.controlError('温度断电设置',e); } finally{ this.power.busy=false; }
+    },
+  },
+  async mounted(){
+    await this.loadAll();
+    this._unsub=window.DeskbotConsole.onChange((st)=>{
+      if(st && Array.isArray(st.devices)) this.devices=st.devices;
+      this._autoPickOnlineDevice();
+    });
+  },
+  beforeUnmount(){
+    if(this._unsub){ try{ this._unsub(); }catch(_e){} this._unsub=null; }
+  },
+}).mount('#paramsApp');
+</script>
+{% endblock %}

@@ -1,0 +1,936 @@
+{% extends "base_2c.html" %}
+{% block page_title %}主动陪伴 · 小歪{% endblock %}
+{% block global_setup_suppress_device %}1{% endblock %}
+{% block extra_head %}
+<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<style>
+[v-cloak]{display:none}
+.qs-stack{display:grid;gap:16px;max-width:920px}
+.qs-list-hd{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.06em;color:var(--faint);margin:6px 0 -4px 2px}
+.qs-list-hd .grow{flex:1}
+.qs-list-hd .btn{padding:7px 12px;font-size:12px;letter-spacing:0}
+/* AI 生成场景：与「动作 → AI 生成动作」同一套弹窗样式 */
+.lab-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:100;padding:20px}
+.lab-modal{background:var(--panel);border:var(--bw) solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);width:min(560px,100%);max-height:88vh;overflow:auto;padding:18px}
+.lab-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+.lab-modal-head b{font-size:16px;display:block}
+.lab-modal-head small{display:block;color:var(--dim);font-size:12px;margin-top:2px;line-height:1.45}
+.lab-modal .x{border:none;background:transparent;font-size:22px;cursor:pointer;color:var(--dim);line-height:1;padding:0 4px}
+.lab-field{display:flex;flex-direction:column;gap:5px;min-width:0;margin-top:10px}
+.lab-field>span.lab-lab{font-size:11.5px;font-weight:800;color:var(--ink);letter-spacing:.01em}
+.lab-modal textarea.tinput{width:100%;min-height:96px;resize:vertical;line-height:1.5;font-family:inherit}
+.lab-modal input.tinput{width:100%}
+.lab-ai-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.lab-ai-actions .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;margin-left:auto}
+.lab-ai-actions .chk input{width:18px;height:18px;accent-color:var(--accent);margin:0}
+.lab-ai-result{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel2);padding:12px;margin-top:14px;font-size:13px;line-height:1.5}
+.lab-ai-msg{font-size:12px;color:#b3261e;margin-top:10px;line-height:1.45}
+.qs-card{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel);box-shadow:var(--shadow-sm);padding:16px 18px}
+.qs-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.qs-head .grow{flex:1;min-width:200px}
+.qs-switch{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;cursor:pointer}
+.qs-switch input{width:22px;height:22px;accent-color:var(--accent);margin:0}
+.qs-switch.sub{font-weight:500;font-size:13px;color:var(--dim);margin-top:6px}
+.qs-switch.sub input{width:18px;height:18px}
+.qs-head select{padding:7px 30px 7px 10px;font-size:13px;max-width:260px}
+.qs-status{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 18px;margin-top:14px;font-size:13px;color:var(--dim)}
+.qs-status b{color:var(--ink);font-weight:600}
+.qs-status .k{display:block;font-size:11px;letter-spacing:.06em;color:var(--faint);margin-bottom:2px}
+.qs-note{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);font-size:12px;color:var(--dim)}
+.qs-note.warn{background:#fff7e6}
+.qs-note.done{background:#eefbf1;color:var(--ink)}
+.qs-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.qs-actions .btn{padding:8px 14px;font-size:13px}
+.qs-msg{font-size:12px;color:var(--dim);font-family:var(--mono)}
+.qs-msg.err{color:#b3261e}
+.qs-group{margin-top:6px}
+.qs-group-hd{display:flex;align-items:baseline;gap:8px;margin:14px 0 8px;font-size:13px;font-weight:600}
+.qs-group-hd small{color:var(--faint);font-weight:400}
+.qs-task{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel);padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.qs-task:hover{background:var(--panel2)}
+.qs-task.open{cursor:default;background:var(--panel)}
+.qs-task.proposal{border-style:dashed;background:#fff7e6}
+.qs-task-row{display:flex;align-items:center;gap:10px}
+.qs-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1.5px solid var(--line)}
+.qs-dot.running{background:var(--accent)}
+.qs-dot.not_started{background:transparent}
+.qs-dot.success{background:#22c55e}
+.qs-dot.failed,.qs-dot.unmet,.qs-dot.paused{background:#9ca3af}
+.qs-dot.skipped{background:transparent;border-style:dashed}
+.qs-task-title{font-weight:600;font-size:14px;flex:1;min-width:0}
+.qs-task-goal{font-size:12.5px;color:var(--dim);margin:4px 0 0 20px}
+.qs-step{font-size:11px;font-weight:700;color:var(--faint);min-width:18px;text-align:right;font-family:var(--mono)}
+.qs-state{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--dim);white-space:nowrap;background:var(--panel2)}
+.qs-state i{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--line);display:inline-block}
+.qs-state.running{color:var(--ink);border-color:var(--accent)}
+.qs-state.running i{background:var(--accent);border-color:var(--accent)}
+.qs-state.success{color:#15803d;border-color:#bbf7d0;background:#f0fdf4}
+.qs-state.success i{background:#22c55e;border-color:#22c55e}
+.qs-state.failed i,.qs-state.unmet i,.qs-state.paused i{background:#9ca3af;border-color:#9ca3af}
+.qs-state.unmet{color:#9a3412;border-color:#fed7aa;background:#fff7ed}
+.qs-state.unmet i{background:#fb923c;border-color:#fb923c}
+.qs-state.skipped i{background:transparent;border-style:dashed}
+.qs-handle{cursor:grab;color:var(--faint);font-size:14px;letter-spacing:-2px;padding:0 4px;user-select:none;flex-shrink:0}
+.qs-handle:active{cursor:grabbing}
+.qs-task.dragging{opacity:.45}
+.qs-task.over-top{box-shadow:0 -3px 0 0 var(--accent)}
+.qs-task.over-bottom{box-shadow:0 3px 0 0 var(--accent)}
+.qs-task.success .qs-task-title,.qs-task.failed .qs-task-title,.qs-task.unmet .qs-task-title,.qs-task.skipped .qs-task-title{color:var(--dim)}
+.qs-tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--dim);white-space:nowrap;background:var(--panel)}
+.qs-tag.on{background:var(--accent);color:var(--accent-ink);border-color:var(--line)}
+.qs-card.current{box-shadow:var(--shadow)}
+.qs-detail{margin:10px 0 0 20px;font-size:12.5px;color:var(--dim);display:grid;gap:5px}
+.qs-detail b{color:var(--ink);font-weight:600;margin-right:4px}
+.qs-detail .rel span{display:inline-block;padding:1px 8px;border:1px solid var(--line);border-radius:999px;margin:0 4px 2px 0;background:var(--panel2);color:var(--ink)}
+.qs-detail .remark{padding:6px 10px;background:#fff7e6;border:1px solid var(--line);border-radius:var(--rs);color:var(--ink)}
+.qs-task-btns{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0 20px}
+.qs-task-btns .btn{padding:5px 10px;font-size:12px}
+.qs-preview{margin:8px 0 0 20px;font-size:12px;padding:8px 10px;border:1px dashed var(--line);border-radius:var(--rs);background:var(--panel2)}
+.qs-empty{padding:26px 10px;text-align:center;color:var(--faint);font-size:13px}
+.qs-adv summary{cursor:pointer;font-size:13px;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+.qs-adv summary::before{content:"▸";font-size:11px;color:var(--faint)}
+.qs-adv[open] summary::before{content:"▾"}
+.qs-adv-body{margin-top:12px;display:grid;gap:12px;font-size:13px}
+.qs-adv-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.qs-adv-row label{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.qs-adv-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);margin:0}
+.qs-adv-row select{padding:5px 28px 5px 8px;font-size:12px}
+.qs-adv-row .btn{padding:6px 12px;font-size:12px}
+.qs-adv-row .hint{color:var(--faint);font-size:12px}
+.qs-adv-hd{font-size:13px;font-weight:700;margin-top:2px}
+.qs-adv-hd small{font-weight:400;color:var(--faint);margin-left:6px}
+.qs-adv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 18px}
+.qs-num{display:grid;grid-template-columns:1fr 84px auto;gap:4px 8px;align-items:center;font-size:13px}
+.qs-num span{font-weight:500}
+.qs-num input{padding:5px 8px;font-size:13px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:var(--rs);font-family:var(--mono);text-align:right}
+.qs-num em{font-style:normal;color:var(--dim);font-size:12px}
+.qs-num small{grid-column:1/-1;color:var(--faint);font-size:11px;line-height:1.4}
+.qs-drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:90;display:flex;justify-content:flex-end}
+.qs-drawer{width:min(480px,100vw);height:100%;overflow:auto;background:var(--panel);border-left:var(--bw) solid var(--line);padding:20px 22px;display:flex;flex-direction:column;gap:12px}
+.qs-drawer h3{margin:0 0 4px;font-size:16px}
+.qs-field label{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
+.qs-field small{display:block;color:var(--faint);font-size:11px;margin-bottom:5px}
+.qs-field input[type=text],.qs-field textarea,.qs-field select{width:100%;padding:8px 10px;font-size:13px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:var(--rs);font-family:inherit}
+.qs-field textarea{min-height:58px;resize:vertical;line-height:1.5}
+.qs-field .row{display:flex;gap:8px;align-items:center}
+.qs-field .row>select{flex:1}
+.qs-field .fixed{padding:8px 10px;font-size:13px;color:var(--dim);background:var(--panel2);border:1px dashed var(--line);border-radius:var(--rs)}
+.qs-field .chk{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer}
+.qs-field .chk input{width:18px;height:18px;accent-color:var(--accent);margin:0}
+.qs-section{border-top:1px dashed var(--line);padding-top:10px;margin-top:2px}
+.qs-section>label{display:block;font-size:12px;font-weight:700;margin-bottom:8px;letter-spacing:.04em}
+.qs-drawer-btns{display:flex;gap:8px;margin-top:auto;padding:10px 0 4px;flex-wrap:wrap;position:sticky;bottom:-20px;background:var(--panel);border-top:1px solid var(--line)}
+.qs-drawer-btns .spacer{flex:1}
+.qs-modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100}
+.qs-modal-box{background:var(--panel);border:var(--bw) solid var(--line);border-radius:var(--rl);box-shadow:var(--shadow);width:min(560px,92vw);padding:18px 20px;display:grid;gap:12px}
+.qs-modal-box h3{margin:0;font-size:15px}
+.qs-modal-box pre{max-height:55vh;overflow:auto;font:11.5px/1.5 var(--mono);white-space:pre-wrap;background:var(--panel2);border:1px solid var(--line);border-radius:var(--rs);padding:10px;color:var(--ink);margin:0}
+.qs-radio{display:grid;gap:8px}
+.qs-radio label{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:var(--rs);cursor:pointer;background:var(--panel2)}
+.qs-radio label.on{border-color:var(--accent);background:var(--accent-soft)}
+.qs-radio input{margin-top:3px;accent-color:var(--accent)}
+.qs-radio b{display:block;font-size:13px}
+.qs-radio small{color:var(--dim);font-size:12px}
+.qs-modal-actions{display:flex;gap:8px;justify-content:flex-end}
+.qs-err{font-size:12px;color:#b3261e}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="questApp" v-cloak>
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">COMPANION</div>
+      <h1>主动陪伴</h1>
+      <p>小歪空闲时（你有一阵子没和它说话、也没让它做动作），它会按当前使用的陪伴场景主动找你。场景由一个个小目标串起来：每个小目标写清楚要达成什么、怎么做、怎样算成，剩下的交给它。</p>
+    </div>
+  </div>
+
+  <div class="qs-stack">
+    <!-- 总开关 -->
+    <section class="qs-card">
+      <div class="qs-head">
+        <label class="qs-switch">
+          <input type="checkbox" :checked="ov.enabled" @change="setEnabled($event.target.checked)">
+          <span>主动陪伴 [[ ov.enabled ? '已开' : '已关' ]]</span>
+        </label>
+        <div class="grow"></div>
+        <span class="qs-msg" :class="{err: msgErr}" v-if="msg">[[ msg ]]</span>
+        <span class="qs-msg" style="font-family:inherit">选择场景</span>
+        <select :value="ov.playbook ? ov.playbook.name : ''" @change="onPlaybookChange($event.target.value)" title="主线场景同时只用一个；日常关心不在这里选，它随主动陪伴一直生效">
+          <option v-if="!ov.playbook" value="">先选一个场景</option>
+          <option v-for="p in storyPlaybooks" :key="p.name" :value="p.name">[[ p.title ]]</option>
+        </select>
+        <input ref="fileInput" type="file" accept=".json,application/json" style="display:none" @change="onFileImport"/>
+      </div>
+      <div class="qs-note warn" v-if="!ov.enabled">主动陪伴已关。小歪不会自己开口，但你主动聊天时它仍会顺着当前场景推进。</div>
+      <div class="qs-note" v-else-if="ov.quiet_hours.active">现在是勿扰时段（[[ ov.quiet_hours.start ]]–[[ ov.quiet_hours.end ]]），小歪不会主动开口。</div>
+      <div class="qs-note" v-else-if="!ov.proactive.service_running">小歪服务没有运行或刚启动，暂时读不到主动陪伴状态；页面上的编辑照常保存。</div>
+    </section>
+
+    <!-- 每个场景一张卡 -->
+    <div class="qs-list-hd">
+      <span>目前已有场景</span>
+      <span class="grow"></span>
+      <button class="btn ghost" @click="openAiGen()">✨ AI 生成场景</button>
+      <button class="btn primary" @click="openNew()">＋ 新建场景</button>
+    </div>
+    <section class="qs-card" v-for="pb in ov.playbooks" :key="pb.name" :class="{current: pb.is_current}">
+      <div class="qs-head">
+        <div class="grow">
+          <b style="font-size:15px">[[ pb.title ]]</b>
+          <span class="qs-tag on" v-if="pb.is_care_scene" style="margin-left:8px">随主动陪伴生效</span>
+          <span class="qs-tag on" v-else-if="pb.enabled" style="margin-left:8px">使用中</span>
+          <span class="qs-msg" style="font-family:inherit;margin-left:6px" v-if="pb.is_care_scene">[[ pb.care_count ]] 项日常关心</span>
+          <span class="qs-msg" style="font-family:inherit;margin-left:6px" v-else>[[ pb.task_count ]] 个小目标</span>
+        </div>
+        <button class="btn primary" v-if="pb.is_care_scene" style="padding:7px 12px;font-size:12px" @click="openCreate(pb, 'care')">＋ 添加日常关心</button>
+        <button class="btn primary" v-else style="padding:7px 12px;font-size:12px" @click="openCreate(pb, 'story')">＋ 添加小目标</button>
+      </div>
+
+      <template v-if="pb.is_care_scene">
+        <div class="qs-status">
+          <div><span class="k">今天日常关心已提</span><b>[[ ov.proactive.care_today_count ]]</b><span v-if="ov.settings.care_daily_limit > 0"> / [[ ov.settings.care_daily_limit ]] 次</span><span v-else> 次（不限）</span></div>
+          <div><span class="k">怎么触发</span>看情况的在小歪空闲、主线没得提时顺带提；定时的到点就提</div>
+          <div v-if="!ov.enabled"><span class="k">状态</span>主动陪伴已关，日常关心也不会提</div>
+        </div>
+      </template>
+      <template v-if="pb.is_current && !pb.is_care_scene">
+        <div class="qs-status">
+          <div><span class="k">正在做</span><b v-if="running(pb).length">[[ running(pb).map(t => t.title).join('、') ]]</b><span v-else-if="pb.settled">场景已走完</span><span v-else-if="pb.finished">本轮走完，[[ pb.unmet_count ]] 个未达成等下次检测</span><span v-else>没有进行中的小目标</span></div>
+          <div><span class="k">上次开口</span><b v-if="ov.proactive.last_spoke_at">[[ ago(ov.proactive.last_spoke_at) ]]</b><span v-else>还没有</span><span v-if="ov.proactive.last_task_title">，聊的是「[[ ov.proactive.last_task_title ]]」</span></div>
+          <div><span class="k">今天已开口</span><b>[[ ov.proactive.today_count ]]</b><span v-if="ov.settings.daily_limit > 0"> / [[ ov.settings.daily_limit ]] 次</span><span v-else> 次（不限）</span><span v-if="pb.care_count">，其中日常关心 [[ ov.proactive.care_today_count ]]<template v-if="ov.settings.care_daily_limit > 0"> / [[ ov.settings.care_daily_limit ]]</template></span></div>
+          <div><span class="k">什么时候会开口</span>[[ triggerText ]]</div>
+          <div><span class="k">目标检测</span>每 [[ pb.check_interval_hours ]] 小时一次<template v-if="pb.next_check_at">，下次约 [[ clock(pb.next_check_at) ]]</template><template v-if="pb.unmet_count">；现在有 [[ pb.unmet_count ]] 个未达成会按顺序再提</template></div>
+        </div>
+        <div class="qs-note done" v-if="pb.settled">这 [[ pb.task_count ]] 个小目标都达成或跳过了，小歪不会再为它主动开口。想再来一遍点「高级 → 从头开始」，想单独再做某一个就展开它点「重新开始这个」。</div>
+        <div class="qs-note" v-else-if="pb.finished">这一轮走完了，还有 [[ pb.unmet_count ]] 个未达成：每 [[ pb.check_interval_hours ]] 小时会按顺序再提一次<template v-if="pb.next_check_at">（下次约 [[ clock(pb.next_check_at) ]]）</template>。不想再提的展开它点「跳过」。</div>
+        <div class="qs-note" v-else-if="ov.enabled && ov.proactive.service_running && ov.proactive.last_skip_text && !['recent_conversation','cooldown'].includes(ov.proactive.last_skip_reason)">刚才没开口的原因：[[ ov.proactive.last_skip_text ]]</div>
+
+      </template>
+      <template v-if="pb.is_care_scene">
+        <!-- 小歪自己提的 -->
+        <template v-if="pb.proposals.length">
+          <div class="qs-group-hd">小歪想加一个小目标 <small>· 同意后才会开始</small></div>
+          <div v-for="t in pb.proposals" :key="t.id" class="qs-task proposal open">
+            <div class="qs-task-row"><span class="qs-dot not_started"></span><span class="qs-task-title">[[ t.title ]]</span><span class="qs-tag">小歪提的</span></div>
+            <div class="qs-task-goal">[[ t.goal ]]</div>
+            <div class="qs-detail" v-if="t.strategy || t.success_condition">
+              <div v-if="t.strategy"><b>怎么做</b>[[ t.strategy ]]</div>
+              <div v-if="t.success_condition"><b>达成条件</b>[[ t.success_condition ]]</div>
+            </div>
+            <div class="qs-task-btns" style="align-items:center">
+              <span class="qs-msg" style="font-family:inherit">多久提一次</span>
+              <select style="padding:5px 26px 5px 8px;font-size:12px" v-model.number="approveOpts[t.id].interval">
+                <option :value="14400">每 4 小时</option><option :value="86400">每天</option><option :value="604800">每周</option>
+              </select>
+              <input type="text" style="flex:1;min-width:200px;padding:5px 8px;font-size:12px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);color:var(--ink)" v-model="approveOpts[t.id].hint" maxlength="200" placeholder="什么情况下提（例：主人连续写代码一小时以上）">
+              <span class="qs-msg" style="font-family:inherit">或定时</span>
+              <input type="time" v-model="approveOpts[t.id].time" style="padding:4px 6px;font-size:12px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);color:var(--ink)">
+              <button class="btn primary" @click="approve(t)">同意，作为日常关心</button>
+              <button class="btn ghost" @click="reject(t)">不要</button>
+            </div>
+          </div>
+        </template>
+      </template>
+      <div class="qs-note" v-if="!pb.is_care_scene && !pb.enabled && pb.tasks.some(t => t.status !== 'not_started')">没在使用，上次的进度保留着；在上面「选择场景」里选它就接着走。</div>
+
+      <div class="qs-empty" v-if="!pb.is_care_scene && !pb.tasks.length">这个场景还是空的。点「添加小目标」写第一个：要达成什么、怎么做、怎样算成。</div>
+      <div class="qs-empty" v-if="pb.is_care_scene && !pb.care_tasks.length && !pb.proposals.length">还没有日常关心。点「添加日常关心」，或者等小歪自己来提。</div>
+
+      <template v-if="!pb.is_care_scene && pb.tasks.length">
+        <div class="qs-group-hd" style="margin-top:14px">小目标 <small>[[ pb.tasks.length ]]</small><small>· 按顺序一个接一个：小歪聊完一步就标达成或未达成，安静几秒后进入下一个；未达成的按目标检测间隔再提。拖右侧把手换顺序</small></div>
+        <div v-for="(t, i) in pb.tasks" :key="t.id" class="qs-task" :class="[t.status, {open: openId===pb.name+'/'+t.id, dragging: drag.id===t.id, 'over-top': drag.over===t.id && drag.before, 'over-bottom': drag.over===t.id && !drag.before}]"
+             @click="toggle(pb, t)" @dragover.prevent="dragOver(pb, t, $event)" @dragleave="dragLeave(t)" @drop.prevent="dragDrop(pb, t)">
+          <div class="qs-task-row">
+            <span class="qs-step">[[ i + 1 ]]</span>
+            <span class="qs-state" :class="t.status"><i></i>[[ t.status_label ]]</span>
+            <span class="qs-task-title">[[ t.title ]]</span>
+            <span class="qs-tag" v-if="t.status==='running' && t.attempted_this_round">这轮已提过，等小歪标结果</span>
+            <span class="qs-tag" v-if="t.note">它记了备注</span>
+            <span class="qs-handle" title="拖动换顺序" draggable="true" @click.stop @dragstart="dragStart(pb, t, $event)" @dragend="dragEnd">⋮⋮</span>
+          </div>
+          <div class="qs-task-goal">[[ t.goal ]]</div>
+
+          <template v-if="openId===pb.name+'/'+t.id">
+            <div class="qs-detail" @click.stop>
+              <div><b>第 [[ i + 1 ]] 步</b><template v-if="i > 0">「[[ pb.tasks[i-1].title ]]」有了结果就开始</template><template v-else>场景开始时就开始</template><template v-if="t.trigger_hint">；另外：[[ t.trigger_hint ]]</template></div>
+              <div><b>怎么做</b>[[ performLabel(t.perform) ]]<template v-if="t.strategy">。[[ t.strategy ]]</template></div>
+              <div><b>达成条件</b>[[ t.success_condition || '主人回应了就算' ]]</div>
+              <div class="remark" v-if="t.note"><b>它记下的备注</b>[[ t.note ]]</div>
+              <div v-if="t.result"><b>[[ t.status==='success' ? '结果' : '原因' ]]</b>[[ t.result ]]</div>
+            </div>
+            <div class="qs-task-btns" @click.stop>
+              <button class="btn ghost" @click="openEdit(pb, t)">编辑</button>
+              <button class="btn ghost" :disabled="i===0" @click="moveTask(pb, i, -1)">上移</button>
+              <button class="btn ghost" :disabled="i===pb.tasks.length-1" @click="moveTask(pb, i, 1)">下移</button>
+              <template v-if="pb.is_current">
+                <template v-if="t.status==='running'">
+                  <button class="btn primary" :disabled="busy.speak===t.id" @click="speakTask(t)">[[ busy.speak===t.id ? '正在开口…' : '触发一次' ]]</button>
+                  <button class="btn ghost" @click="mark(t, 'success')">记为达成</button>
+                  <button class="btn ghost" @click="mark(t, 'unmet')">记为未达成</button>
+                  <button class="btn ghost" @click="mark(t, 'skipped')">跳过</button>
+                </template>
+                <button class="btn ghost" v-else-if="t.status==='not_started'" @click="startFrom(t)">从这个开始</button>
+                <button class="btn ghost" v-else @click="restart(t)">重新开始这个</button>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <template v-if="pb.is_care_scene && pb.care_tasks.length">
+        <div class="qs-group-hd" style="margin-top:16px">日常关心 <small>[[ pb.care_tasks.length ]]</small><small>· 条件满足或到点时提一句，不进主线</small></div>
+        <div v-for="t in pb.care_tasks" :key="t.id" class="qs-task" :class="[careClass(t), {open: openId===pb.name+'/'+t.id}]" @click="toggle(pb, t)">
+          <div class="qs-task-row">
+            <span class="qs-dot" :class="careClass(t)"></span>
+            <span class="qs-task-title">[[ t.title ]]</span>
+            <span class="qs-tag" v-if="t.proposed_after !== undefined && t.id.startsWith('p')">小歪提的</span>
+            <span class="qs-tag" v-if="t.schedule_time">[[ scheduleLabel(t) ]]</span>
+            <span class="qs-tag" v-else>[[ intervalLabel(t.repeat_interval_sec) ]]</span>
+            <span class="qs-tag" v-if="t.status==='running' && t.max_attempts>0 && t.attempt_count">没回应 [[ t.attempt_count ]]/[[ t.max_attempts ]] 次</span>
+            <span class="qs-tag" v-if="t.paused">[[ pauseLabel(t) ]]</span>
+            <span class="qs-tag" v-else-if="t.status==='success'">[[ resumeLabel(t) ]]</span>
+            <span class="qs-tag" v-else-if="t.status==='running' && nextLabel(t)">[[ nextLabel(t) ]]</span>
+          </div>
+          <div class="qs-task-goal">[[ t.goal ]]</div>
+          <template v-if="openId===pb.name+'/'+t.id">
+            <div class="qs-detail" @click.stop>
+              <div v-if="t.schedule_time"><b>定时</b>[[ scheduleLabel(t) ]]，到点由系统叫它提<template v-if="t.trigger_hint">；顺便看：[[ t.trigger_hint ]]</template></div>
+              <template v-else>
+                <div><b>什么情况下提</b>[[ t.trigger_hint || '看情况' ]]</div>
+                <div><b>多久最多一次</b>[[ intervalLabel(t.repeat_interval_sec) ]]</div>
+              </template>
+              <div><b>怎么做</b>[[ performLabel(t.perform) ]]<template v-if="t.strategy">。[[ t.strategy ]]</template></div>
+              <div v-if="t.success_condition"><b>做到了</b>[[ t.success_condition ]]</div>
+              <div><b>达成后</b>[[ intervalLabel(t.repeat_interval_sec).replace('每', '过') ]]再提</div>
+              <div><b>主人说不用</b>暂停，等你重新打开<template v-if="t.max_attempts>0">；连续 [[ t.max_attempts ]] 次没回应会先歇一天（控制台点「触发一次」不算）</template></div>
+              <div class="remark" v-if="t.note"><b>它记下的备注</b>[[ t.note ]]</div>
+              <div v-if="t.result && t.status!=='running'"><b>[[ t.paused ? '暂停原因' : '上次' ]]</b>[[ t.result ]]</div>
+            </div>
+            <div class="qs-task-btns" @click.stop>
+              <button class="btn ghost" @click="openEdit(pb, t)">编辑</button>
+              <template v-if="pb.is_current">
+                <template v-if="t.status==='running'">
+                  <button class="btn primary" :disabled="busy.speak===t.id" @click="speakTask(t)">[[ busy.speak===t.id ? '正在开口…' : '触发一次' ]]</button>
+                  <button class="btn ghost" @click="mark(t, 'success')">记为已达成</button>
+                  <button class="btn ghost" @click="mark(t, 'skipped')">暂停</button>
+                </template>
+                <button class="btn ghost" v-else @click="restart(t)">[[ t.paused ? '重新打开' : '现在就恢复' ]]</button>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <details class="qs-adv" style="margin-top:14px">
+        <summary>高级</summary>
+        <div class="qs-adv-body">
+          <template v-if="showGlobalAdv(pb)">
+            <div class="qs-adv-hd">什么时候会主动开口 <small>· 这些规则对所有场景生效，改了立即起效</small></div>
+            <div class="qs-adv-row">
+              <label><input type="checkbox" :checked="ov.settings.idle_live" @change="saveSetting({idle_live: $event.target.checked})"> 空闲时自己张望</label>
+              <select style="margin-left:8px" :value="ov.settings.idle_motion||'normal'" @change="saveSetting({idle_motion: $event.target.value})" :disabled="!ov.settings.idle_live">
+                <option value="gentle">轻柔（±25°，很慢）</option>
+                <option value="normal">正常（±35°，慢）</option>
+                <option value="bold">明显（±40°，稍快）</option>
+              </select>
+              <span class="hint">主动陪伴总开关关掉时不会动。空闲够久后，每个自然分钟里随机挑几个时刻看一眼——左、右、左上、右上、抬头，顺序和幅度每次都不一样；说话、表演、说完 30 秒内、勿扰时段和舵机发热时都不动。频率和等待时间在下面调。</span>
+              <span class="hint" v-if="ov.live">待机动作：[[ liveModeLabel ]]<template v-if="ov.live.block_text"> · 现在：[[ ov.live.block_text ]]<template v-if="ov.live.block_reason==='waiting_slot' && ov.live.next_slot_in!=null">（约 [[ Math.round(ov.live.next_slot_in) ]] 秒后）</template></template><template v-if="ov.live.last_motion_ts"> · 最近一次 [[ liveLastLabel ]]</template><template v-if="ov.live.wander"> · 本次启动已张望 [[ ov.live.wander ]] 次</template><template v-if="ov.live.heat_skips"> · 因舵机发热跳过 [[ ov.live.heat_skips ]] 次</template></span>
+            </div>
+            <div class="qs-adv-grid">
+              <label class="qs-num"><span>空闲多久开口</span><input type="number" min="0.5" max="60" step="0.5" :value="ov.settings.idle_sec/60" @change="saveNum('idle_sec', $event, 60, 30, 3600)"><em>分钟</em><small>你没说话、也没让它做动作，超过这么久才会开口</small></label>
+              <label class="qs-num"><span>张望频率</span><input type="number" min="0" max="10" step="1" :value="ov.settings.wander_per_min" @change="saveNum('wander_per_min', $event, 1, 0, 10)"><em>次/分钟</em><small>每个自然分钟内随机时刻触发；0 = 不张望</small></label>
+              <label class="qs-num"><span>空闲多久开始张望</span><input type="number" min="10" max="600" step="10" :value="ov.settings.wander_idle_sec" @change="saveNum('wander_idle_sec', $event, 1, 10, 600)"><em>秒</em><small>没对话、没动作这么久后才开始</small></label>
+              <label class="qs-num"><span>每天最多开口</span><input type="number" min="0" max="100" step="1" :value="ov.settings.daily_limit" @change="saveNum('daily_limit', $event, 1, 0, 100)"><em>次</em><small>0 = 不限</small></label>
+              <label class="qs-num"><span>其中日常关心最多</span><input type="number" min="0" max="100" step="1" :value="ov.settings.care_daily_limit" @change="saveNum('care_daily_limit', $event, 1, 0, 100)"><em>次</em><small>主线优先，主线没得提才轮到日常关心；0 = 不限</small></label>
+              <label class="qs-num"><span>提醒快到点时让路</span><input type="number" min="0" max="3600" step="10" :value="ov.settings.reminder_soon_sec" @change="saveNum('reminder_soon_sec', $event, 1, 0, 3600)"><em>秒</em><small>定时提醒还有这么久到点，主动陪伴先不开口；0 = 不让</small></label>
+              <label class="qs-num"><span>日常关心没回应后歇</span><input type="number" min="1" max="168" step="1" :value="Math.round(ov.settings.care_pause_sec/3600)" @change="saveNum('care_pause_sec', $event, 3600, 600, 604800)"><em>小时</em><small>连续几次没回应在每条日常关心里各自设置</small></label>
+            </div>
+            <div class="qs-adv-row"><span class="hint">勿扰时段在「配置 → 行为偏好」里设置；勿扰期间主动陪伴和空闲张望都不会动。</span></div>
+          </template>
+          <template v-if="!pb.is_care_scene">
+            <div class="qs-adv-hd">场景设置</div>
+            <div class="qs-adv-grid">
+              <label class="qs-num"><span>目标检测间隔</span><input type="number" min="1" max="24" step="1" :value="pb.check_interval_hours" @change="saveInterval(pb, $event)"><em>小时</em><small>检测目标完成情况，按顺序重新触发未达成目标</small></label>
+            </div>
+          </template>
+          <div class="qs-adv-row">
+            <button class="btn ghost" v-if="!pb.is_care_scene" @click="renamePlaybook(pb)">重命名场景</button>
+            <button class="btn ghost" @click="resetProgress(pb)">[[ pb.is_care_scene ? '日常关心全部重新开始' : '从头开始这个场景' ]]</button>
+            <button class="btn ghost" v-if="pb.is_current" @click="showPrompt">看小歪收到的任务说明</button>
+            <template v-if="!pb.is_care_scene">
+              <button class="btn ghost" @click="exportPb(pb)">导出场景</button>
+              <button class="btn ghost" @click="$refs.fileInput.click()">导入场景</button>
+              <button class="btn ghost" v-if="!pb.is_default" style="color:#b91c1c" @click="deletePb(pb)">删除这个场景</button>
+            </template>
+          </div>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <!-- 编辑 / 新建小目标抽屉 -->
+  <div v-if="drawer" class="qs-drawer-bg" @click.self="closeDrawer">
+    <div class="qs-drawer">
+      <h3>[[ drawer.id ? '编辑' : '添加' ]][[ drawer.kind==='care' ? '日常关心' : '小目标' ]] <small style="font-weight:400;color:var(--faint)">· [[ drawer.playbookTitle ]]</small></h3>
+      <div class="qs-field">
+        <label>类型</label>
+        <div class="row">
+          <select v-model="drawer.kind">
+            <option value="story">主线小目标（按顺序推进的一步）</option>
+            <option value="care">日常关心（长期反复做的小事，不进主线）</option>
+          </select>
+        </div>
+      </div>
+      <div class="qs-field">
+        <label>目标名</label>
+        <input type="text" v-model="drawer.title" maxlength="40" placeholder="例：知道怎么称呼主人" @keydown.enter="saveDrawer">
+      </div>
+      <div class="qs-field">
+        <label>目标说明</label>
+        <textarea v-model="drawer.goal" placeholder="例：知道主人希望小歪怎么称呼他，并记住"></textarea>
+      </div>
+
+      <div class="qs-section" v-if="drawer.kind==='care'">
+        <label>什么时候提</label>
+        <div class="qs-field">
+          <div class="row">
+            <select v-model="drawer.schedule_mode">
+              <option value="condition">看情况（小歪自己判断，空闲时顺带提）</option>
+              <option value="time">定时（到点由系统叫它提）</option>
+            </select>
+          </div>
+        </div>
+        <template v-if="drawer.schedule_mode==='time'">
+          <div class="qs-field">
+            <small>每天几点</small>
+            <div class="row"><input type="time" v-model="drawer.schedule_time" style="width:140px;padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);color:var(--ink)"><span class="qs-msg" style="font-family:inherit">到点后两小时内都会补提；勿扰时段过后再提</span></div>
+          </div>
+          <div class="qs-field">
+            <small>哪几天（不选 = 每天）</small>
+            <div class="qs-days"><label v-for="(d,i) in ['一','二','三','四','五','六','日']" :key="i"><input type="checkbox" :value="i" v-model="drawer.schedule_days"> 周[[ d ]]</label></div>
+          </div>
+        </template>
+        <div class="qs-field">
+          <small>[[ drawer.schedule_mode==='time' ? '到点时顺便看的情况（可选）' : '什么情况下提（一句话，交给小歪判断）' ]]</small>
+          <input type="text" v-model="drawer.trigger_hint" maxlength="200" placeholder="例：主人连续写代码一小时以上">
+        </div>
+        <div class="qs-field" v-if="drawer.schedule_mode!=='time'">
+          <small>多久最多提一次</small>
+          <select v-model.number="drawer.repeat_interval_sec">
+            <option :value="3600">每 1 小时</option><option :value="14400">每 4 小时</option><option :value="86400">每天</option><option :value="604800">每周</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="qs-section" v-if="drawer.kind!=='care'">
+        <label>放在哪一步</label>
+        <div class="qs-field">
+          <div class="fixed" v-if="drawer.id">第 [[ drawer.order ]] 步（顺序在列表里拖动或上移、下移）</div>
+          <select v-else v-model="drawer.after">
+            <option value="">放在最后</option>
+            <option v-for="t in drawerTasks" :key="t.id" :value="t.id">插在「[[ t.title ]]」之后</option>
+          </select>
+        </div>
+        <div class="qs-field">
+          <small>其它触发条件（可选，写给小歪判断，例：主人说自己累了的时候）</small>
+          <input type="text" v-model="drawer.trigger_hint" maxlength="200" placeholder="留空表示没有额外条件">
+        </div>
+      </div>
+
+      <div class="qs-section">
+        <label>执行方式</label>
+        <div class="qs-field">
+          <div class="row">
+            <select v-model="drawer.template" @change="applyTemplate">
+              <option v-for="tp in ov.perform_options.templates" :key="tp.key" :value="tp.key">[[ tp.label ]]</option>
+              <option value="custom">自定义</option>
+            </select>
+          </div>
+        </div>
+        <div class="qs-field" v-if="drawer.perform.mode==='expression'">
+          <small>先做的表情</small>
+          <select v-model="drawer.perform.expression">
+            <option value="">（选一个表情）</option>
+            <option v-for="e in ov.perform_options.expressions" :key="e" :value="e">[[ e ]]</option>
+            <option v-if="drawer.perform.expression && !ov.perform_options.expressions.includes(drawer.perform.expression)" :value="drawer.perform.expression">[[ drawer.perform.expression ]]（本机表情库里没有）</option>
+          </select>
+        </div>
+        <div class="qs-field" v-if="drawer.perform.mode==='scene'">
+          <small>先演的表演（来自「表演」）</small>
+          <select v-model="drawer.perform.scene">
+            <option value="">（选一段表演）</option>
+            <option v-for="sc in ov.perform_options.scenes" :key="sc.name" :value="sc.name">[[ sc.title ]]</option>
+            <option v-if="drawer.perform.scene && !ov.perform_options.scenes.some(s => s.name === drawer.perform.scene)" :value="drawer.perform.scene">[[ drawer.perform.scene ]]（表演里没有）</option>
+          </select>
+        </div>
+        <div class="qs-field">
+          <small>怎么说、有什么分寸（可以直接改）</small>
+          <textarea v-model="drawer.strategy" @input="drawer.template='custom'" placeholder="例：聊天里自然地问一句，别像填表；主人不愿说就别再提"></textarea>
+        </div>
+      </div>
+
+      <div class="qs-section">
+        <label>达成条件</label>
+        <div class="qs-field">
+          <small>[[ drawer.kind==='care' ? '怎样算做到了（一句话，交给小歪判断）' : '怎样算达成、什么情况算没达成，都写在这一段里；小歪聊完会按它和你的回复判断' ]]</small>
+          <textarea v-model="drawer.success_condition" placeholder="例：主人明确说了一个称呼；主人明确表示不想说就算没达成"></textarea>
+        </div>
+        <template v-if="drawer.kind!=='care'">
+          <div class="qs-field">
+            <div class="fixed">小歪聊完这一步会标为「达成」或「未达成」，然后进入下一个；你明确说不用会记为「跳过」，以后不再提。未达成的会按场景的「目标检测间隔」再提。</div>
+          </div>
+          <div class="qs-field">
+            <small>本目标有了结果后，大家安静多久触发下一个小目标</small>
+            <div class="row"><input type="number" min="0" max="600" step="1" v-model.number="drawer.next_delay_sec" style="width:120px;padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);color:var(--ink);font-family:var(--mono);text-align:right"><span style="font-size:12px;color:var(--dim)">秒（默认 10）</span></div>
+          </div>
+        </template>
+        <div class="qs-field" v-else>
+          <small>连续几次没回应就先歇一天</small>
+          <select v-model.number="drawer.max_attempts">
+            <option :value="1">1 次</option><option :value="2">2 次</option><option :value="3">3 次</option><option :value="0">不歇</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="qs-err" v-if="drawer.err">[[ drawer.err ]]</div>
+      <div class="qs-drawer-btns">
+        <button class="btn ghost" v-if="drawer.id" style="color:#b91c1c" @click="deleteTask">删除</button>
+        <span class="spacer"></span>
+        <button class="btn ghost" @click="closeDrawer">取消</button>
+        <button class="btn primary" @click="saveDrawer" :disabled="busy.save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新建场景 -->
+  <div v-if="newPb" class="qs-modal" @click.self="newPb=null">
+    <div class="qs-modal-box">
+      <h3>新建陪伴场景</h3>
+      <div class="qs-field">
+        <label>场景名</label>
+        <input ref="newTitle" type="text" v-model="newPb.title" maxlength="40" placeholder="例：认识我的作息" @keydown.enter="confirmNew" @keydown.esc="newPb=null">
+      </div>
+      <div class="qs-radio">
+        <label :class="{on: newPb.template==='default'}"><input type="radio" value="default" v-model="newPb.template"><span><b>从「与主人的初识」复制</b><small>5 个小目标一条线：打招呼、称呼、今天的状态、平时在忙什么、爱好。可以改、可以拖动排序。</small></span></label>
+        <label :class="{on: newPb.template==='blank'}"><input type="radio" value="blank" v-model="newPb.template"><span><b>空白</b><small>自己一个个添加小目标。</small></span></label>
+      </div>
+      <div class="qs-field">
+        <label class="chk"><input type="checkbox" v-model="newPb.select"> 创建后立刻使用</label>
+      </div>
+      <div class="qs-err" v-if="newPb.err">[[ newPb.err ]]</div>
+      <div class="qs-modal-actions">
+        <button class="btn ghost" @click="newPb=null">取消</button>
+        <button class="btn primary" @click="confirmNew" :disabled="newPb.busy">[[ newPb.busy ? '正在编…' : '创建' ]]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 生成场景 -->
+  <div class="lab-modal-mask" v-if="aiGen.open" @click.self="closeAiGen">
+    <div class="lab-modal">
+      <div class="lab-modal-head">
+        <div>
+          <b>AI 生成场景</b>
+          <small>用一句话说说想让小歪怎么主动和你互动，它会自己拆成几个小目标：按顺序做的放进新场景，需要反复做的放进「日常关心」。</small>
+        </div>
+        <button type="button" class="x" @click="closeAiGen" aria-label="关闭">×</button>
+      </div>
+      <label class="lab-field">
+        <span class="lab-lab">场景描述</span>
+        <textarea class="tinput" v-model.trim="aiGen.description" placeholder="写下任何希望小歪主动和你互动的场景，比如：偶尔讲个冷笑话；每天下午提醒我起来活动一下；到点用米家音箱放首好听的歌（家里有音箱时）……" @keydown.esc="closeAiGen"></textarea>
+      </label>
+      <label class="lab-field">
+        <span class="lab-lab">场景名 <em style="font-weight:400;color:var(--faint)">可选，留空让小歪自己起</em></span>
+        <input class="tinput" type="text" v-model.trim="aiGen.title" maxlength="40" placeholder="例：陪我放松一下">
+      </label>
+      <div class="lab-ai-actions">
+        <button type="button" class="btn primary" :disabled="aiGen.busy || !aiGen.description" @click="aiGenerateScene">[[ aiGen.busy ? '小歪在编…' : '生成场景' ]]</button>
+        <label class="chk"><input type="checkbox" v-model="aiGen.select"> 生成后立刻使用</label>
+      </div>
+      <div class="lab-ai-result" v-if="aiGen.result">[[ aiGen.result ]]</div>
+      <p class="lab-ai-msg" v-if="aiGen.msg">[[ aiGen.msg ]]</p>
+    </div>
+  </div>
+
+  <!-- 提示词预览 -->
+  <div v-if="promptModal" class="qs-modal" @click.self="promptModal=false">
+    <div class="qs-modal-box">
+      <h3>小歪现在收到的任务说明</h3>
+      <pre>[[ promptText || '（当前没有进行中的小目标，所以什么都不会发给它）' ]]</pre>
+      <div class="qs-modal-actions"><button class="btn ghost" @click="promptModal=false">关闭</button></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+const api = async (path, opts = {}) => {
+  const init = { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', cache: 'no-store' };
+  if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
+  const res = await fetch(path, init);
+  const data = await res.json().catch(() => ({}));
+  if (!data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+};
+const enc = encodeURIComponent;
+const EMPTY = { enabled: true, playbook: null, playbooks: [], tasks: [], care_tasks: [], proposals: [], finished: false,
+  perform_options: { expressions: [], scenes: [], templates: [] },
+  settings: { idle_sec: 60, daily_limit: 16, care_daily_limit: 10, reminder_soon_sec: 90, care_pause_sec: 86400, idle_live: true, idle_motion: 'normal', wander_per_min: 2, wander_idle_sec: 60 }, quiet_hours: { enabled: false, active: false }, proactive: {} };
+
+createApp({
+  delimiters: ['[[', ']]'],
+  data() {
+    return {
+      ov: EMPTY,
+      openId: null,
+      drawer: null, newPb: null, approveOpts: {},
+      aiGen: { open: false, busy: false, description: '', title: '', select: true, result: '', msg: '' },
+      promptModal: false, promptText: '',
+      msg: '', msgErr: false, msgTimer: null,
+      busy: { speak: '', save: false },
+      drag: { id: null, pb: null, over: null, before: false },
+      pollTimer: null, unsubscribeDevice: null,
+    };
+  },
+  computed: {
+    liveModeLabel(){ const m=(this.ov.live&&this.ov.live.mode)||''; return {off:'已关',gentle:'轻柔',normal:'正常',bold:'明显'}[m]||m||'—'; },
+    liveLastLabel(){ const l=this.ov.live||{}; if(!l.last_motion_ts) return ''; const d=new Date(l.last_motion_ts*1000); const src={live_wander:'张望',live_center:'回中'}[l.last_motion_source]||l.last_motion_source; return d.toTimeString().slice(0,5)+'（'+src+'）'; },
+    drawerTasks() {
+      if (!this.drawer) return [];
+      const pb = (this.ov.playbooks || []).find(p => p.name === this.drawer.playbook);
+      return pb ? pb.tasks : [];
+    },
+    storyPlaybooks() { return (this.ov.playbooks || []).filter(p => !p.is_care_scene); },
+    triggerText() {
+      const s = this.ov.settings;
+      const idle = s.idle_sec % 60 === 0 ? `${s.idle_sec / 60} 分钟` : `${s.idle_sec} 秒`;
+      const who = '小歪在线，且';
+      return `${who}你 ${idle} 没和它说话、也没让它做动作时`;
+    },
+  },
+  methods: {
+    apply(d) {
+      if (!d || !d.playbooks) return;
+      this.ov = d;
+      for (const pb of d.playbooks) for (const t of (pb.proposals || [])) {
+        if (this.approveOpts[t.id] === undefined) this.approveOpts[t.id] = { interval: t.repeat_interval_sec || 86400, hint: t.trigger_hint || '', time: t.schedule_time || '' };
+      }
+    },
+    running(pb) { return (pb.tasks || []).filter(t => t.status === 'running'); },
+    clock(iso) {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    },
+    async saveInterval(pb, ev) {
+      const raw = Number(ev.target.value);
+      if (!Number.isInteger(raw) || raw < 1 || raw > 24) { this.say('目标检测间隔要在 1 ~ 24 小时之间', true); this.load(true); return; }
+      try { this.apply(await api(`/api/quest/playbooks/${enc(pb.name)}`, { method: 'PUT', body: { check_interval_hours: raw } })); this.say('已保存'); }
+      catch (e) { this.fail(e); }
+    },
+    // ── 顺序：拖动 / 上移下移 ──
+    dragStart(pb, t, ev) {
+      this.drag = { id: t.id, pb: pb.name, over: null, before: false };
+      try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', t.id); } catch (_e) {}
+    },
+    dragOver(pb, t, ev) {
+      if (!this.drag.id || this.drag.pb !== pb.name || this.drag.id === t.id) return;
+      const rect = ev.currentTarget.getBoundingClientRect();
+      this.drag.over = t.id; this.drag.before = (ev.clientY - rect.top) < rect.height / 2;
+    },
+    dragLeave(t) { if (this.drag.over === t.id) this.drag.over = null; },
+    dragEnd() { this.drag = { id: null, pb: null, over: null, before: false }; },
+    async dragDrop(pb, target) {
+      const d = this.drag;
+      if (!d.id || d.pb !== pb.name || d.id === target.id) { this.dragEnd(); return; }
+      const ids = pb.tasks.map(t => t.id).filter(id => id !== d.id);
+      let pos = ids.indexOf(target.id); if (!d.before) pos += 1;
+      ids.splice(pos, 0, d.id);
+      this.dragEnd();
+      await this.saveOrder(pb, ids);
+    },
+    async moveTask(pb, i, dir) {
+      const ids = pb.tasks.map(t => t.id);
+      const j = i + dir; if (j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      await this.saveOrder(pb, ids);
+    },
+    async saveOrder(pb, ids) {
+      try { this.apply(await api(`/api/quest/playbooks/${enc(pb.name)}/order`, { method: 'PUT', body: { ids } })); this.say('顺序已保存'); }
+      catch (e) { this.fail(e); this.load(true); }
+    },
+    async startFrom(t) {
+      if (!confirm(`从「${t.title}」开始？它前面还没有结果的小目标会记为未达成（跳过）。`)) return;
+      try { this.apply(await api(`/api/quest/tasks/${enc(t.id)}/start_from`, { method: 'POST' })); this.say(`已从「${t.title}」开始`); }
+      catch (e) { this.fail(e); }
+    },
+    say(text, err = false) {
+      this.msg = text; this.msgErr = err;
+      clearTimeout(this.msgTimer);
+      this.msgTimer = setTimeout(() => { this.msg = ''; }, err ? 6000 : 2500);
+    },
+    fail(e) { this.say(String((e && e.message) || e), true); },
+    ago(iso) {
+      const t = new Date(iso).getTime(); if (!t) return iso;
+      const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+      if (s < 60) return '刚刚';
+      if (s < 3600) return `${Math.floor(s / 60)} 分钟前`;
+      if (s < 86400) return `${Math.floor(s / 3600)} 小时前`;
+      return new Date(iso).toLocaleString();
+    },
+    intervalLabel(sec) {
+      if (sec >= 604800) return '每周'; if (sec >= 86400) return '每天'; if (sec >= 3600) return `每 ${Math.round(sec / 3600)} 小时`; return `每 ${Math.round(sec / 60)} 分钟`;
+    },
+    performLabel(p) {
+      if (!p) return '只说话';
+      if (p.mode === 'expression') return `先做「${p.expression}」表情再说`;
+      if (p.mode === 'scene') { const sc = (this.ov.perform_options.scenes || []).find(s => s.name === p.scene); return `先演「${sc ? sc.title : p.scene}」再说`; }
+      return '只说话';
+    },
+    async load(silent) {
+      try { this.apply(await api('/api/quest/overview')); }
+      catch (e) { if (!silent) this.fail(e); }
+    },
+    // 页面不让用户手动选设备：有连着的小歪就直接用第一台
+    autoSelectDevice(state) {
+      if (!state || state.currentId || this._autoSelecting) return;
+      const list = state.devices || [];
+      const first = list.find(d => d && d.online === true) || list[0];
+      const id = first && first.device_id;
+      if (!id || !window.DeskbotConsole || !window.DeskbotConsole.selectDevice) return;
+      this._autoSelecting = true;
+      Promise.resolve(window.DeskbotConsole.selectDevice(id, { pinPage: false })).catch(() => {}).finally(() => { this._autoSelecting = false; });
+    },
+
+    // ── 开关 / 场景 / 设置 ──
+    async setEnabled(on) {
+      try { this.apply(await api('/api/quest/settings', { method: 'PUT', body: { enabled: on } })); this.say(on ? '已打开主动陪伴' : '已关闭主动陪伴'); }
+      catch (e) { this.fail(e); this.load(true); }
+    },
+    async saveNum(key, ev, unit, lo, hi) {
+      const raw = Number(ev.target.value);
+      if (!Number.isFinite(raw)) { this.say('请输入数字', true); this.load(true); return; }
+      const val = Math.round(raw * unit);
+      if (val < lo || val > hi) { this.say(`超出范围（${lo / unit} ~ ${hi / unit}）`, true); this.load(true); return; }
+      await this.saveSetting({ [key]: val });
+    },
+    async saveSetting(patch) {
+      try { this.apply(await api('/api/quest/settings', { method: 'PUT', body: patch })); this.say('已保存'); }
+      catch (e) { this.fail(e); this.load(true); }
+    },
+    showGlobalAdv(pb) { return (pb.enabled && !pb.is_care_scene) || (pb.is_care_scene && !this.ov.playbook); },
+    async onPlaybookChange(name) {
+      const pb = (this.ov.playbooks || []).find(p => p.name === name);
+      if (pb && !pb.is_current) await this.usePlaybook(pb);
+    },
+    async usePlaybook(pb) {
+      try {
+        this.apply(await api('/api/quest/settings', { method: 'PUT', body: { playbook: pb.name } }));
+        this.openId = null;
+        this.say(`已改用「${pb.title}」，各场景进度各自保留`);
+      } catch (e) { this.fail(e); this.load(true); }
+    },
+    openAiGen() { this.aiGen = { open: true, busy: false, description: '', title: '', select: true, result: '', msg: '' }; },
+    closeAiGen() { this.aiGen.open = false; },
+    async aiGenerateScene() {
+      const g = this.aiGen; if (!g || g.busy) return;
+      const desc = String(g.description || '').trim();
+      if (!desc) { g.msg = '先写一句想要的场景'; return; }
+      g.busy = true; g.msg = ''; g.result = '';
+      try {
+        const r = await api('/api/quest/playbooks/generate', { method: 'POST', body: { description: desc, title: g.title, select: !!g.select } });
+        this.apply(r); this.openId = null;
+        const gen = r.generated || {};
+        const parts = [];
+        if (gen.playbook_title) parts.push(`新场景「${gen.playbook_title}」：${gen.story_count || 0} 个小目标${g.select ? '，已开始使用' : ''}`);
+        if (gen.care_count) parts.push(`${gen.playbook_title ? '另有 ' : ''}${gen.care_count} 条加进了「日常关心」：${(gen.care_titles || []).join('、')}`);
+        if (!gen.playbook_title && !gen.care_count) parts.push('没有生成任何小目标');
+        g.result = parts.join('；') + '。可以在下面的场景卡里继续改。';
+        this.say('场景已生成');
+      } catch (e) { g.msg = String(e.message || e); }
+      finally { g.busy = false; }
+    },
+    openNew() {
+      this.newPb = { title: '', template: 'default', select: true, busy: false, err: '' };
+      this.$nextTick(() => { const el = this.$refs.newTitle; if (el) el.focus(); });
+    },
+    async confirmNew() {
+      const n = this.newPb; if (!n) return;
+      n.busy = true;
+      try {
+        this.apply(await api('/api/quest/playbooks', { method: 'POST', body: { title: n.title, template: n.template, select: !!n.select } }));
+        this.newPb = null; this.openId = null; this.say('场景已创建');
+      } catch (e) { n.err = String(e.message || e); }
+      finally { n.busy = false; }
+    },
+    async renamePlaybook(pb) {
+      const title = prompt('场景名', pb.title);
+      if (title === null) return;
+      try { this.apply(await api(`/api/quest/playbooks/${enc(pb.name)}`, { method: 'PUT', body: { title } })); this.say('已重命名'); }
+      catch (e) { this.fail(e); }
+    },
+    async deletePb(pb) {
+      if (!confirm(`删除场景「${pb.title}」？小目标和进度都会清掉。`)) return;
+      try { this.apply(await api(`/api/quest/playbooks/${enc(pb.name)}`, { method: 'DELETE' })); this.openId = null; this.say('已删除'); }
+      catch (e) { this.fail(e); }
+    },
+    async resetProgress(pb) {
+      if (!confirm(pb.is_care_scene ? '把所有日常关心的暂停和冷却都清掉，重新开始？' : `把「${pb.title}」的进度清零，从起点重新来？`)) return;
+      try { this.apply(await api(`/api/quest/playbooks/${enc(pb.name)}/reset`, { method: 'POST' })); this.openId = null; this.say('已从头开始'); }
+      catch (e) { this.fail(e); }
+    },
+    exportPb(pb) { window.location.href = `/api/quest/playbooks/${enc(pb.name)}/export`; },
+    async onFileImport(ev) {
+      const file = ev.target.files && ev.target.files[0]; ev.target.value = '';
+      if (!file) return;
+      try {
+        const data = JSON.parse(await file.text());
+        this.apply(await api('/api/quest/playbooks/import', { method: 'POST', body: data }));
+        this.say('已导入并启用');
+      } catch (e) { this.fail(e); }
+    },
+    async showPrompt() {
+      try { this.promptText = (await api('/api/quest/prompt_preview')).appendix || ''; this.promptModal = true; }
+      catch (e) { this.fail(e); }
+    },
+    async speakTask(t) {
+      this.busy.speak = t.id;
+      try {
+        const r = await api(`/api/quest/tasks/${enc(t.id)}/speak`, { method: 'POST' });
+        this.say(r.pending ? `小歪正在就「${t.title}」开口` : `已让小歪就「${t.title}」开口`);
+        setTimeout(() => this.load(true), 4000);
+      } catch (e) { this.fail(e); }
+      finally { this.busy.speak = ''; }
+    },
+
+    // ── 小歪提的 ──
+    async approve(t) {
+      const o = this.approveOpts[t.id] || { interval: 86400, hint: '' };
+      try { this.apply(await api(`/api/quest/proposals/${enc(t.id)}/approve`, { method: 'POST', body: { kind: 'care', repeat_interval_sec: o.interval, trigger_hint: o.hint, schedule_time: o.time || '' } })); this.say(`已加入日常关心「${t.title}」`); }
+      catch (e) { this.fail(e); }
+    },
+    careClass(t) { return t.paused ? 'paused' : t.status; },
+    scheduleLabel(t) {
+      if (!t.schedule_time) return '';
+      const names = ['一','二','三','四','五','六','日'];
+      const days = (t.schedule_days || []).length ? '周' + t.schedule_days.map(d => names[d]).join('') : '每天';
+      return `${days} ${t.schedule_time}`;
+    },
+    nextLabel(t) {
+      if (!t.next_attempt_at) return '';
+      const ms = new Date(t.next_attempt_at).getTime() - Date.now();
+      if (ms <= 0) return '';
+      const d = new Date(t.next_attempt_at);
+      return `刚提过，最早 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} 再提`;
+    },
+    pauseLabel(t) {
+      if (!t.paused_until) return '已暂停';
+      const d = new Date(t.paused_until + (String(t.paused_until).endsWith('Z') ? '' : 'Z'));
+      if (isNaN(d.getTime())) return '歇一天';
+      const now = new Date();
+      const sameDay = d.toDateString() === now.toDateString();
+      const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
+      const day = sameDay ? '今天' : (d.toDateString() === tomorrow.toDateString() ? '明天' : `${d.getMonth() + 1}/${d.getDate()}`);
+      return `歇到${day} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    },
+    resumeLabel(t) {
+      if (!t.resume_at) return '冷却中';
+      const ms = new Date(t.resume_at).getTime() - Date.now();
+      if (ms <= 0) return '马上恢复';
+      const h = Math.round(ms / 3600000);
+      return h >= 1 ? `${h} 小时后再提` : `${Math.max(1, Math.round(ms / 60000))} 分钟后再提`;
+    },
+    async reject(t) {
+      try { this.apply(await api(`/api/quest/proposals/${enc(t.id)}/reject`, { method: 'POST' })); this.say('已忽略'); }
+      catch (e) { this.fail(e); }
+    },
+
+    // ── 小目标 ──
+    toggle(pb, t) { const key = pb.name + '/' + t.id; this.openId = this.openId === key ? null : key; },
+    async mark(t, status) {
+      const care = t.kind === 'care';
+      const q = status === 'success' ? `把「${t.title}」记为达成？${care ? '' : '会进入下一个。'}`
+        : status === 'unmet' ? `把「${t.title}」记为未达成？会进入下一个，下次检测时按顺序再提。`
+        : (care ? `暂停「${t.title}」？之后不再提，直到你重新打开。` : `跳过「${t.title}」？会进入下一个，以后不再提。`);
+      if (!confirm(q)) return;
+      try { this.apply(await api(`/api/quest/tasks/${enc(t.id)}/mark`, { method: 'POST', body: { status } })); this.say('已更新'); }
+      catch (e) { this.fail(e); }
+    },
+    async restart(t) {
+      try { this.apply(await api(`/api/quest/tasks/${enc(t.id)}/restart`, { method: 'POST' })); this.say(`「${t.title}」已重新开始，成为当前`); }
+      catch (e) { this.fail(e); }
+    },
+    templateFor(p, strategy) {
+      const tps = this.ov.perform_options.templates || [];
+      const hit = tps.find(tp => tp.mode === (p && p.mode || 'speak') && tp.strategy === strategy);
+      return hit ? hit.key : 'custom';
+    },
+    applyTemplate() {
+      const d = this.drawer; if (!d || d.template === 'custom') return;
+      const tp = (this.ov.perform_options.templates || []).find(x => x.key === d.template); if (!tp) return;
+      d.perform = { mode: tp.mode, expression: d.perform.expression || '', scene: d.perform.scene || '' };
+      d.strategy = tp.strategy;
+    },
+    openCreate(pb, kind) {
+      const tp = (this.ov.perform_options.templates || [])[0];
+      const care = kind === 'care';
+      this.drawer = { playbook: pb.name, playbookTitle: pb.title, id: null, kind: care ? 'care' : 'story', title: '', goal: '', strategy: tp ? tp.strategy : '', success_condition: '',
+        trigger_hint: '', perform: { mode: tp ? tp.mode : 'speak', expression: '', scene: '' }, template: tp ? tp.key : 'custom',
+        max_attempts: care ? 2 : 0, next_delay_sec: 10, repeat_interval_sec: 86400, after: '',
+        schedule_mode: 'condition', schedule_time: '', schedule_days: [], err: '' };
+    },
+    openEdit(pb, t) {
+      const perform = Object.assign({ mode: 'speak', expression: '', scene: '' }, t.perform || {});
+      this.drawer = {
+        playbook: pb.name, playbookTitle: pb.title, kind: t.kind || 'story',
+        id: t.id, order: t.order, title: t.title, goal: t.goal, strategy: t.strategy,
+        success_condition: t.success_condition,
+        trigger_hint: t.trigger_hint || '', perform, template: this.templateFor(perform, t.strategy),
+        max_attempts: t.max_attempts, next_delay_sec: t.next_delay_sec === undefined ? 10 : t.next_delay_sec, repeat_interval_sec: t.repeat_interval_sec || 86400,
+        schedule_mode: t.schedule_time ? 'time' : 'condition', schedule_time: t.schedule_time || '', schedule_days: (t.schedule_days || []).slice(), err: '',
+      };
+    },
+    closeDrawer() { this.drawer = null; },
+    async saveDrawer() {
+      const d = this.drawer; if (!d) return;
+      if (!String(d.goal || '').trim()) { d.err = '先写一句目标说明'; return; }
+      if (d.perform.mode === 'expression' && !d.perform.expression) { d.err = '选一个先做的表情，或换成别的执行方式'; return; }
+      if (d.perform.mode === 'scene' && !d.perform.scene) { d.err = '选一段先演的表演，或换成别的执行方式'; return; }
+      if (d.kind === 'care' && d.schedule_mode === 'time' && !d.schedule_time) { d.err = '定时要选一个时间'; return; }
+      const delay = Number(d.next_delay_sec);
+      if (d.kind !== 'care' && (!Number.isInteger(delay) || delay < 0 || delay > 600)) { d.err = '完成后多久触发下一个要在 0 ~ 600 秒之间'; return; }
+      this.busy.save = true;
+      try {
+        const base = `/api/quest/playbooks/${enc(d.playbook)}/tasks`;
+        const body = { kind: d.kind, title: d.title, goal: d.goal, strategy: d.strategy, success_condition: d.success_condition,
+          trigger_hint: d.trigger_hint, perform: d.perform, max_attempts: d.kind === 'care' ? d.max_attempts : 0, next_delay_sec: d.kind === 'care' ? 0 : delay, repeat_interval_sec: d.repeat_interval_sec,
+          schedule_time: (d.kind === 'care' && d.schedule_mode === 'time') ? d.schedule_time : '', schedule_days: (d.kind === 'care' && d.schedule_mode === 'time') ? d.schedule_days.map(Number) : [] };
+        let r;
+        if (d.id) r = await api(`${base}/${enc(d.id)}`, { method: 'PUT', body });
+        else r = await api(base, { method: 'POST', body: { ...body, after: d.kind === 'care' ? '' : (d.after || '') } });
+        this.apply(r); this.openId = r.task ? d.playbook + '/' + r.task.id : this.openId; this.drawer = null; this.say('已保存');
+      } catch (e) { d.err = String(e.message || e); }
+      finally { this.busy.save = false; }
+    },
+    async deleteTask() {
+      const d = this.drawer; if (!d || !d.id) return;
+      if (!confirm(`删除小目标「${d.title}」？`)) return;
+      try { this.apply(await api(`/api/quest/playbooks/${enc(d.playbook)}/tasks/${enc(d.id)}`, { method: 'DELETE' })); this.drawer = null; this.openId = null; this.say('已删除'); }
+      catch (e) { d.err = String(e.message || e); }
+    },
+  },
+  mounted() {
+    this.load(false);
+    this.pollTimer = setInterval(() => { if (!this.drawer && !this.newPb && !this.aiGen.open) this.load(true); }, 10000);
+    if (window.DeskbotConsole && window.DeskbotConsole.onChange) {
+      this.unsubscribeDevice = window.DeskbotConsole.onChange((st) => this.autoSelectDevice(st));
+    }
+  },
+  unmounted() { clearInterval(this.pollTimer); if (this.unsubscribeDevice) this.unsubscribeDevice(); },
+}).mount('#questApp');
+</script>
+{% endblock %}

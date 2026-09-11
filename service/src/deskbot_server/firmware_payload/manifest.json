@@ -1,0 +1,6 @@
+{
+  "version": "0.0.56",
+  "file": "deskbot_v2.bin",
+  "chip": "esp32s3",
+  "flash_offset": "0x10000"
+}

@@ -1,0 +1,65 @@
+{
+  "name": "care",
+  "title": "日常关心",
+  "is_care_scene": true,
+  "template_version": 2,
+  "description": "小歪长期反复做的小事：提醒喝水、活动颈椎、别熬夜。主动陪伴开着它就在。",
+  "tasks": [
+    {
+      "id": "g_care_break",
+      "title": "提醒主人喝水休息",
+      "goal": "主人忙了一阵之后，提醒他喝口水、活动一下。",
+      "strategy": "一句话提醒就够，不要唠叨；主人说“好”或去喝水就算成功，说“等会儿”也别再催。",
+      "activation_score": 1,
+      "initial_status": "running",
+      "success_condition": "主人答应了或者真的去喝水/休息了；主人明确拒绝或让小歪别管，就调用 skip_goal。",
+      "on_success": [],
+      "on_failure": [],
+      "pos": {
+        "x": 1040,
+        "y": 360,
+        "width": 210,
+        "height": 120
+      },
+      "trigger_hint": "主人已经对着电脑忙了很久，或者说自己累了的时候",
+      "perform": {
+        "mode": "speak",
+        "expression": "",
+        "scene": ""
+      },
+      "max_attempts": 2,
+      "repeatable": true,
+      "repeat_interval_sec": 86400,
+      "proposed": false,
+      "kind": "care"
+    },
+    {
+      "id": "g_care_neck",
+      "title": "活动颈椎",
+      "goal": "写代码间隙提醒主人活动一下颈椎。",
+      "strategy": "一句话提醒，不唠叨；主人说“好”或动了动就算数，说“等会儿”也别再催。",
+      "activation_score": 1,
+      "initial_status": "running",
+      "success_condition": "主人答应了或者动了动脖子；主人明确说别管，就调用 skip_goal。",
+      "on_success": [],
+      "on_failure": [],
+      "pos": {
+        "x": 400,
+        "y": 120,
+        "width": 210,
+        "height": 120
+      },
+      "trigger_hint": "主人连着写了一阵代码",
+      "perform": {
+        "mode": "speak",
+        "expression": "",
+        "scene": ""
+      },
+      "max_attempts": 2,
+      "repeatable": true,
+      "repeat_interval_sec": 86400,
+      "proposed": false,
+      "kind": "care"
+    }
+  ]
+}

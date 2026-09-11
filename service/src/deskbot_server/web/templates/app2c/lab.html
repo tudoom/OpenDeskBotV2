@@ -1,0 +1,893 @@
+{% extends "base_2c.html" %}
+{% block page_title %}动作 · 小歪{% endblock %}
+{% block global_setup_suppress_device %}1{% endblock %}
+{% block extra_head %}
+<script>
+  window.__LAB_FACE__ = {
+    w: {{ face_lcd_w|int }},
+    h: {{ face_lcd_h|int }},
+    defaultAnim: {{ expr_default_anim|tojson }},
+  };
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "{{ url_for('static', filename='vendor/three.module.js') }}"
+  }
+}
+</script>
+<script src="{{ url_for('static', filename='vendor/vue.global.prod.min.js') }}"></script>
+<script src="{{ url_for('static', filename='generated/primitive_spec.js') }}"></script>
+<script src="{{ url_for('static', filename='face_preview_2c.js') }}"></script>
+<style>
+  .lab-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .lab-panel{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel);padding:14px;box-shadow:var(--shadow);min-width:0}
+  .lab-panel.wide{grid-column:1/-1}
+  .lab-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .lab-head b{display:block;font-size:16px}
+  .lab-head small,.lab-note{display:block;color:var(--dim);font-size:12px;line-height:1.45}
+  .lab-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+  .lab-form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .lab-form-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lab-form-grid .wide{grid-column:1/-1}
+  .lab-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .lab-field>span.lab-lab{font-size:11.5px;font-weight:800;color:var(--ink);letter-spacing:.01em}
+  .lab-field>span.lab-lab em{font-style:normal;color:var(--dim);font-weight:600}
+  .lab-field .tinput,.lab-field select{width:100%}
+  .lab-field .lab-hint{font-size:10.5px;color:var(--dim);line-height:1.35;font-weight:500}
+  .lab-field.lab-field-btn{justify-content:flex-end}
+  .lab-field.lab-field-btn .btn{width:100%}
+  .lab-legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:2px 0 12px;padding:10px 12px;border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel2)}
+  .lab-legend b{font-size:11.5px;color:var(--ink);font-weight:800}
+  .lab-legend span{font-size:11px;color:var(--dim);line-height:1.5}
+  .lab-list{display:grid;gap:8px;margin-top:10px}
+  .lab-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:50;padding:20px}
+  .lab-modal{background:var(--panel);border:var(--bw) solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);width:min(560px,100%);max-height:88vh;overflow:auto;padding:18px}
+  .lab-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+  .lab-modal-head b{font-size:16px;display:block}
+  .lab-modal-head small{display:block;color:var(--dim);font-size:12px;margin-top:2px;line-height:1.45}
+  .lab-modal .x{border:none;background:transparent;font-size:22px;cursor:pointer;color:var(--dim);line-height:1;padding:0 4px}
+  .lab-modal textarea.tinput{width:100%;min-height:76px;resize:vertical;line-height:1.5}
+  .lab-ai-result{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel2);padding:12px;margin-top:14px}
+  .lab-ai-row2{display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:8px}
+  .lab-ai-steps{display:grid;gap:6px;margin-top:10px}
+  .lab-ai-step{display:flex;gap:10px;font-family:var(--mono);font-size:12px;color:var(--dim);align-items:center;flex-wrap:wrap}
+  .lab-ai-step b{color:var(--ink);font-family:inherit}
+  .lab-ai-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .lab-ai-msg{font-size:12px;color:var(--dim);margin-top:10px;line-height:1.45}
+    .lab-preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+  @media(max-width:620px){.lab-preset-grid{grid-template-columns:1fr}}
+  .lab-row{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel2);padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .lab-row b{display:block}
+  .lab-row small{display:block;color:var(--dim)}
+  .lab-robot-panel{overflow:hidden}
+  .lab-robot-layout{display:grid;grid-template-columns:minmax(320px,1.05fr) minmax(260px,.95fr);gap:14px;align-items:stretch}
+  .lab-robot-stage{border:var(--bw) solid var(--line);border-radius:var(--r);background:#111318;box-shadow:var(--shadow-sm);min-height:260px;overflow:hidden}
+  .lab-robot-host{position:relative;width:100%;height:100%;min-height:260px;display:grid;place-items:center}
+  .lab-robot-host canvas{display:block;width:100%!important;height:100%!important}
+  .lab-robot-fallback{color:#fff;font-weight:900;margin:0;text-align:center}
+  .lab-robot-info{display:grid;align-content:space-between;gap:12px}
+  .lab-robot-kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .lab-robot-kv div{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel2);padding:10px;min-width:0}
+  .lab-robot-kv span{display:block;color:var(--dim);font-size:11px;font-weight:900;text-transform:uppercase}
+  .lab-robot-kv b{display:block;font-family:var(--mono);font-size:18px;margin-top:4px}
+  .lab-robot-slider{border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel2);padding:12px}
+  .lab-robot-slider label{display:flex;justify-content:space-between;gap:10px;font-weight:900;margin-bottom:8px}
+  .lab-robot-slider input{width:100%}
+  @media(max-width:900px){
+    .lab-grid{grid-template-columns:1fr}
+    .lab-form-grid,.lab-form-grid.two{grid-template-columns:1fr}
+    .lab-robot-layout{grid-template-columns:1fr}
+    .lab-robot-kv{grid-template-columns:1fr}
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div id="labApp">
+  <div class="pagehd">
+    <div>
+      <div class="eyebrow">MOTION · SERVO</div>
+      <h1>动作</h1>
+      <p>舵机限位、直接下发与动作预设，只管小歪怎么动；静音、省电、温度保护这些设备参数在「参数设置」，表演已独立成页。</p>
+    </div>
+    <div class="btngroup">
+      <select v-model="currentDeviceId" @change="switchDevice">
+        <option value="">选择设备</option>
+        <option v-for="d in devices" :key="d.device_id" :value="d.device_id">[[ d.display_name ]] · [[ d.device_id ]]</option>
+      </select>
+      <button type="button" class="btn ghost" @click="loadAll">刷新</button>
+    </div>
+  </div>
+
+  <p class="lead" v-if="msg">[[ msg ]]</p>
+
+  <section class="lab-grid">
+    <div class="lab-panel wide lab-robot-panel">
+      <div class="lab-head">
+        <div>
+          <b>模拟动作</b>
+          <small>在 3D 形象上预览动作效果，不会真正下发到设备；下发舵机或运行预设时会同步演示。右侧滑杆只转头，方向与真机一致。</small>
+        </div>
+        <button type="button" class="btn ghost" @click="robotInit3d">重新载入 3D</button>
+      </div>
+      <div class="lab-robot-layout">
+        <div class="lab-robot-stage">
+          <div ref="robot3dHost" class="lab-robot-host" aria-label="机器人 3D 预览">
+            <p v-if="robot3dError" class="lab-robot-fallback">[[ robot3dError ]]</p>
+          </div>
+        </div>
+        <div class="lab-robot-info">
+          <div class="lab-robot-kv">
+            <div><span>servo x</span><b>[[ robotServoXLabel ]]</b></div>
+            <div><span>servo y</span><b>[[ robotServoYLabel ]]</b></div>
+          </div>
+          <div class="lab-robot-slider">
+            <label><span>左右</span><span>[[ simRange.xMin ]] – [[ simRange.xMax ]]</span></label>
+            <input type="range" :min="simRange.xMin" :max="simRange.xMax" step="1" v-model.number="simServo.x" :disabled="!contract.ready" aria-label="左右转头（只动 3D 形象的头，不下发到设备）">
+          </div>
+          <div class="lab-robot-slider">
+            <label><span>上下</span><span>[[ simRange.yMin ]] – [[ simRange.yMax ]]</span></label>
+            <input type="range" :min="simRange.yMin" :max="simRange.yMax" step="1" v-model.number="simServo.y" :disabled="!contract.ready" aria-label="上下俯仰（只动 3D 形象的头，不下发到设备）">
+          </div>
+          <div class="lab-toolbar">
+            <button type="button" class="btn ghost" :disabled="!contract.ready" @click="animateServoPreview({x:90,y:90,xm:0,ym:0,ms:450})">回正模拟</button>
+            <button type="button" class="btn ghost" :disabled="!contract.ready" @click="animateServoPreview({x:-18,y:0,xm:1,ym:1,ms:360})">左看模拟</button>
+            <button type="button" class="btn ghost" :disabled="!contract.ready" @click="animateServoPreview({x:18,y:0,xm:1,ym:1,ms:360})">右看模拟</button>
+          </div>
+          <small class="lab-note">本地模拟不需要选择设备；真正下发仍会在接口调用前检查设备。</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="lab-panel wide">
+      <div class="lab-head">
+        <div><b>真实动作</b><small>点击「运行」把预设动作真正下发到机器人；一次一个动作。</small></div>
+        <div class="lab-toolbar" style="margin:0">
+          <button type="button" class="btn primary" @click="openAiGen">✨ AI 生成动作</button>
+          <button type="button" class="btn ghost" @click="loadServoConfig({silent:true})">重新载入</button>
+        </div>
+      </div>
+      <div class="lab-preset-grid">
+        <div class="lab-row" v-for="p in servo.presets" :key="p.id || p.label">
+          <div><b>[[ p.label || p.id ]]</b><small>[[ p.id ]] · [[ (p.steps || []).length ]] 步</small></div>
+          <button type="button" class="btn ghost" :disabled="!contract.ready" @click="runServoPreset(p)">运行</button>
+        </div>
+        <div class="lab-row" v-if="!servo.presets.length"><div><b>暂无预设</b><small>暂无可用预设动作。</small></div></div>
+      </div>
+    </div>
+    <div class="lab-panel">
+      <div class="lab-head"><div><b>舵机限位与视角</b><small>设定机器人「转头 / 点头」允许到达的角度范围，超出会被自动截断；并决定「左 / 右」按谁的方向理解。上下、左右的默认中轴（居中）角度都是 90。</small></div></div>
+      <p class="lab-note" v-if="contract.error" style="color:#c62828;font-weight:700">[[ contract.error ]]</p>
+      <div class="lab-legend">
+        <span><b>左右（X）</b>= 转头，数值越小越偏一侧、越大越偏另一侧</span>
+        <span><b>俯仰（Y）</b>= 点头 / 抬头，数值越小越低头、越大越抬头</span>
+      </div>
+      <div class="lab-form-grid">
+        <label class="lab-field">
+          <span class="lab-lab">左右·最小角 <em>°</em></span>
+          <input class="tinput" v-model.number="servo.config.x_min" type="number" :min="contractEnvelope.xMin" :max="contractEnvelope.xMax" :disabled="!contract.ready" placeholder="如 30">
+          <span class="lab-hint">转头一端极限（默认 30，别顶到壳）</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">左右·最大角 <em>°</em></span>
+          <input class="tinput" v-model.number="servo.config.x_max" type="number" :min="contractEnvelope.xMin" :max="contractEnvelope.xMax" :disabled="!contract.ready" placeholder="如 150">
+          <span class="lab-hint">转头另一端极限（默认 150）</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">俯仰·最小角 <em>°</em></span>
+          <input class="tinput" v-model.number="servo.config.y_min" type="number" :min="contractEnvelope.yMin" :max="contractEnvelope.yMax" :disabled="!contract.ready" placeholder="如 70">
+          <span class="lab-hint">最低头的角度</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">俯仰·最大角 <em>°</em></span>
+          <input class="tinput" v-model.number="servo.config.y_max" type="number" :min="contractEnvelope.yMin" :max="contractEnvelope.yMax" :disabled="!contract.ready" placeholder="如 110">
+          <span class="lab-hint">最抬头的角度</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">左右方向</span>
+          <select v-model.number="servo.config.x_reverse" :disabled="!contract.ready"><option :value="0">不反向</option><option :value="1">反向</option></select>
+          <span class="lab-hint">转头方向反了就切「反向」</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">俯仰方向</span>
+          <select v-model.number="servo.config.y_reverse" :disabled="!contract.ready"><option :value="0">不反向</option><option :value="1">反向</option></select>
+          <span class="lab-hint">点头方向反了就切「反向」</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">视角基准</span>
+          <select v-model="servo.config.perspective" :disabled="!contract.ready"><option value="viewer">观众视角</option><option value="robot">机器人本体视角</option></select>
+          <span class="lab-hint">「左/右」按谁的左右算</span>
+        </label>
+        <div class="lab-field lab-field-btn">
+          <button type="button" class="btn primary" :disabled="!contract.ready" @click="saveServoConfig">保存配置</button>
+        </div>
+      </div>
+      <div class="lab-legend" style="margin-top:10px">
+        <span><b>到位后释放舵机</b>= 动作停下 0.8 秒后停止输出脉冲，保持电流归零、顶到限位也不会一直堵转（USB 供电防过流）。头如果明显下垂再关掉。</span>
+      </div>
+      <div class="lab-form-grid">
+        <label class="lab-field">
+          <span class="lab-lab">到位后释放</span>
+          <select v-model.number="servo.relax.ms" :disabled="servo.relax.busy || !currentDeviceId">
+            <option :value="800">开启（0.8 秒后释放）</option>
+            <option :value="3000">开启（3 秒后释放）</option>
+            <option :value="0">关闭（始终保持力矩）</option>
+          </select>
+          <span class="lab-hint">[[ servoRelaxHint ]]</span>
+        </label>
+        <div class="lab-field lab-field-btn">
+          <button type="button" class="btn" :disabled="servo.relax.busy || !currentDeviceId" @click="applyServoRelax">应用到设备</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="lab-panel">
+      <div class="lab-head"><div><b>直接下发舵机</b><small>手动让机器人转到某个角度试一下。「绝对」= 直接转到该角度；「相对」= 在当前基础上增减；「保持」= 该轴不动。</small></div></div>
+      <div class="lab-form-grid">
+        <label class="lab-field">
+          <span class="lab-lab">左右角 <em>°</em></span>
+          <input class="tinput" v-model.number="servo.direct.x" type="number" min="-180" max="180" placeholder="如 90">
+          <span class="lab-hint">转头目标角度</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">俯仰角 <em>°</em></span>
+          <input class="tinput" v-model.number="servo.direct.y" type="number" min="-180" max="180" placeholder="如 90">
+          <span class="lab-hint">点头目标角度</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">左右模式</span>
+          <select v-model.number="servo.direct.xm"><option :value="0">绝对（转到）</option><option :value="1">相对（增减）</option><option :value="2">保持（不动）</option></select>
+          <span class="lab-hint">左右角怎么理解</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">俯仰模式</span>
+          <select v-model.number="servo.direct.ym"><option :value="0">绝对（转到）</option><option :value="1">相对（增减）</option><option :value="2">保持（不动）</option></select>
+          <span class="lab-hint">俯仰角怎么理解</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">耗时 <em>ms</em></span>
+          <input class="tinput" v-model.number="servo.direct.ms" type="number" :min="contractLimits.minSegmentDurationMs" step="10" placeholder="如 450">
+          <span class="lab-hint">这个动作用多少毫秒完成</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">队列方式</span>
+          <select v-model="servo.direct.action"><option value="replace">replace（覆盖当前）</option><option value="append">append（排队追加）</option><option value="default">default（默认）</option></select>
+          <span class="lab-hint">与正在执行的动作如何衔接</span>
+        </label>
+        <label class="lab-field">
+          <span class="lab-lab">完成后表情 <em>选填</em></span>
+          <input class="tinput" v-model.trim="servo.direct.with_scene" placeholder="留空则不播">
+          <span class="lab-hint">动作做完后播放的表情场景名</span>
+        </label>
+        <div class="lab-field lab-field-btn">
+          <button type="button" class="btn primary" :disabled="controlBusy.servo || !contract.ready" @click="sendServo">[[ controlBusy.servo ? '执行中…' : '下发舵机' ]]</button>
+        </div>
+      </div>
+      <small class="lab-note">接口：/proxy/deskbot/api/device_servo</small>
+    </div>
+
+
+  <div class="lab-modal-mask" v-if="aiGen.open" @click.self="closeAiGen">
+    <div class="lab-modal">
+      <div class="lab-modal-head">
+        <div>
+          <b>AI 生成动作</b>
+          <small>用中文描述想让小歪做的头部动作，AI 生成后可先测试再保存为预设。</small>
+        </div>
+        <button type="button" class="x" @click="closeAiGen" aria-label="关闭">×</button>
+      </div>
+
+      <label class="lab-field">
+        <span class="lab-lab">动作描述</span>
+        <textarea class="tinput" v-model.trim="aiGen.description" placeholder="例如：先向左看看再向右看看，最后点两下头表示同意"></textarea>
+      </label>
+      <div class="lab-ai-actions">
+        <button type="button" class="btn primary" :disabled="aiGen.busy || !aiGen.description || !contract.ready" @click="aiGenerateMove">[[ aiGen.busy ? '生成中…' : '生成动作' ]]</button>
+      </div>
+
+      <div class="lab-ai-result" v-if="aiGen.preset">
+        <div class="lab-ai-row2">
+          <label class="lab-field">
+            <span class="lab-lab">标识 <em>英文</em></span>
+            <input class="tinput" v-model.trim="aiGen.preset.id" placeholder="ai_move">
+          </label>
+          <label class="lab-field">
+            <span class="lab-lab">动作名</span>
+            <input class="tinput" v-model.trim="aiGen.preset.label" placeholder="中文短名">
+          </label>
+        </div>
+        <div class="lab-ai-steps">
+          <div class="lab-ai-step" v-for="(st,i) in aiGen.preset.steps" :key="i">
+            <b>第[[ i+1 ]]步</b>
+            <span>左右 [[ st.x ]]°</span>
+            <span>俯仰 [[ st.y ]]°</span>
+            <span>耗时 [[ st.ms ]]ms</span>
+          </div>
+        </div>
+        <div class="lab-ai-actions">
+          <button type="button" class="btn ghost" :disabled="controlBusy.servo || !contract.ready" @click="aiTestMove">[[ controlBusy.servo ? '执行中…' : '测试（下发到设备）' ]]</button>
+          <button type="button" class="btn primary" :disabled="aiGen.saving" @click="aiSaveMove">[[ aiGen.saving ? '保存中…' : '保存为预设' ]]</button>
+        </div>
+      </div>
+
+      <p class="lab-ai-msg" v-if="aiGen.msg">[[ aiGen.msg ]]</p>
+    </div>
+  </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+const LAB_FACE = window.__LAB_FACE__ || {};
+const FACE_LCD_W = Number(LAB_FACE.w) || 284;
+const FACE_LCD_H = Number(LAB_FACE.h) || 240;
+// 服务端给的是当前 idle 场景首帧；缺失时退回与固件待机屏同源的内建脸。
+const EXPR_DEFAULT_ANIM = LAB_FACE.defaultAnim
+  || (window.DeskbotFacePreview && window.DeskbotFacePreview.fallbackScene.frames[0])
+  || { elements: {} };
+const ROBOT_SERVO_CENTER = 90;
+createApp({
+  delimiters:['[[',']]'],
+  data(){ return {
+    msg:'',
+    devices:[], currentDeviceId:'',
+    controlBusy:{servo:false},
+    simServo:{x:90,y:90},
+    robot3dError:'',
+    // 舵机契约单一源：硬件包络 / 段数时长限制 / 观众视角对调表，全部来自 /api/servo_contract。
+    contract:{ready:false,error:'',envelope:null,limits:null,viewerLrSwap:null},
+    servo:{
+      config:{x_min:null,x_max:null,y_min:null,y_max:null,x_reverse:0,y_reverse:0,perspective:'viewer'},
+      presets:[],
+      direct:{x:90,y:90,xm:0,ym:0,ms:450,action:'replace',with_scene:''},
+      relax:{ms:800, busy:false, supported:null, relaxed:null, count:0, msg:''},
+    },
+    aiGen:{open:false,busy:false,saving:false,description:'',preset:null,msg:''},
+  }; },
+  computed:{
+    servoRelaxHint(){
+      const r=this.servo.relax||{};
+      if(!this.currentDeviceId) return '先选择设备';
+      if(r.supported===false) return '设备固件较旧，不支持（更新到 0.0.49 及以上）';
+      if(r.supported===true) return (r.ms>0?('设备当前：开启，'+(r.ms/1000)+' 秒'):'设备当前：关闭')+(r.relaxed?' · 此刻已释放':'')+(r.count?(' · 已释放 '+r.count+' 次'):'');
+      return '设备当前设置未知，应用后以设备回执为准';
+    },
+    contractEnvelope(){
+      const env=this.contract && this.contract.envelope;
+      return env || {xMin:null,xMax:null,yMin:null,yMax:null};
+    },
+    contractLimits(){
+      const lim=this.contract && this.contract.limits;
+      return lim || {minSegmentDurationMs:null,maxBatchDurationMs:null,maxSegmentsPerPb:null};
+    },
+    robotServoXLabel(){
+      const x=Number(this.simServo && this.simServo.x);
+      return Number.isFinite(x) ? String(Math.round(x)) : String(ROBOT_SERVO_CENTER);
+    },
+    robotServoYLabel(){
+      const y=Number(this.simServo && this.simServo.y);
+      return Number.isFinite(y) ? String(Math.round(y)) : String(ROBOT_SERVO_CENTER);
+    },
+    simRange(){
+      // 滑杆范围 = 舵机限位：用户配置优先，其次硬件包络；契约没到时滑杆是禁用的，范围只是占位
+      const c=this.servo.config||{};
+      const env=this.contractEnvelope;
+      const num=(v)=>(v===null||v===undefined||v==='')?NaN:Number(v);
+      const pick=(a,b,fallback)=>{ const x=num(a); if(Number.isFinite(x)) return x; const y=num(b); return Number.isFinite(y)?y:fallback; };
+      return {xMin:pick(c.x_min,env.xMin,0), xMax:pick(c.x_max,env.xMax,180), yMin:pick(c.y_min,env.yMin,0), yMax:pick(c.y_max,env.yMax,180)};
+    },
+    robotHorizDeg(){
+      const x=Number(this.simServo && this.simServo.x);
+      if(!Number.isFinite(x)) return 0;
+      return x - ROBOT_SERVO_CENTER;
+    },
+    robotVertDeg(){
+      const y=Number(this.simServo && this.simServo.y);
+      if(!Number.isFinite(y)) return 0;
+      return y - ROBOT_SERVO_CENTER;
+    },
+  },
+  watch:{
+    simServo:{deep:true,handler(){ this._robotSyncServoAngles(); }},
+  },
+  methods:{
+    json(v){ return JSON.stringify(v || {}, null, 2); },
+    controlError(label,e){
+      const detail=(e&&e.message)||String(e);
+      return detail.includes('执行状态未知') ? detail : (label+'失败：'+detail);
+    },
+    fmtBytes(n){ n=Number(n)||0; if(n>=1048576) return (n/1048576).toFixed(1)+' MB'; if(n>=1024) return (n/1024).toFixed(1)+' KB'; return n+' B'; },
+    async api(url, opts){
+      // 统一走 console_2c.js 的 apiJson（401/嵌套错误/超时处理只写一处）；
+      // 设备类操作可能超过默认 8s，这里保留原先“不截断”的语义给 60s 上限。
+      return window.DeskbotConsole.apiJson(url, Object.assign({timeoutMs:60000}, opts||{}));
+    },
+    proxyPath(path, params, includeDevice=true){
+      const url = new URL('/proxy/deskbot' + path, window.location.origin);
+      if(includeDevice && this.currentDeviceId) url.searchParams.set('device_id', this.currentDeviceId);
+      for(const [k,v] of Object.entries(params||{})){
+        if(v !== undefined && v !== null && String(v) !== '') url.searchParams.set(k, v);
+      }
+      return url.toString();
+    },
+    _autoPickOnlineDevice(){
+      // 直接锁定当前连上的设备：优先已选且仍在线的；否则取任一在线设备（单机常见
+      // 就一台）。不需要用户手动选。返回选中的 id，或 '' 表示没有在线设备。
+      const online=(this.devices||[]).filter((x)=>x && x.online===true);
+      if(!online.length) return '';
+      const cur=String(this.currentDeviceId||'');
+      const keep=online.find((x)=>String(x.device_id||x.id||'')===cur);
+      const pick=keep || online[0];
+      const id=String(pick.device_id||pick.id||'');
+      if(id && id!==cur){
+        this.currentDeviceId=id;
+        try{ window.DeskbotConsole.selectDevice(id,{pinPage:true}); }catch(e){}
+      }
+      return id;
+    },
+    requireDevice(options){
+      const silent = !!(options && options.silent);
+      // 当前选中的仍在线就直接用；否则自动锁定连上的设备。
+      const online=(this.devices||[]).filter((x)=>x && x.online===true);
+      const curOnline=this.currentDeviceId && online.some((x)=>String(x.device_id||x.id||'')===String(this.currentDeviceId));
+      if(curOnline) return true;
+      const picked=this._autoPickOnlineDevice();
+      if(picked) return true;
+      if(!silent) this.msg=(this.devices||[]).length ? '设备未连接，无法下发' : '请先选择设备';
+      return false;
+    },
+    async loadDevices(){
+      // 冷启动时首次拉取常失败；拿到非空列表前保持退避自动重试，
+      // 否则下拉永远空置、全部动作按钮被静默拦截且毫无提示。
+      try{
+        const d=await window.DeskbotConsole.refresh();
+        if(d.phase==='error')throw new Error(d.error||'设备状态加载失败');
+        this.devices=d.devices||[];
+        this.currentDeviceId=d.targetId||'';
+        // 没有已固定的目标设备时，自动选中唯一在线的那台并 pin，
+        // 否则下拉停在「选择设备」占位，首次点「运行/下发」被 requireDevice
+        // 静默拦成「请先选择设备」——用户感知为"第一次点没反应"。
+        // 载入后直接锁定当前连上的设备，避免用户还要手动选。
+        this._autoPickOnlineDevice();
+      }catch(e){
+        this.msg=(e.message||'设备状态加载失败')+'（将自动重试）';
+      }
+      if(!this.devices.length){
+        this._devicesRetryDelay=Math.min((this._devicesRetryDelay||2000)*1.5,15000);
+        setTimeout(()=>{ if(!this.devices.length) this.loadDevices().catch(()=>{}); }, this._devicesRetryDelay);
+      }
+    },
+    async switchDevice(){
+      await window.DeskbotConsole.selectDevice(this.currentDeviceId,{pinPage:true});
+      this.msg=this.currentDeviceId ? '已切换当前设备' : '已清空当前设备';
+      await this.loadAll();
+    },
+    async loadAll(){
+      try{
+        await this.loadDevices();
+        await this.loadServoContract();
+        await this.loadServoConfig({silent:true});
+      }catch(e){ this.msg=e.message||'刷新失败'; }
+    },
+    async loadServoContract(){
+      try{
+        const d=await this.api(this.proxyPath('/api/servo_contract', null, false));
+        if(!d.envelope || !d.limits) throw new Error('契约缺少 envelope/limits');
+        this.contract={
+          ready:true,
+          error:'',
+          envelope:d.envelope,
+          limits:d.limits,
+          viewerLrSwap:d.viewerLrSwap || {},
+        };
+      }catch(e){
+        // 契约拉取失败：禁用舵机相关控件并提示，不回退任何硬编码数值。
+        // 冷启动时页面常早于 Core 就绪（连接被拒），自动退避重试直到成功。
+        this.contract={ready:false,error:'舵机契约拉取失败，相关控件已禁用（将自动重试）：'+(e.message||e),envelope:null,limits:null,viewerLrSwap:null};
+        this._contractRetryDelay=Math.min((this._contractRetryDelay||2000)*1.5,15000);
+        setTimeout(()=>{ if(!this.contract.ready) this.loadServoContract(); }, this._contractRetryDelay);
+      }
+    },
+    normalizeServoConfig(cfg){
+      const c = cfg || {};
+      const env=this.contractEnvelope;
+      this.servo.config = Object.assign({}, this.servo.config, {
+        x_min:c.x_min ?? c.xMin ?? env.xMin,
+        x_max:c.x_max ?? c.xMax ?? env.xMax,
+        y_min:c.y_min ?? c.yMin ?? env.yMin,
+        y_max:c.y_max ?? c.yMax ?? env.yMax,
+        x_reverse:c.x_reverse ?? c.xReverse ?? 0,
+        y_reverse:c.y_reverse ?? c.yReverse ?? 0,
+        perspective:c.perspective || c.left_right_perspective || 'viewer',
+      });
+      this.servo.presets = Array.isArray(c.presets) ? c.presets : [];
+    },
+    async loadServoRelax(){
+      if(!this.currentDeviceId) return;
+      try{
+        const d=await this.api(this.proxyPath('/api/servo_relax'));
+        this.servo.relax.supported=!!d.supported;
+        if(d.supported){ this.servo.relax.ms=Number(d.ms)||0; this.servo.relax.relaxed=!!d.relaxed; this.servo.relax.count=Number(d.relax_count)||0; }
+        this.servo.relax.msg='';
+      }catch(e){ this.servo.relax.supported=null; this.servo.relax.msg=''; }
+    },
+    async applyServoRelax(){
+      if(!this.currentDeviceId || this.servo.relax.busy) return;
+      this.servo.relax.busy=true; this.servo.relax.msg='';
+      try{
+        const d=await this.api(this.proxyPath('/api/servo_relax'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.currentDeviceId, ms:Number(this.servo.relax.ms)||0})});
+        this.servo.relax.supported=!!d.supported;
+        if(!d.supported){ this.msg='设备固件较旧，不支持到位释放；请先在「设备连接」页更新固件。'; return; }
+        this.servo.relax.ms=Number(d.ms)||0; this.servo.relax.relaxed=!!d.relaxed; this.servo.relax.count=Number(d.relax_count)||0;
+        this.msg=this.servo.relax.ms>0 ? ('已开启：动作停下 '+(this.servo.relax.ms/1000)+' 秒后释放舵机（设置已保存在设备上）') : '已关闭：舵机始终保持力矩';
+      }catch(e){ this.msg=this.controlError('到位释放设置',e); }
+      finally{ this.servo.relax.busy=false; }
+    },
+    async loadServoConfig(options){
+      const d=await this.api(this.proxyPath('/api/servo_config', null, false));
+      this.normalizeServoConfig(d.config || d);
+      void this.loadServoRelax();
+    },
+    async saveServoConfig(){
+      const c=this.servo.config||{};
+      const body={
+        xMin:c.x_min,
+        xMax:c.x_max,
+        yMin:c.y_min,
+        yMax:c.y_max,
+        xReverse:c.x_reverse,
+        yReverse:c.y_reverse,
+        perspective:c.perspective,
+        presets:this.servo.presets,
+      };
+      const d=await this.api(this.proxyPath('/api/servo_config', null, false),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      this.normalizeServoConfig(d.config || body);
+      this.msg='舵机配置已保存';
+    },
+    async sendServo(){
+      return this.submitServoSteps([this.servo.direct], {
+        action:this.servo.direct.action,
+        with_scene:this.servo.direct.with_scene,
+      });
+    },
+    normalizeServoSteps(steps){
+      // HOLD(2) 是服务端合法轴模式：原样传递，不再强转 ABS。
+      const lim=this.contractLimits;
+      const minMs=Number(lim.minSegmentDurationMs)||50;
+      const maxMs=Number(lim.maxBatchDurationMs)||minMs;
+      return (steps||[]).map((raw)=>{
+        const step=raw||{};
+        const xm=[0,1,2].includes(Number(step.xm))?Number(step.xm):0;
+        const ym=[0,1,2].includes(Number(step.ym))?Number(step.ym):xm;
+        return {
+          x:xm===2?0:(Number.isFinite(Number(step.x))?Math.round(Number(step.x)):0),
+          y:ym===2?0:(Number.isFinite(Number(step.y))?Math.round(Number(step.y)):0),
+          xm,
+          ym,
+          ms:Math.max(minMs,Math.min(maxMs,Math.round(Number(step.ms)||400))),
+        };
+      });
+    },
+    async submitServoSteps(steps, options){
+      if(!this.contract.ready){ this.msg=this.contract.error||'舵机契约未就绪，无法下发'; return; }
+      if(!this.requireDevice() || this.controlBusy.servo) return;
+      const deviceId=this.currentDeviceId;
+      const arr=this.normalizeServoSteps(steps);
+      if(!arr.length) return;
+      const opts=options||{};
+      const operationId=window.DeskbotConsole.newControlOperationId('servo');
+      const requestBody={
+        steps:arr,
+        action:opts.action||'replace',
+        level:3,
+        with_scene:opts.with_scene||'',
+        operation_id:operationId,
+      };
+      this.controlBusy.servo=true;
+      this.msg='舵机动作已接受，等待设备执行完成…';
+      try{
+        const results=await Promise.allSettled([
+          window.DeskbotConsole.submitControlOperation({
+            url:this.proxyPath('/api/device_servo',{operation_id:operationId}),
+            requestOptions:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(requestBody)},
+            baseUrl:'/proxy/deskbot',deviceId,operationId,
+          }),
+          this.previewServoSteps(arr),
+        ]);
+        if(results[0].status==='rejected') throw results[0].reason;
+        this.msg='舵机动作已在设备执行完成';
+      }catch(e){
+        this.msg=this.controlError('舵机动作执行',e);
+      }finally{
+        this.controlBusy.servo=false;
+      }
+    },
+    openAiGen(){ this.aiGen.open=true; this.aiGen.msg=''; },
+    closeAiGen(){ this.aiGen.open=false; },
+    async aiGenerateMove(){
+      if(!this.contract.ready){ this.aiGen.msg=this.contract.error||'舵机契约未就绪'; return; }
+      const desc=String(this.aiGen.description||'').trim();
+      if(!desc){ this.aiGen.msg='请先描述想要的动作'; return; }
+      this.aiGen.busy=true; this.aiGen.msg='';
+      try{
+        const env=this.contractEnvelope;
+        const d=await this.api('/api/servo/ai_generate',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            description:desc,
+            envelope:{xMin:env.xMin,xMax:env.xMax,yMin:env.yMin,yMax:env.yMax,xCenter:90,yCenter:90},
+            existingIds:(this.servo.presets||[]).map((p)=>p.id).filter(Boolean),
+            minMs:this.contractLimits.minSegmentDurationMs||200,
+          }),
+        });
+        if(!d || !d.preset){ throw new Error((d&&d.error)||'生成失败'); }
+        this.aiGen.preset=d.preset;
+        this.aiGen.msg='已生成，可先「测试」看效果，满意后「保存为预设」。';
+      }catch(e){ this.aiGen.msg=e.message||'生成失败'; }
+      finally{ this.aiGen.busy=false; }
+    },
+    async aiTestMove(){
+      if(!this.aiGen.preset || !Array.isArray(this.aiGen.preset.steps)) return;
+      await this.submitServoSteps(this.aiGen.preset.steps, {action:'replace',with_scene:''});
+      this.aiGen.msg=this.msg;
+    },
+    async aiSaveMove(){
+      const pr=this.aiGen.preset; if(!pr) return;
+      const id=String(pr.id||'').trim();
+      if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(id)){ this.aiGen.msg='标识需为字母/数字/._-，且以字母或数字开头'; return; }
+      if(!String(pr.label||'').trim()){ this.aiGen.msg='请填写动作名'; return; }
+      if(!Array.isArray(pr.steps) || !pr.steps.length){ this.aiGen.msg='动作步骤为空'; return; }
+      if((this.servo.presets||[]).some((p)=>String(p.id||'')===id)){ this.aiGen.msg='已有同名标识，请改个标识再保存'; return; }
+      this.aiGen.saving=true; this.aiGen.msg='';
+      const added={id, label:String(pr.label).trim(), steps:pr.steps};
+      this.servo.presets=(this.servo.presets||[]).concat([added]);
+      try{
+        await this.saveServoConfig();
+        this.aiGen.msg='已保存到预设';
+        await this.loadServoConfig({silent:true});
+        this.closeAiGen();
+      }catch(e){
+        this.servo.presets=(this.servo.presets||[]).filter((p)=>p!==added);
+        this.aiGen.msg=e.message||'保存失败';
+      }finally{ this.aiGen.saving=false; }
+    },
+    async runServoPreset(p){
+      const resolved=this.resolveServoPreset(p);
+      const steps=(Array.isArray(resolved.steps) && resolved.steps.length) ? resolved.steps : [resolved];
+      const [step=p]=steps;
+      this.servo.direct=Object.assign({}, this.servo.direct, {x:step.x??90,y:step.y??90,xm:step.xm??0,ym:step.ym??0,ms:step.ms??500});
+      await this.submitServoSteps(steps, {action:'replace',with_scene:''});
+    },
+    resolveServoPreset(p){
+      if(!p || String(this.servo.config.perspective||'viewer')!=='viewer') return p||{};
+      // 观众视角 left/right 对调表来自 /api/servo_contract，不再内联硬编码。
+      const swap=(this.contract && this.contract.viewerLrSwap)||{};
+      const wanted=swap[String(p.id||'').toLowerCase()];
+      return wanted ? (this.servo.presets.find((row)=>String(row.id||'')===wanted)||p) : p;
+    },
+    async previewServoSteps(steps){
+      const seq=(this._servoPreviewSeq||0)+1;
+      this._servoPreviewSeq=seq;
+      for(const step of (steps||[])){
+        if(this._servoPreviewSeq!==seq) return;
+        await this.animateServoPreview(step,seq);
+      }
+    },
+    _previewAxisEnd(mode,raw,start,lo,hi,reverse){
+      // 对齐 servo_config_store.logical_step_to_protocol 语义：
+      // HOLD(2) 保持当前角度；REL(1) 增量按 reverse 取反；ABS(0) 逻辑坐标 clamp。
+      if(mode===2) return start;
+      const v=Number(raw);
+      if(mode===1){
+        let d=Number.isFinite(v)?v:0;
+        if(reverse) d=-d;
+        return Math.max(lo, Math.min(hi, start + d));
+      }
+      return Math.max(lo, Math.min(hi, Number.isFinite(v)?v:start));
+    },
+    animateServoPreview(step,sequence){
+      const p=step||{};
+      const currentX=Number(this.simServo.x);
+      const currentY=Number(this.simServo.y);
+      const startX=Number.isFinite(currentX)?currentX:ROBOT_SERVO_CENTER;
+      const startY=Number.isFinite(currentY)?currentY:ROBOT_SERVO_CENTER;
+      const xm=[0,1,2].includes(Number(p.xm))?Number(p.xm):0;
+      const ym=[0,1,2].includes(Number(p.ym))?Number(p.ym):0;
+      const c=this.servo.config||{};
+      const env=this.contractEnvelope;
+      const minX=Number.isFinite(Number(c.x_min)) ? Number(c.x_min) : Number(env.xMin);
+      const maxX=Number.isFinite(Number(c.x_max)) ? Number(c.x_max) : Number(env.xMax);
+      const minY=Number.isFinite(Number(c.y_min)) ? Number(c.y_min) : Number(env.yMin);
+      const maxY=Number.isFinite(Number(c.y_max)) ? Number(c.y_max) : Number(env.yMax);
+      if(!Number.isFinite(minX)||!Number.isFinite(maxX)||!Number.isFinite(minY)||!Number.isFinite(maxY)){
+        return Promise.resolve(); // 契约未就绪时不做本地模拟（无硬编码回退）
+      }
+      const xRev=Number(c.x_reverse)===1;
+      const yRev=Number(c.y_reverse)===1;
+      const endX=this._previewAxisEnd(xm,p.x,startX,minX,maxX,xRev);
+      const endY=this._previewAxisEnd(ym,p.y,startY,minY,maxY,yRev);
+      const dur=Math.max(50, Number(p.ms)||450);
+      const seq=sequence==null?(this._servoPreviewSeq||0)+1:Number(sequence);
+      if(sequence==null) this._servoPreviewSeq=seq;
+      return new Promise((resolve)=>{
+        const t0=performance.now();
+        const tick=()=>{
+          if(this._servoPreviewSeq!==seq){ resolve(); return; }
+          const t=Math.min(1, (performance.now()-t0)/dur);
+          const eased=1-Math.pow(1-t, 3);
+          this.simServo={x:startX+(endX-startX)*eased, y:startY+(endY-startY)*eased};
+          if(t<1) requestAnimationFrame(tick);
+          else resolve();
+        };
+        tick();
+      });
+    },
+    drawDefaultFace(canvas){
+      // 与首页、表情页预览、设备待机屏同一渲染器同一数据（idle 首帧）；颜色以 c(RGB565) 为准。
+      if(!canvas) return;
+      const ctx=canvas.getContext('2d');
+      if(!ctx) return;
+      ctx.fillStyle='#0d0f14';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      const preview=window.DeskbotFacePreview;
+      if(!preview) return;
+      const scene={name:'default', frames:[{ms:400, elements:(EXPR_DEFAULT_ANIM && EXPR_DEFAULT_ANIM.elements)||{}}]};
+      const inner=preview.sceneToSvg(scene, 0);
+      if(!inner) return;
+      const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+canvas.width+'" height="'+canvas.height+'" viewBox="0 0 284 240" preserveAspectRatio="xMidYMid meet">'
+        +'<rect width="284" height="240" fill="#0d0f14"/>'+inner+'</svg>';
+      const img=new Image();
+      img.onload=()=>{
+        const c=canvas.getContext('2d');
+        if(!c) return;
+        c.clearRect(0,0,canvas.width,canvas.height);
+        c.drawImage(img,0,0,canvas.width,canvas.height);
+        const st=this._robot3d;
+        if(st && st.faceCanvas===canvas && st.faceTexture) st.faceTexture.needsUpdate=true;
+      };
+      img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+    },
+    async _ensureThreeLoaded(){
+      if(window.__THREE__) return window.__THREE__;
+      if(!this._threeLoadPromise){
+        this._threeLoadPromise=import('three').then((mod)=>{ window.__THREE__=mod; return mod; }).catch((e)=>{ this._threeLoadPromise=null; throw e; });
+      }
+      return this._threeLoadPromise;
+    },
+    _robotMakeForwardArrow(THREE){
+      const mat=new THREE.MeshStandardMaterial({color:0x30d158,metalness:0.05,roughness:0.45});
+      const group=new THREE.Group();
+      const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.55,10), mat);
+      shaft.rotation.x=Math.PI/2; shaft.position.set(0,0.015,0.28); group.add(shaft);
+      const tip=new THREE.Mesh(new THREE.ConeGeometry(0.09,0.2,10), mat);
+      tip.rotation.x=Math.PI/2; tip.position.set(0,0.015,0.62); group.add(tip);
+      group.position.set(0,0.005,1.05);
+      return group;
+    },
+    _robotSyncServoAngles(){
+      const st=this._robot3d;
+      const THREE=window.__THREE__;
+      if(!st || !st.headPivot || !THREE) return;
+      // x 越大 = 机器人自己的左边（预设 look_left x=150），three.js 绕 Y 正转脸朝 +X = 观众的右边，正好一致。
+      st.targetHeadYaw=THREE.MathUtils.degToRad(this.robotHorizDeg);
+      // y 越大 = 抬头（预设 look_up y=110、look_down y=70），three.js 绕 X 正转是低头 → 取反（2026-09-11 用户反馈上下反了）。
+      st.targetHeadPitch=-THREE.MathUtils.degToRad(this.robotVertDeg);
+    },
+    _robotDispose3d(){
+      if(this._robotAnimId){ cancelAnimationFrame(this._robotAnimId); this._robotAnimId=null; }
+      if(this._robotResizeObs){ try{ this._robotResizeObs.disconnect(); }catch(_e){} this._robotResizeObs=null; }
+      const st=this._robot3d;
+      if(st && st.renderer){
+        if(st.faceTexture){ try{ st.faceTexture.dispose(); }catch(_e){} }
+        try{ st.renderer.dispose(); }catch(_e){}
+        if(st.renderer.domElement && st.renderer.domElement.parentNode) st.renderer.domElement.parentNode.removeChild(st.renderer.domElement);
+      }
+      this._robot3d=null;
+    },
+    async robotInit3d(){
+      this._robotDispose3d();
+      this.robot3dError='';
+      const host=this.$refs.robot3dHost;
+      if(!host) return;
+      let THREE;
+      try{ THREE=await this._ensureThreeLoaded(); }
+      catch(_e){ this.robot3dError='Three.js 加载失败'; return; }
+      let renderer;
+      try{ renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,preserveDrawingBuffer:true}); }
+      catch(_e){ this.robot3dError='WebGL 不可用'; return; }
+
+      const w=Math.max(160, host.clientWidth||360);
+      const h=Math.max(160, host.clientHeight||260);
+      const scene=new THREE.Scene();
+      scene.background=new THREE.Color(0x111318);
+      const camera=new THREE.PerspectiveCamera(38, w/h, 0.08, 50);
+      camera.position.set(0,0.92,2.65);
+      camera.lookAt(0,0.78,0);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+      renderer.setSize(w,h,false);
+      host.appendChild(renderer.domElement);
+
+      scene.add(new THREE.AmbientLight(0xffffff,0.7));
+      const key=new THREE.DirectionalLight(0xffffff,0.95);
+      key.position.set(1.5,3.5,2.5); scene.add(key);
+      const rim=new THREE.DirectionalLight(0xff7a1a,0.35);
+      rim.position.set(-2,1.2,-1.5); scene.add(rim);
+      scene.add(new THREE.GridHelper(2.4,8,0x55565d,0x25272f));
+      scene.add(this._robotMakeForwardArrow(THREE));
+
+      const turntable=new THREE.Group();
+      scene.add(turntable);
+      const bodyMat=new THREE.MeshStandardMaterial({color:0x4f535a,roughness:0.58,metalness:0.18});
+      const headMat=new THREE.MeshStandardMaterial({color:0xf6f5ef,roughness:0.42,metalness:0.06});
+      const neckMat=new THREE.MeshStandardMaterial({color:0xff5a00,roughness:0.36,metalness:0.18});
+      const base=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.62,0.07,24), new THREE.MeshStandardMaterial({color:0x25272f,roughness:0.58}));
+      base.position.y=-0.02; turntable.add(base);
+      const body=new THREE.Mesh(new THREE.BoxGeometry(0.82,0.62,0.52), bodyMat);
+      body.position.y=0.28; turntable.add(body);
+      const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.12,0.22,16), neckMat);
+      neck.position.y=0.66; turntable.add(neck);
+      const headPivot=new THREE.Group();
+      headPivot.position.y=0.8; turntable.add(headPivot);
+      const head=new THREE.Mesh(new THREE.BoxGeometry(0.62,0.5,0.54), headMat);
+      head.position.y=0.22; headPivot.add(head);
+
+      const faceCanvas=document.createElement('canvas');
+      faceCanvas.width=FACE_LCD_W; faceCanvas.height=FACE_LCD_H;
+      this.drawDefaultFace(faceCanvas);
+      const faceTexture=new THREE.CanvasTexture(faceCanvas);
+      faceTexture.magFilter=THREE.NearestFilter;
+      faceTexture.minFilter=THREE.NearestFilter;
+      const faceScreen=new THREE.Mesh(
+        new THREE.PlaneGeometry(0.42,0.42*FACE_LCD_H/FACE_LCD_W),
+        new THREE.MeshBasicMaterial({map:faceTexture,toneMapped:false}),
+      );
+      faceScreen.position.set(0,0.22,0.272);
+      headPivot.add(faceScreen);
+
+      this._robot3d={scene,camera,renderer,turntable,headPivot,faceCanvas,faceTexture,currentHeadYaw:0,currentHeadPitch:0,targetHeadYaw:0,targetHeadPitch:0};
+      this._robotSyncServoAngles();
+      const resize=()=>{
+        const st=this._robot3d;
+        if(!st || !host) return;
+        const rw=Math.max(160, host.clientWidth||360);
+        const rh=Math.max(160, host.clientHeight||260);
+        st.camera.aspect=rw/rh;
+        st.camera.updateProjectionMatrix();
+        st.renderer.setSize(rw,rh,false);
+      };
+      if(typeof ResizeObserver!=='undefined'){
+        this._robotResizeObs=new ResizeObserver(()=>resize());
+        this._robotResizeObs.observe(host);
+      }
+      const tick=()=>{
+        const st=this._robot3d;
+        if(!st) return;
+        st.currentHeadYaw+=(st.targetHeadYaw-st.currentHeadYaw)*0.2;
+        st.currentHeadPitch+=(st.targetHeadPitch-st.currentHeadPitch)*0.2;
+        st.headPivot.rotation.order='YXZ';
+        st.headPivot.rotation.y=st.currentHeadYaw;
+        st.headPivot.rotation.x=st.currentHeadPitch;
+        st.renderer.render(st.scene, st.camera);
+        this._robotAnimId=requestAnimationFrame(tick);
+      };
+      tick();
+    },
+  },
+  async mounted(){
+    await this.loadAll();
+    // 订阅设备状态：设备（后）上线时刷新下拉并自动锁定当前连上的设备，
+    // 用户无需手动在下拉里选。
+    this._unsub=window.DeskbotConsole.onChange((st)=>{
+      if(st && Array.isArray(st.devices)) this.devices=st.devices;
+      this._autoPickOnlineDevice();
+    });
+    this.$nextTick(()=>{ void this.robotInit3d(); });
+  },
+  beforeUnmount(){
+    if(this._unsub){ try{ this._unsub(); }catch(_e){} this._unsub=null; }
+    this._robotDispose3d();
+  },
+}).mount('#labApp');
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+# Deskbot v2 固件对 ESP-IDF sdkconfig 的需求登记（不参与当前构建）。
+#
+# 本工程是纯 framework=arduino，SDK 由 pioarduino 预编译
+# （framework-arduinoespressif32-libs/esp32s3/qio_opi/include/sdkconfig.h），
+# sdkconfig.defaults 在这种构建里不会被应用；scripts/check_usb_boot_contract.py
+# 因此明确禁止在 platformio.ini 里写 board_build.sdkconfig_defaults（早期分支
+# 写了也只是摆设，它自己的注释也承认 loop 栈项没生效）。
+#
+# 预编译 SDK 已满足下面每一项：CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM=y，
+# 而 CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY 就是它的别名。把需求写成文件，
+# 是为了将来换 SDK / 改成 hybrid（arduino + espidf）构建时有据可查——届时
+# 才把本文件接到 board_build.sdkconfig_defaults 并同步放开契约脚本。
+# deskbot_task_create_pinned()（deskbot_task.h）与 opus_enc/opus_dec/
+# rtc_opus_dec 的 PSRAM 任务栈都依赖这两项。
+#
+# PSRAM 栈的任务绝不能写 flash/NVS（flash 写入期间 cache 关闭，写入者的栈
+# 必须在内部 RAM）——见 deskbot_task.h。
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y

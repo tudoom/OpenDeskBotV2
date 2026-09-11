@@ -1,0 +1,30 @@
+# 兼容清单，与 pyproject.toml 同步。可复现安装必须执行
+# `uv sync --locked` 并使用已提交的 uv.lock。
+# 本地 ASR 是可选能力，请改用 `pip install -e '.[local-asr]'`。
+# 人脸视觉栈（mediapipe / opencv-contrib-python / insightface / onnx）已移入
+# optional extra：默认安装不含人脸功能，需要时 `pip install -e '.[face]'`。
+# 注意：numpy / Pillow 保留在主依赖（音频路径与相机 JPEG 校验在用）；
+# onnxruntime 保留在主依赖（livekit-plugins-silero 语音 VAD 依赖它）。
+websockets==14.2
+PyYAML==6.0.2
+numpy==1.26.4
+opuslib_next==1.1.5
+PyOgg==0.6.14a1; sys_platform == "win32"
+setuptools>=83
+Flask==3.1.3
+SQLAlchemy==2.0.41
+Pillow>=12.3.0
+onnxruntime>=1.17.0
+croniter==2.0.7
+pypinyin>=0.53.0
+g2p-en>=2.1.0
+aiohttp>=3.14.1
+aiofiles>=25.1.0
+cryptography>=46.0.6
+pydantic>=2.13.4
+pyserial==3.5
+livekit>=0.17
+livekit-api>=0.7
+lampgo-livekit-agent-sdk>=0.3.0
+psutil>=7.0
+tzdata==2025.2

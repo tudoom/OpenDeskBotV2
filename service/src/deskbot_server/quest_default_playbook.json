@@ -1,0 +1,165 @@
+{
+  "name": "xiaoy",
+  "title": "与主人的初识",
+  "description": "随包陪伴场景：小歪从打招呼开始，一步步认识主人（称呼、今天的状态、平时在忙什么、爱好）。",
+  "template_version": 9,
+  "check_interval_hours": 1,
+  "tasks": [
+    {
+      "id": "g_greet",
+      "title": "第一次打招呼",
+      "goal": "主动向主人打个招呼，做一个自我介绍，让主人认识自己",
+      "strategy": "用一两句轻松的话开场，然后做一个简短有趣的自我介绍",
+      "activation_score": 1,
+      "initial_status": "running",
+      "success_condition": "小歪问候完就算达成",
+      "on_success": [
+        {
+          "id": "g_learn_name",
+          "score": 1
+        }
+      ],
+      "on_failure": [
+        {
+          "id": "g_learn_name",
+          "score": 1
+        }
+      ],
+      "trigger_hint": "",
+      "perform": {
+        "mode": "expression",
+        "expression": "happy",
+        "scene": ""
+      },
+      "next_delay_sec": 10,
+      "repeatable": false,
+      "repeat_interval_sec": 86400,
+      "proposed": false,
+      "kind": "story"
+    },
+    {
+      "id": "g_learn_name",
+      "title": "知道怎么称呼主人",
+      "goal": "知道主人希望小歪怎么称呼他，并用 memory_add 记住。",
+      "strategy": "在聊天里自然地问一句“我该怎么叫你呀”，不要像填表；主人说了就立刻用这个称呼，并记进长期记忆。主人不愿意说就换个角度：先聊他眼前正在做的事，让他愿意和小歪说话；还是不想说就不追问，安静陪着。只听到一个字的称呼（比如“小”）多半是话被截断了，先反问“你是说叫你「小」吗，还是没说完？”，确认完整再记。",
+      "activation_score": 1,
+      "initial_status": "not_started",
+      "success_condition": "主人明确告诉了小歪一个称呼或名字；主人明确表示不想说，或两次以上回避这个话题，就算没达成。",
+      "on_success": [
+        {
+          "id": "g_daily_mood",
+          "score": 1
+        }
+      ],
+      "on_failure": [
+        {
+          "id": "g_daily_mood",
+          "score": 1
+        }
+      ],
+      "trigger_hint": "",
+      "perform": {
+        "mode": "speak",
+        "expression": "",
+        "scene": ""
+      },
+      "next_delay_sec": 10,
+      "repeatable": false,
+      "repeat_interval_sec": 86400,
+      "proposed": false,
+      "kind": "story"
+    },
+    {
+      "id": "g_daily_mood",
+      "title": "了解主人今天的状态",
+      "goal": "知道主人今天心情和精神状态怎么样（累不累、顺不顺）。",
+      "strategy": "用关心的语气问一句就好，主人说累了就少说话多陪着；值得记的情况用 memory_add 记下来。",
+      "activation_score": 1,
+      "initial_status": "not_started",
+      "success_condition": "主人说了自己今天的心情或状态；主人不愿意谈心情，或让小歪别问，就算没达成。",
+      "on_success": [
+        {
+          "id": "g_learn_daily",
+          "score": 1
+        }
+      ],
+      "on_failure": [
+        {
+          "id": "g_learn_daily",
+          "score": 1
+        }
+      ],
+      "trigger_hint": "主人刚坐下、看起来有点疲惫，或者主动说起今天的事",
+      "perform": {
+        "mode": "speak",
+        "expression": "",
+        "scene": ""
+      },
+      "next_delay_sec": 10,
+      "repeatable": false,
+      "repeat_interval_sec": 86400,
+      "proposed": false,
+      "kind": "story"
+    },
+    {
+      "id": "g_learn_daily",
+      "title": "了解主人平时在忙什么",
+      "goal": "知道主人的职业或平时主要在忙的事情，并记住。",
+      "strategy": "顺着主人当下在做的事聊过去，比如“你是天天都要对着电脑吗”；得到答案就 memory_add 记住。",
+      "activation_score": 1,
+      "initial_status": "not_started",
+      "success_condition": "主人说了自己的职业、学业或日常主要在做的事；主人明确不想聊工作/学习，就算没达成。",
+      "on_success": [
+        {
+          "id": "g_learn_hobby",
+          "score": 1
+        }
+      ],
+      "on_failure": [
+        {
+          "id": "g_learn_hobby",
+          "score": 1
+        }
+      ],
+      "trigger_hint": "",
+      "perform": {
+        "mode": "speak",
+        "expression": "",
+        "scene": ""
+      },
+      "next_delay_sec": 10,
+      "repeatable": false,
+      "repeat_interval_sec": 86400,
+      "proposed": false,
+      "kind": "story"
+    },
+    {
+      "id": "g_learn_hobby",
+      "title": "知道主人的爱好",
+      "goal": "了解主人空闲时喜欢做什么，为以后找话题做准备。",
+      "strategy": "问一句“不忙的时候你都爱干嘛”，主人说的爱好用 memory_add 记住，以后主动聊起。",
+      "activation_score": 1,
+      "initial_status": "not_started",
+      "success_condition": "主人说了至少一个爱好或喜欢的事；主人表示没什么爱好也不想聊，就算没达成。",
+      "on_success": [],
+      "on_failure": [],
+      "trigger_hint": "",
+      "perform": {
+        "mode": "speak",
+        "expression": "",
+        "scene": ""
+      },
+      "next_delay_sec": 10,
+      "repeatable": false,
+      "repeat_interval_sec": 86400,
+      "proposed": false,
+      "kind": "story"
+    }
+  ],
+  "sequence": true,
+  "retired_task_ids": [
+    "g_soften",
+    "g_quiet_company",
+    "g_photo_memory"
+  ]
+}

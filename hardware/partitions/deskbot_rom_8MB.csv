@@ -1,0 +1,6 @@
+# Deskbot One: APP + FFat（VADNet model 分区已移除）
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x9000,  0x5000,
+app0,     app,  factory, 0x10000, 0x6B0000,
+coredump, data, coredump,0x6C0000,0x40000,
+ffat,     data, fat,     0x700000, 0x100000,

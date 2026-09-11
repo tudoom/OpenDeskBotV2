@@ -1,0 +1,76 @@
+name: Build Windows client
+
+# 手动触发：在 GitHub 的 Windows 机器上跑 service/client/Build-Client.ps1，
+# 产出公开版（不含任何凭证）的 OpenDeskBotV2-Setup.exe 并作为工作流产物上传。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: service
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+
+      - name: Create the build virtual environment from uv.lock
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --disable-pip-version-check --upgrade pip "uv==0.8.22"
+          .\.venv\Scripts\uv.exe sync --locked --no-install-project
+          if (-not (Test-Path -LiteralPath .venv\Scripts\pip.exe)) {
+            .\.venv\Scripts\python.exe -m ensurepip --upgrade
+          }
+          .\.venv\Scripts\python.exe -c "import flask, sqlalchemy, numpy, aiohttp, livekit; print('deps ok')"
+
+      - name: Install the LiveKit server binary
+        run: powershell -ExecutionPolicy Bypass -File tools/install_livekit_windows.ps1
+
+      - name: Fetch the pinned Silero VAD model
+        run: .\.venv\Scripts\python.exe tools/fetch_test_assets.py
+
+      - name: Locate NSIS
+        id: nsis
+        run: |
+          $candidates = @(
+            "C:\Program Files (x86)\NSIS\makensis.exe",
+            "C:\Program Files\NSIS\makensis.exe"
+          )
+          $found = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $found) {
+            choco install nsis -y --no-progress
+            $found = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          }
+          if (-not $found) { throw "makensis.exe not found" }
+          "path=$found" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+
+      - name: Build the client and the NSIS installer
+        run: |
+          & .\client\Build-Client.ps1 -BuildInstaller -MakeNsisPath "${{ steps.nsis.outputs.path }}"
+
+      - name: Hash the installer
+        run: |
+          $exe = "dist\OpenDeskBotV2-Setup.exe"
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  OpenDeskBotV2-Setup.exe" | Out-File -Encoding ascii "$exe.sha256"
+          Write-Host "SHA-256: $hash"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenDeskBotV2-windows-installer
+          path: |
+            service/dist/OpenDeskBotV2-Setup.exe
+            service/dist/OpenDeskBotV2-Setup.exe.sha256
+          if-no-files-found: error
+          compression-level: 0
