@@ -33,7 +33,7 @@ import asyncio
 import logging
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo
 
@@ -51,7 +51,11 @@ from deskbot_server.application.turn_arbiter import (
     PRIORITY_AUTOMATION,
     device_turn_arbiter,
 )
-from deskbot_server.device_preferences import preferred_timezone_name, quiet_hours_active
+from deskbot_server.device_preferences import (
+    preferred_timezone_name,
+    quiet_hours_active,
+    quiet_hours_resume_at,
+)
 from deskbot_server.infrastructure.ws.downlink_adapter import (
     WsDownlinkAdapter,
     WsPipelineEventsAdapter,
@@ -692,6 +696,7 @@ class QuestProactiveLoop:
         self._passes_loaded = False
         self._inflight: set[str] = set()
         self._next_ok: dict[str, float] = {}
+        self._recovered: set[str] = set()  # 每台设备启动后只做一次「重启前提过但没标结果」的恢复
         self._first_seen: dict[str, float] = {}
         self._last_attempt: dict[str, float] = {}
         # 定时日常关心：task_id → 今天已触发的日期（YYYY-MM-DD），一天只按时叫一次
@@ -827,6 +832,33 @@ class QuestProactiveLoop:
         logger.info("[quest_proactive] 定时检测 playbook=%s %s=%s", playbook, what, out.get("reopened") or out.get("touched") or "-")
         return what
 
+    async def _recover_unjudged_after_restart(self, device_id: str) -> None:
+        """Core 重启前小歪已就某个主线小目标开口、但还没标结果（催判定那一轮随进程一起没了，
+        语音 Agent 的对话上下文也没了，没法再判）：这轮当作没提过，到下一个冷场窗口重新问一遍。
+        否则要等下一次定时检测（默认 1 小时）才会再提——2026-09-14 目标 5 就这样卡了近一小时。"""
+        attempts = getattr(self._runner, "_task_last_attempt", None)
+        if not isinstance(attempts, dict):
+            return
+        try:
+            tasks = await asyncio.to_thread(quest_service.get_current_tasks, device_id)
+        except Exception:  # noqa: BLE001
+            return
+        changed = False
+        for task in tasks:  # get_current_tasks 只返回进行中的任务
+            if task.get("kind") == "care":
+                continue
+            tid = str(task.get("task_id") or "")
+            last = float(attempts.get(tid, 0.0) or 0.0)
+            started = float(task.get("started_at_ts") or 0.0)
+            if tid and last > 0 and started > 0 and last >= started:
+                attempts[tid] = 0.0
+                changed = True
+                logger.info("[quest_proactive] 重启前已提过但没标结果，这轮重新问 task_id=%s", tid)
+        if changed:
+            persist = getattr(self._runner, "_persist_state", None)
+            if callable(persist):
+                persist()
+
     async def _maybe_nudge_judge(self, device_id: str, now: float) -> bool:
         """小歪就主线小目标开口后 QUEST_JUDGE_NUDGE_SEC 还没标结果（也没人在说话）→ 催语音 Agent 只做判定、只调工具。
         一次开口只催一次；催了还不标就等定时检测再提。返回是否催了。"""
@@ -956,6 +988,9 @@ class QuestProactiveLoop:
         device_id = str(await self._connected_device() or "").strip()
         if not device_id:
             return "offline"
+        if device_id not in self._recovered:
+            self._recovered.add(device_id)
+            await self._recover_unjudged_after_restart(device_id)
         self._note_busy(device_id, now)
         mono = time.monotonic()
         if mono < self._next_ok.get(device_id, 0.0):
@@ -985,7 +1020,7 @@ class QuestProactiveLoop:
             worker = asyncio.create_task(
                 self._run_attempt(
                     device_id, started_at=now, task_id=due["task_id"], scheduled_hit=due["schedule_time"],
-                    playbook=str(due.get("playbook") or ""),
+                    playbook=str(due.get("playbook") or ""), one_off=bool(due.get("schedule_date")),
                 ),
                 name=f"quest_scheduled_{device_id[:8]}",
             )
@@ -1062,11 +1097,19 @@ class QuestProactiveLoop:
         if not candidates:
             return None
         local_now = local_datetime(now)
-        return pick_scheduled_due(candidates, local_now, self._scheduled_fired)
+
+        def _quiet_resume_for(at: datetime) -> datetime | None:
+            # 到点那一刻若在勿扰窗口里，给出那次窗口的结束时刻：勿扰过后宽限内补提
+            try:
+                return quiet_hours_resume_at(now=at.replace(tzinfo=None))
+            except Exception:  # noqa: BLE001
+                return None
+
+        return pick_scheduled_due(candidates, local_now, self._scheduled_fired, quiet_resume_for=_quiet_resume_for)
 
     async def _run_attempt(
         self, device_id: str, *, started_at: float, task_id: str | None = None, scheduled_hit: str = "", playbook: str = "",
-        chain_task_id: str | None = None,
+        chain_task_id: str | None = None, one_off: bool = False,
     ) -> None:
         mono0 = time.monotonic()
         try:
@@ -1095,7 +1138,13 @@ class QuestProactiveLoop:
                     self._persist_scheduled_fired()
                     self._next_ok[device_id] = time.monotonic() + min(self._cooldown_sec, 15.0)
                 else:
-                    logger.info("[quest_proactive] 定时日常关心已触发 task_id=%s at=%s", task_id, scheduled_hit)
+                    logger.info("[quest_proactive] 定时提醒已触发 task_id=%s at=%s one_off=%s", task_id, scheduled_hit, one_off)
+                    if one_off:
+                        # 一次性提醒：提过就标记，明天不会再来
+                        try:
+                            await asyncio.to_thread(quest_service.mark_scheduled_done, scene, task_id)
+                        except Exception:  # noqa: BLE001
+                            logger.warning("[quest_proactive] mark one-off reminder done failed task_id=%s", task_id, exc_info=True)
                 return
             started = await self._runner.attempt(device_id)
             if not started:
@@ -1146,29 +1195,57 @@ def local_datetime(ts: float | None = None) -> datetime:
 
 
 def pick_scheduled_due(
-    candidates: list[dict[str, Any]], local_now: datetime, fired: dict[str, str], *, grace_sec: float = SCHEDULE_GRACE_SEC
+    candidates: list[dict[str, Any]], local_now: datetime, fired: dict[str, str], *, grace_sec: float = SCHEDULE_GRACE_SEC,
+    quiet_resume_for: Callable[[datetime], datetime | None] | None = None,
 ) -> dict[str, Any] | None:
-    """纯函数：从带定时的日常关心里挑今天该提的一条。
+    """纯函数：从带定时的定时提醒里挑今天该提的一条。
 
-    规则：今天是它设定的星期几（空 = 每天）；本地时间已过 HH:MM 且不超过宽限；今天还没叫过；
-    没有无限期暂停 / 歇一天中。多条同时到点按时间早的先。"""
-    today = local_now.strftime("%Y-%m-%d")
+    规则：今天是它设定的星期几（空 = 每天）/ 一次性的只在 schedule_date 那天；本地时间已过 HH:MM
+    且不超过宽限；今天还没叫过；没有无限期暂停 / 歇一天中。到点时正处在勿扰窗口的，勿扰结束后
+    宽限内补提（``quiet_resume_for(at)`` 给出那次勿扰的结束时刻）。多条同时到点按时间早的先。"""
     due: list[tuple[datetime, dict[str, Any]]] = []
     for c in candidates:
         st = str(c.get("schedule_time") or "")
-        if not st or fired.get(str(c.get("task_id"))) == today:
-            continue
-        days = list(c.get("schedule_days") or [])
-        if days and local_now.weekday() not in days:
+        if not st or c.get("done_at"):
             continue
         try:
             hh, mm = (int(x) for x in st.split(":"))
         except ValueError:
             continue
-        at = local_now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-        delta = (local_now - at).total_seconds()
-        if delta < 0 or delta > grace_sec:
+        date = str(c.get("schedule_date") or "")
+        days = list(c.get("schedule_days") or [])
+        task_id = str(c.get("task_id"))
+        # 今天这个钟点没到就看昨天那次：晚上 23:00 的提醒赶上勿扰，要在次日勿扰结束后补
+        at_today = local_now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        picked: tuple[datetime, str] | None = None
+        for at in (at_today, at_today - timedelta(days=1)):
+            occ = at.strftime("%Y-%m-%d")
+            if fired.get(task_id) == occ:
+                continue
+            if date:
+                if date != occ:
+                    continue  # 一次性：只在那一天
+            elif days and at.weekday() not in days:
+                continue
+            delta = (local_now - at).total_seconds()
+            if delta < 0:
+                continue
+            if delta > grace_sec:
+                resume = quiet_resume_for(at) if quiet_resume_for is not None else None
+                if resume is None:
+                    continue
+                if resume.tzinfo is None and local_now.tzinfo is not None:
+                    resume = resume.replace(tzinfo=local_now.tzinfo)
+                elif resume.tzinfo is not None and local_now.tzinfo is None:
+                    resume = resume.replace(tzinfo=None)
+                after_quiet = (local_now - resume).total_seconds()
+                if after_quiet < 0 or after_quiet > grace_sec:
+                    continue
+            picked = (at, occ)
+            break
+        if picked is None:
             continue
+        at, today = picked
         status = str(c.get("status") or "")
         if status == "failed":
             until = c.get("paused_until")
@@ -1246,7 +1323,6 @@ _SKIP_TEXT = {
     "busy": "小歪正在说话，稍后再试",
     "quiet_hours": "现在是勿扰时段",
     "recent_conversation": "你们刚聊过，还没到冷场时间",
-    "reminder_soon": "马上有一条提醒要播，先让提醒",
     "cooldown": "刚试过一次，稍等",
     "inflight": "正在说话",
     "prefs_error": "读取设置失败",

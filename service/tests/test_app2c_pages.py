@@ -48,10 +48,7 @@ def local_client(tmp_path, monkeypatch):
         "/advanced",
         "/params",
         "/memories",
-        "/reminders",
         "/sessions",
-        "/preferences",
-        "/people",
         "/devices",
         "/miot",
     ],
@@ -128,8 +125,9 @@ def test_navigation_exposes_local_features_not_account_controls(local_client):
     assert "/voice" in html
     assert "/expr" in html
     assert "/memories" in html
-    # 提醒事项入口随 MD 按钮搬进了 Agent 对话页。
-    assert "/reminders" in client.get("/agent").get_data(as_text=True)
+    # 2026-09-14：提醒事项并进主动陪伴的「定时提醒」，Agent 页只剩它记得的事 / 对话记录两个子页。
+    agent_html = client.get("/agent").get_data(as_text=True)
+    assert "/quest" in agent_html and "/reminders" not in agent_html and "/people" not in agent_html and "/preferences" not in agent_html
     assert "/my/" not in html
     assert "/login" not in html
     assert "/logout" not in html
@@ -144,10 +142,7 @@ def test_url_for_uses_canonical_root_page_routes(local_client):
 
     expected = {
         "memories": "/memories",
-        "reminders": "/reminders",
         "sessions": "/sessions",
-        "preferences": "/preferences",
-        "people": "/people",
         "devices": "/devices",
         "miot": "/miot",
     }
@@ -583,7 +578,7 @@ def test_advanced_llm_card_offers_switchable_providers(local_client):
     assert "通用大模型" in html
     assert "选择提供方后自动填入推荐模型与接入点" in html
     assert "不与豆包语音共用凭证" in html
-    assert "图片表情生成同用这里的 LLM Key" in html
+    assert "画表情 / 生图只认火山方舟的 Key" in html  # 2026-09-14：大模型换成 DeepSeek 后不再盲用 LLM Key
 
     # 三个内置预设：默认模型 + Base URL + Key 管理入口。DeepSeek 是出厂默认提供方，模型 deepseek-flash（2026-09-11）。
     assert "deepseek-flash" in html and "deepseek-chat" not in html
@@ -799,12 +794,3 @@ def test_voice_page_hides_multilingual_and_lists_every_voice(local_client):
     assert "v-for=\"v in filteredSpeakers\"" in html
     for gone in ("voiceExpanded", "visibleSpeakers", "展开更多音色", "收起音色"):
         assert gone not in html, f"声音页仍残留收起逻辑：{gone}"
-
-
-def test_preferences_page_has_behaviour_controls(local_client):
-    client, _app = local_client
-    html = client.get("/preferences").get_data(as_text=True)
-    assert "prefs.behavior.face_follow" not in html and "人脸跟随" not in html  # 人脸相关已去掉
-    assert "prefs.behavior.idle_live" not in html  # 空闲张望/打盹已挪到主动陪伴页
-    assert "developer_mode" not in html
-    assert "/proxy/deskbot/api/asr_auto_reply" in html

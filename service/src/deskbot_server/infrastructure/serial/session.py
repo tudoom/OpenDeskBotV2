@@ -182,6 +182,8 @@ class HelloInfo:
     servo_y_pulse_us: int = 0
     servo_write_failures: int = 0
     chip_temp_c: int = 0
+    # 固件 ≥0.0.57：设备当前待机卡通脸的内容标签（开机从 FFat 恢复的那张）；空 = 内建矢量脸
+    face_tag: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -1051,6 +1053,18 @@ class DeviceSession:
         req = {"type": "thermal_cutoff", "c": int(celsius)} if celsius is not None else {"type": "thermal_cutoff_req"}
         return await self.control_request(req, ack_type="thermal_cutoff_ack")
 
+    async def face_status_request(self) -> dict[str, Any] | None:
+        """待机卡通脸状态（固件 ≥0.0.57）：{tag, persisted}；旧固件不回执返回 None。"""
+        return await self.control_request({"type": "face_status_req"}, ack_type="face_status_ack")
+
+    async def face_persist_request(self) -> dict[str, Any] | None:
+        """把设备 PSRAM 里的待机卡通脸写进 FFat。固件在独立任务里写（最多约 256 KB），回执可能晚 1～2 s。"""
+        return await self.control_request({"type": "face_persist"}, ack_type="face_persist_ack", timeout=20.0)
+
+    async def face_clear_request(self) -> dict[str, Any] | None:
+        """删掉设备里保存的待机卡通脸（含 PSRAM 副本），断开电脑后回内建矢量脸。"""
+        return await self.control_request({"type": "face_clear"}, ack_type="face_clear_ack")
+
     async def send_wifi_config(
         self,
         config: dict[str, Any],
@@ -1708,6 +1722,11 @@ class DeviceSession:
             "_",
             str(message.get("servo_backend") or ""),
         )[:32]
+        face_tag = re.sub(
+            r"[^a-zA-Z0-9_.-]",
+            "_",
+            str(message.get("face_tag") or ""),
+        )[:23]
         return HelloInfo(
             device_id=device_id,
             product=str(message.get("product") or "")[:128],
@@ -1748,6 +1767,7 @@ class DeviceSession:
             servo_x_pulse_us=optional_counter("servo_x_pulse_us"),
             servo_y_pulse_us=optional_counter("servo_y_pulse_us"),
             servo_write_failures=optional_counter("servo_write_failures"),
+            face_tag=face_tag,
         )
 
     def _update_usb_telemetry(
@@ -1966,7 +1986,14 @@ class DeviceSession:
                 self._servo_relax = dict(message)
                 self._servo_relax_event.set()
                 return
-            if message_type in ("mic_uplink_mode_ack", "mic_mute_ack", "thermal_cutoff_ack"):
+            if message_type in (
+                "mic_uplink_mode_ack",
+                "mic_mute_ack",
+                "thermal_cutoff_ack",
+                "face_persist_ack",
+                "face_clear_ack",
+                "face_status_ack",
+            ):
                 self._control_acks[message_type] = dict(message)
                 event = self._control_ack_events.get(message_type)
                 if event is not None:

@@ -37,7 +37,6 @@ def test_high_risk_runtime_logs_do_not_use_raw_content_formats():
         root / "ws" / "asr_chat.py",
         root / "ws" / "http_api.py",
         root / "application" / "chat_flow.py",
-        root / "application" / "scheduled_task_scheduler.py",
         root / "infrastructure" / "tts" / "doubao_phoneme.py",
     ]
     combined = "\n".join(path.read_text(encoding="utf-8") for path in paths)

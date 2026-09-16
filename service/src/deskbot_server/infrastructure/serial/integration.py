@@ -12,6 +12,7 @@ from deskbot_server.application.core_binding_refresh import (
     desired_binding,
     refresh_core_binding,
 )
+from deskbot_server.application.device_power_sync import apply_pc_power_settings
 from deskbot_server.application.thermal_guard import thermal_guard
 from deskbot_server.hardware_catalog import ensure_local_device
 from deskbot_server.infrastructure.net.core_identity import core_id
@@ -163,6 +164,11 @@ class SerialServiceBridge:
                 bound,
                 completed,
             )
+        )
+        # 参数设置以 PC 为准：连上就把静音等开关推给设备，覆盖设备 NVS 里的残留值
+        asyncio.create_task(
+            apply_pc_power_settings(session, device_id=hello.device_id),
+            name=f"deskbot-power-sync:{hello.device_id}:{session.generation}",
         )
         handler = asyncio.create_task(
             handle_asr_chat(

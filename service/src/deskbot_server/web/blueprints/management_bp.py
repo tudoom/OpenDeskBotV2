@@ -7,12 +7,6 @@ from typing import Any
 from flask import Blueprint, jsonify, request, send_file
 
 from deskbot_server.device_preferences import load_preferences, update_preferences
-from deskbot_server.scheduled_task_service import (
-    create_scheduled_task,
-    get_scheduled_task,
-    retry_failed_scheduled_task,
-    update_scheduled_task,
-)
 from deskbot_server.session_store import (
     clear_current_session,
     count_sessions,
@@ -76,60 +70,10 @@ def preferences_patch():
     )
 
 
-@bp.post("/app/api/scheduled-tasks")
-def scheduled_task_create():
-    body = _payload()
-    try:
-        task = create_scheduled_task(
-            str(body.get("description") or body.get("title") or "").strip(),
-            cron=str(body.get("cron") or body.get("cron_expr") or "").strip()
-            or None,
-            task_kind=str(body.get("task_kind") or "once"),
-            run_at=body.get("run_at"),
-            delay_seconds=body.get("delay_seconds"),
-            delay_minutes=body.get("delay_minutes"),
-            session_id=None,
-        )
-    except (TypeError, ValueError) as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
-    return jsonify({"ok": True, "scope": "local", "task": task}), 201
 
 
-@bp.patch("/app/api/scheduled-tasks/<task_id>")
-def scheduled_task_patch(task_id: str):
-    body = _payload()
-    if get_scheduled_task(task_id) is None:
-        return jsonify({"ok": False, "error": "任务不存在"}), 404
-    try:
-        task = update_scheduled_task(
-            task_id,
-            description=body.get("description") if "description" in body else None,
-            cron=body.get("cron") if "cron" in body else body.get("cron_expr"),
-            task_kind=body.get("task_kind") if "task_kind" in body else None,
-            enabled=body.get("enabled") if "enabled" in body else None,
-            run_at=body.get("run_at") if "run_at" in body else None,
-        )
-    except (TypeError, ValueError) as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
-    return jsonify({"ok": True, "scope": "local", "task": task})
 
 
-@bp.post("/app/api/scheduled-tasks/<task_id>/<action>")
-def scheduled_task_action(task_id: str, action: str):
-    try:
-        if action == "pause":
-            task = update_scheduled_task(task_id, enabled=False)
-        elif action == "resume":
-            task = update_scheduled_task(task_id, enabled=True)
-        elif action == "retry":
-            task = retry_failed_scheduled_task(task_id)
-        else:
-            return jsonify({"ok": False, "error": "unknown action"}), 404
-    except (TypeError, ValueError) as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 409
-    if task is None:
-        return jsonify({"ok": False, "error": "任务不存在"}), 404
-    return jsonify({"ok": True, "scope": "local", "task": task})
 
 
 @bp.get("/app/api/sessions")

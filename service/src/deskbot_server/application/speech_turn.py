@@ -50,18 +50,25 @@ def looks_incomplete(text: str) -> bool:
     for tail in sorted(_NAME_CUE_TAILS, key=len, reverse=True):
         if body.endswith(tail):
             return True
+    # 引导词后只剩 1 个字（"叫小" / "叫我小" / "叫老"）：ASR 把"我"吞掉后只剩两个字，
+    # 2026-09-14 实测"叫我小朋友"被转成"叫小"就按整句提交了，"朋友"随后被吞。
+    if _name_cue_dangling(body):
+        return True
     if len(body) < 3:
         return False
     for tail in sorted(INCOMPLETE_TAILS, key=len, reverse=True):
         if body.endswith(tail):
             # "叫我小" 这种：引导词后只剩 1 个字，也算没说完
             return True
+    return False
+
+
+def _name_cue_dangling(body: str) -> bool:
+    """称呼引导词（叫 / 叫我 / 称呼…）后面只跟了 0～1 个字，且就在句尾。"""
     m = None
     for m in _NAME_CUE.finditer(body):
         pass
-    if m is not None and len(m.group("name")) <= 1 and m.end() >= len(body) - 1:
-        return True
-    return False
+    return m is not None and len(m.group("name")) <= 1 and m.end() >= len(body) - 1
 
 
 def extract_address_name(text: str) -> str | None:

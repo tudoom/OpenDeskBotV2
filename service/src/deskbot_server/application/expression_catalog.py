@@ -489,11 +489,17 @@ def build_expression_pb_frames(
     level: int = PB_LEVEL_TASK,
     voice_mouth: bool = False,
     out_binaries: list[list[bytes]] | None = None,
+    face_keep: bool = False,
+    face_tag: str = "",
 ) -> list[dict[str, Any]]:
     """Build an ordered PB chain for one validated scene.
 
     位图（卡通）表情会带 JPEG 二进制附件：调用方传 ``out_binaries`` 接收每条消息对应的
     附件列表；不传则沿用旧约束——出现二进制即报错（RTC 口型等路径不允许位图）。
+
+    ``face_keep``（固件 ≥0.0.57）：把这条位图时间线标记为"待机脸"——固件在 PSRAM 留一份，
+    电脑断开后自己循环播放它而不是回到内建矢量脸；``face_tag`` 是内容标签
+    （见 :func:`standby_face_tag`），固件 hello / face_status 会原样报回来，用来判断要不要重存。
     """
 
     frames = [copy.deepcopy(frame) for frame in scene.frames]
@@ -524,12 +530,47 @@ def build_expression_pb_frames(
             PB_ACTION_REPLACE if replace and index == 0 else PB_ACTION_APPEND
         )
         message["level"] = int(level)
+        if face_keep:
+            message["face_keep"] = True
+            message["face_tag"] = str(face_tag or "")[:23]
         if index == 0:
             # The device's local RTC mouth overlay is opt-in per display
             # owner. Web/Agent/boot faces must remain pixel-identical to the
             # frames sent by the PC, while RTC speaking may animate its mouth.
             message["voice_mouth"] = bool(voice_mouth)
     return messages
+
+
+def standby_face_tag(frames: Iterable[dict[str, Any]], assets: Iterable[bytes]) -> str:
+    """待机卡通脸的内容标签（16 位十六进制，固件侧最长 23 字符）。
+
+    只看 JPEG 内容、各帧时长与 image 图元引用的资产下标：语音运行时（catalog 场景）和
+    表情页"设为默认"（浏览器回传的 anim/assets）对同一套图算出同一个标签，设备据此
+    判断"已经存过了"而不重写 flash；换图、改时长都会得到新标签。
+    """
+
+    digest = hashlib.sha256()
+    for blob in assets:
+        digest.update(hashlib.sha256(bytes(blob)).digest())
+    signature: list[list[Any]] = []
+    for frame in frames:
+        if not isinstance(frame, dict):
+            continue
+        try:
+            ms = int(round(float(frame.get("ms") or 0)))
+        except (TypeError, ValueError):
+            ms = 0
+        refs: list[str] = []
+        elements = frame.get("elements")
+        if isinstance(elements, dict):
+            for layer in sorted(elements):
+                prims = elements[layer]
+                for prim in prims if isinstance(prims, list) else [prims]:
+                    if isinstance(prim, dict) and str(prim.get("shape") or "") == "image":
+                        refs.append(f"{layer}:{prim.get('asset')}")
+        signature.append([ms, refs])
+    digest.update(json.dumps(signature, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    return digest.hexdigest()[:16]
 
 
 def _state_entry_frames(

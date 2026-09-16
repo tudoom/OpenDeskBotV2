@@ -165,9 +165,10 @@ def _install_agent_session_defaults() -> None:
         @wraps(current_init)
         def _deskbot_agent_session_init(self, *args, **kwargs):
             kwargs.setdefault("preemptive_generation", True)
-            # 与 rtc_agent_sdk 保持一致：半句话等到 1.0s，让"小朋友"的"朋友"并进同一轮。
+            # 与 rtc_agent_sdk 保持一致：整句照旧 0.35s 就走；断句器判为半句话时等到 1.5s，
+            # 让"小朋友"的"朋友"并进同一轮（2026-09-14 1.0s 仍不够）。
             kwargs.setdefault("min_endpointing_delay", 0.35)
-            kwargs.setdefault("max_endpointing_delay", 1.0)
+            kwargs.setdefault("max_endpointing_delay", 1.5)
             try:
                 kwargs.setdefault("turn_detection", DeskbotTurnDetector())
             except Exception as exc:  # noqa: BLE001 - 语义断句器缺席不能拖垮会话
@@ -1146,11 +1147,15 @@ def _build_tts():
     class DeskbotSeedSpeechSynthesizeStream(tts.SynthesizeStream):
         async def _run(self, output_emitter: tts.AudioEmitter) -> None:
             request_id = uuid.uuid4().hex
+            # 语音 Agent 实际走的是这条流式路径：同样每轮重读控制台改过的音色 / 偏好
+            # （2026-09-14 实测：只有上面的分块路径重读，这里仍用进程启动时的 config，
+            # 于是声音页换了音色、文字对话已经是新嗓子，语音对话却一直是旧的）。
+            live = _reload_tts_config(config)
             output_emitter.initialize(
                 request_id=request_id,
-                sample_rate=config.sample_rate,
+                sample_rate=live.sample_rate,
                 num_channels=1,
-                mime_type=f"audio/pcm;rate={config.sample_rate}",
+                mime_type=f"audio/pcm;rate={live.sample_rate}",
                 stream=True,
             )
             output_emitter.start_segment(segment_id=uuid.uuid4().hex)
@@ -1204,7 +1209,7 @@ def _build_tts():
                     )
                     await synthesize_doubao_tts(
                         clean,
-                        config,
+                        live,
                         on_pcm=_push_pcm,
                     )
                     output_emitter.flush()

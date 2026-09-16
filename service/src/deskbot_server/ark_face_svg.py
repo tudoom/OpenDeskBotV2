@@ -9,6 +9,7 @@ import json
 import os
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 import warnings
 from typing import Any, Callable
@@ -85,16 +86,55 @@ _ALLOWED_SVG_ATTRS = {
 }
 
 
+_ARK_HOST_SUFFIX = "volces.com"
+ARK_KEY_MISSING_MESSAGE = (
+    "画表情 / 生图走的是火山方舟接口，需要方舟的 API Key：大模型不是火山方舟时，"
+    "请在表情页「生图 API 配置」填一个方舟 Key，或在模型配置页保存过豆包（火山方舟）的 Key。"
+)
+
+
+def _llm_base_is_ark_or_unset() -> bool:
+    base = str(os.environ.get("LLM_BASE_URL") or "").strip()
+    if not base:
+        return True  # 没配 Base URL 的老配置：历史上就是方舟，沿用 LLM_API_KEY
+    host = (urllib.parse.urlsplit(base).hostname or "").lower()
+    return host == _ARK_HOST_SUFFIX or host.endswith("." + _ARK_HOST_SUFFIX)
+
+
+def _env_or_file(name: str) -> str:
+    value = str(os.environ.get(name) or "").strip()
+    if value:
+        return value
+    try:
+        from deskbot_server.env import read_env_file
+
+        return str(read_env_file().get(name) or "").strip()
+    except Exception:  # noqa: BLE001 —— 读不到 .env 就当没有
+        return ""
+
+
 def _resolve_api_key(api_key: str | None = None) -> str:
+    """画表情 / 生图都是火山方舟的接口，Key 必须是方舟的。
+
+    顺序：显式实参 → 表情页「生图 API 配置」的 ARK_IMAGE_GEN_API_KEY → 大模型本身就是方舟
+    （或没配 Base URL）时复用 LLM_API_KEY → 模型配置页保存过的豆包 Key（LLM_API_KEY_DOUBAO）
+    → 联网检索单独填的方舟 Key。2026-09-14：默认大模型换成 DeepSeek 后这里仍直接拿
+    LLM_API_KEY 去调方舟，被 401（"The API key format is incorrect"）。
+    """
     key = str(api_key or "").strip()
     if key:
         return key
-    # 凭证统一走 LLM_API_KEY，不再有独立的图片生成 Key。
-    for name in ("LLM_API_KEY",):
-        key = str(os.environ.get(name) or "").strip()
+    key = str(os.environ.get("ARK_IMAGE_GEN_API_KEY") or "").strip()
+    if key:
+        return key
+    llm_key = str(os.environ.get("LLM_API_KEY") or "").strip()
+    if llm_key and "请替换" not in llm_key and _llm_base_is_ark_or_unset():
+        return llm_key
+    for name in ("LLM_API_KEY_DOUBAO", "ARK_WEB_SEARCH_API_KEY"):
+        key = _env_or_file(name)
         if key:
             return key
-    raise ValueError("LLM_API_KEY 未配置，无法调用图片表情包生成。")
+    raise ValueError(ARK_KEY_MISSING_MESSAGE)
 
 
 def _resolve_model(model: str | None = None) -> str:

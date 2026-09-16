@@ -81,6 +81,7 @@ from deskbot_server.application.expression_catalog import (  # noqa: E402,F401 �
     join_expression_pb_chains,
     load_expression_catalog,
     normalize_expression_state,
+    standby_face_tag,
 )
 
 
@@ -310,6 +311,10 @@ class RtcExpressionRuntime:
         self._state_generation = 0
         self._explicit_generation = 0
         self._cancel_generation = 0
+        # 待机卡通脸（固件 ≥0.0.57）：设备 FFat 里已确认保存的内容标签；空 = 未知/没有
+        self._persisted_face_tag = ""
+        self._face_persist_task: asyncio.Task[None] | None = None
+        self._face_clear_checked = False
 
     @property
     def last_scene_name(self) -> str | None:
@@ -1362,6 +1367,10 @@ class RtcExpressionRuntime:
             self._mouth_overlay = None
             lease_timer = self._lease_timer_task
             self._lease_timer_task = None
+            face_persist = self._face_persist_task
+            self._face_persist_task = None
+            if face_persist is not None and not face_persist.done():
+                face_persist.cancel()
             pending = list(self._pending)
             self._pending.clear()
             active = self._active_request
@@ -1841,6 +1850,16 @@ class RtcExpressionRuntime:
         request_id = request.request_id or f"rtc-expr-{uuid.uuid4().hex[:12]}"
         request.request_id = request_id
         scene_binaries: list[list[bytes]] = []
+        # 待机（idle）位图表情的首条 replace 链标记为待机脸：固件留在 PSRAM，电脑断开后自己循环；
+        # 链被设备接收后再让它写进 FFat（重启也保持）。循环续发（append）不重复标记。
+        face_keep = bool(
+            scene.assets
+            and request.kind == "state"
+            and request.state == "idle"
+            and request.duration_ms is None
+            and not request.pb_append
+        )
+        face_tag = standby_face_tag(scene.frames, scene.assets) if face_keep else ""
         scene_messages = build_expression_pb_frames(
             scene,
             request_id=request_id,
@@ -1848,6 +1867,8 @@ class RtcExpressionRuntime:
             replace=not request.pb_append,
             voice_mouth=(request.kind == "state" and request.state == "speaking"),
             out_binaries=scene_binaries,
+            face_keep=face_keep,
+            face_tag=face_tag,
         )
         messages = join_expression_pb_chains(
             scene_messages,
@@ -1976,6 +1997,7 @@ class RtcExpressionRuntime:
                         )
                         if request.lease_token is not None:
                             await self._arm_lease_timer(request.lease_token)
+                        self._sync_standby_face(face_keep, face_tag, scene)
                         return _result(
                             resolved=scene.name,
                             status="accepted",
@@ -2037,6 +2059,8 @@ class RtcExpressionRuntime:
                     # second full playback interval afterwards.
                     if request.lease_token is not None:
                         await self._arm_lease_timer(request.lease_token)
+                    # 设备接收整条链时已把待机脸留在 PSRAM，此时就可以安排落盘。
+                    self._sync_standby_face(face_keep, face_tag, scene)
 
                     if not request.wait_for_played:
                         completion = asyncio.create_task(
@@ -2180,6 +2204,86 @@ class RtcExpressionRuntime:
             delivered=delivered,
             device_display_crc32=device_display_crc32,
         )
+
+    # ---- 待机卡通脸持久化（固件 ≥0.0.57） ----
+
+    @property
+    def persisted_face_tag(self) -> str:
+        return self._persisted_face_tag
+
+    def note_face_persisted(self, tag: str) -> None:
+        """表情页通过 /api/face_persist 直接存过了：记下标签，运行时不再重复发 face_persist。"""
+        self._persisted_face_tag = str(tag or "")
+
+    def _sync_standby_face(self, face_keep: bool, face_tag: str, scene: ExpressionScene) -> None:
+        """待机链被设备接收后：位图待机脸安排写盘；矢量待机脸则让设备清掉上一张卡通脸
+        （否则断开电脑后设备还会循环旧的卡通脸）。只对 idle 状态推送生效。"""
+        if face_keep:
+            self._face_clear_checked = False
+            self._schedule_face_persist(face_tag)
+        elif not scene.assets and not self._face_clear_checked:
+            self._face_clear_checked = True
+            self._schedule_face_persist("")
+
+    def _schedule_face_persist(self, tag: str, *, delay: float = 1.5) -> None:
+        if self._closed or (tag and tag == self._persisted_face_tag):
+            return
+        previous = self._face_persist_task
+        if previous is not None and not previous.done():
+            previous.cancel()
+
+        async def _run() -> None:
+            try:
+                await asyncio.sleep(delay)
+                await self._persist_standby_face(tag)
+            except asyncio.CancelledError:
+                return
+            except Exception:  # noqa: BLE001 - 落盘失败只记日志，不影响表情主流程
+                logger.warning("[expression] standby face persist failed device_id=%s", self.device_id, exc_info=True)
+
+        self._face_persist_task = asyncio.create_task(_run(), name=f"deskbot-face-persist:{self.device_id}")
+
+    async def _persist_standby_face(self, tag: str) -> None:
+        """问设备当前待机脸标签；是我们刚推的那张且还没落盘就发 face_persist；``tag`` 为空表示
+        待机是矢量脸，设备若还留着卡通脸就 face_clear。旧固件没有回执：静默跳过。"""
+        session = self.device_session
+        status_request = getattr(session, "face_status_request", None)
+        if status_request is None:
+            return
+        status = await status_request()
+        if status is None:
+            logger.info("[expression] standby face persist skipped: firmware without face store device_id=%s", self.device_id)
+            return
+        device_tag = str(status.get("tag") or "")
+        if not tag:
+            if device_tag:
+                clear_request = getattr(session, "face_clear_request", None)
+                if clear_request is not None:
+                    await clear_request()
+                    logger.info("[expression] standby face cleared device_id=%s (idle is vector)", self.device_id)
+            self._persisted_face_tag = ""
+            return
+        if device_tag != tag:
+            logger.info(
+                "[expression] standby face persist skipped: device tag=%s expected=%s device_id=%s",
+                device_tag, tag, self.device_id,
+            )
+            return
+        if status.get("persisted") is True:
+            self._persisted_face_tag = tag
+            return
+        persist_request = getattr(session, "face_persist_request", None)
+        if persist_request is None:
+            return
+        ack = await persist_request()
+        if ack is not None and ack.get("ok") is True:
+            self._persisted_face_tag = tag
+            logger.info(
+                "[expression] standby face persisted device_id=%s tag=%s bytes=%s",
+                self.device_id, tag, ack.get("bytes"),
+            )
+        else:
+            logger.warning("[expression] standby face persist failed device_id=%s tag=%s ack=%s", self.device_id, tag, ack)
 
     async def _finish_played_ack(
         self,

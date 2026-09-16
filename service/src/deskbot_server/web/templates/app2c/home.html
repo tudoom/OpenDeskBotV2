@@ -174,8 +174,8 @@ createApp({
     rtcHealth:null,
     microphoneHealthStatus:'checking',
     llmMissing:false, ttsMissing:false, llmKnown:false, ttsKnown:false,
-    voiceLabel:'未设置音色', emotionCount:0, memoryCount:0, reminderCount:0, peopleCount:0, deviceCount:0,
-    recentMemories:[], recentPeople:[], nextReminder:null,
+    voiceLabel:'未设置音色', emotionCount:0, memoryCount:0, deviceCount:0,
+    recentMemories:[],
     scenes:[], emotionMap:{}, faceLabel:'待机',
     homeRobotError:'', homeRobotServo:{x:90,y:90},
     // 舵机契约（硬件包络）单一源：/api/servo_contract；拉取失败时禁用打招呼相关控件。
@@ -760,13 +760,11 @@ createApp({
     async loadDeviceContent(){
       const generation=(this._contentGeneration||0)+1;
       this._contentGeneration=generation;
-      this.memoryCount=0; this.reminderCount=0; this.peopleCount=0;
-      this.recentMemories=[]; this.recentPeople=[]; this.nextReminder=null;
+      this.memoryCount=0;
+      this.recentMemories=[];
       this.scenes=[]; this.emotionMap={}; this.faceLabel='待机';
       const results=await Promise.allSettled([
         this.j('/app/api/memories'),
-        this.j('/app/api/scheduled-tasks?page=1&per_page=10'),
-        this.j('/app/api/face-profiles'),
         this.j('/api/face_expression_transaction'),
       ]);
       if(generation!==this._contentGeneration) return;
@@ -778,11 +776,7 @@ createApp({
       };
       const mem=value(0,'记忆'); const memList=mem.memories||[];
       this.memoryCount=Number(mem.count ?? memList.length); this.recentMemories=memList.slice(0,3);
-      const rem=value(1,'提醒'); const remList=rem.tasks||[];
-      this.reminderCount=Number(rem.total ?? remList.length); this.nextReminder=remList[0]||null;
-      const ppl=value(2,'人脸档案'); const pplList=ppl.profiles||[];
-      this.peopleCount=pplList.length; this.recentPeople=pplList.slice(0,6);
-      const expressions=value(3,'表情场景');
+      const expressions=value(1,'表情场景');
       this.scenes=expressions.config||[];
       this.emotionMap=expressions.map||{};
       this.emotionCount=Object.keys(this.emotionMap).length;

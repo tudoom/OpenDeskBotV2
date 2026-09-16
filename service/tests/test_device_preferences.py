@@ -149,7 +149,6 @@ def test_quiet_hours_resume_at_same_day_window(preference_env):
     ("patch", "message"),
     [
         ({"quiet_hours": {"start": "night"}}, "HH:MM"),
-        ({"offline_reminder_policy": "silently_drop"}, "offline"),
         ({"tts": {"speaker": "bad speaker?token=secret"}}, "speaker"),
     ],
 )

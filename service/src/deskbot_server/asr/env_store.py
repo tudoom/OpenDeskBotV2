@@ -26,6 +26,7 @@ from deskbot_server.infrastructure.asr.openai_compat import (
 from deskbot_server.infrastructure.asr.volcengine_streaming import (
     resolve_volcengine_streaming_asr_config,
 )
+from deskbot_server.llm.provider_keys import mask_secret
 from deskbot_server.paths import PROJECT_ROOT
 
 ASR_ENV_KEYS = (
@@ -95,6 +96,7 @@ def get_asr_config_status(
         "configuration_status": "unconfigured",
         "message": "",
         "api_key_set": False,
+        "api_key_masked": "",
     }
     if provider == DOUBAO_ASR_PROVIDER:
         resolved = resolve_volcengine_streaming_asr_config(current.asr)
@@ -116,6 +118,7 @@ def get_asr_config_status(
                 "timeout_seconds": resolved.timeout_seconds,
                 "max_audio_bytes": resolved.max_audio_bytes,
                 "api_key_set": credentials_set,
+                "api_key_masked": mask_secret(api_key or legacy_access_token),
                 "model_dir": "",
                 "local_dependencies_installed": None,
                 "local_model_ready": None,
@@ -157,6 +160,7 @@ def get_asr_config_status(
                 "timeout_seconds": resolved.timeout_seconds,
                 "max_audio_bytes": resolved.max_audio_bytes,
                 "api_key_set": bool(resolved.api_key),
+                "api_key_masked": mask_secret(resolved.api_key),
                 "model_dir": "",
                 "local_dependencies_installed": None,
                 "local_model_ready": None,

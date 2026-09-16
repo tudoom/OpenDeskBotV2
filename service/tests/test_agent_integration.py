@@ -9,8 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.db_helpers import temp_db  # noqa: F401
 from tests.quest_helpers import bind, demo_playbook, quest_env  # noqa: F401
-from tests.test_scheduled_task import temp_db  # noqa: F401
 
 # ── perform_scene：能力矩阵 + 目录提示词 ──────────────────────
 
@@ -136,25 +136,6 @@ def test_web_channel_forwards_scene_to_core_http(monkeypatch):
         channel=te.ToolChannel.WEB, device_id="dev-1",
     )
     assert [r["tool"] for r in res] == ["memory_add", "perform_scene", "miot"]
-
-
-# ── 定时提醒带表演 ───────────────────────────────────────────
-
-
-def test_scheduled_task_keeps_scene_through_tool_and_dict(temp_db):
-    from deskbot_server.application.llm_tool_runner import execute_llm_tools
-    from deskbot_server.scheduled_task_service import get_scheduled_task, update_scheduled_task
-
-    created = execute_llm_tools(
-        [{"tool": "schedule_task", "action": "create", "task": "生日快乐", "delay_minutes": 5, "scene": "birthday"}],
-        device_id="dev-1",
-    )
-    assert created[0]["ok"] is True and created[0]["scene"] == "birthday"
-    tid = created[0]["id"]
-    assert get_scheduled_task(tid)["scene"] == "birthday"
-    assert update_scheduled_task(tid, scene="")["scene"] is None
-    out = execute_llm_tools([{"tool": "schedule_task", "action": "update", "id": tid, "scene": "wave"}], device_id="dev-1")
-    assert out[0]["ok"] is True and get_scheduled_task(tid)["scene"] == "wave"
 
 
 # ── skip_goal / propose after / User.md 回写 ─────────────────
@@ -294,17 +275,15 @@ def test_quest_generate_and_ai_arrange_use_persona(quest_env, monkeypatch):
 # ── 主动源门禁 ───────────────────────────────────────────────
 
 
-def test_proactive_gate_rules(temp_db, monkeypatch):
+def test_proactive_gate_rules(monkeypatch):
+    """2026-09-14：定时任务并进定时提醒后，门禁只剩勿扰与 lane 忙。"""
     from deskbot_server.application import proactive_gate as gate
     from deskbot_server.application.turn_arbiter import DeviceTurnArbiter
-    from deskbot_server.scheduled_task_service import create_scheduled_task
 
     monkeypatch.setattr(gate, "quiet_hours_active", lambda: False)
     assert gate.can_be_proactive(gate.SOURCE_QUEST) == (True, "")
-    create_scheduled_task("马上提醒", delay_seconds=30)
-    assert gate.seconds_until_next_reminder() <= 30
-    assert gate.can_be_proactive(gate.SOURCE_QUEST) == (False, "reminder_soon")
-    assert gate.can_be_proactive(gate.SOURCE_LIVE, "dev") == (True, "")  # 待机不看提醒
+    assert gate.can_be_proactive(gate.SOURCE_LIVE, "dev") == (True, "")
+    assert not hasattr(gate, "seconds_until_next_reminder")
     monkeypatch.setattr(gate, "quiet_hours_active", lambda: True)
     assert gate.can_be_proactive(gate.SOURCE_LIVE, "dev") == (False, "quiet_hours")
 
@@ -381,5 +360,6 @@ def test_agent_page_lists_abilities(quest_env, monkeypatch):
     app.config.update(TESTING=True)
     html = app.test_client().get("/agent").get_data(as_text=True)
     assert "它会做的事" in html and "loadAbilities" in html
-    for path in ("/api/quest/overview", "/proxy/deskbot/api/scene_playbooks", "/app/api/scheduled-tasks", "/app/api/miot/status"):
+    for path in ("/api/quest/overview", "/proxy/deskbot/api/scene_playbooks", "/app/api/miot/status"):
         assert path in html
+    assert "定时提醒" in html and "/app/api/scheduled-tasks" not in html

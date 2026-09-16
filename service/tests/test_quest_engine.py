@@ -272,7 +272,6 @@ def test_preferences_quest_block_defaults_and_validation(quest_env):
         "daily_limit": 16,
         "care_daily_limit": 10,
         "task_retry_sec": 120,
-        "reminder_soon_sec": 90,
         "care_pause_sec": 86400,
     }
     saved = update_preferences({"quest": {"proactive_enabled": False}})

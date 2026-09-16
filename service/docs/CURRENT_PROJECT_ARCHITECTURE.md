@@ -783,43 +783,17 @@ action：
 - `read` / `write` 只能访问 `data/local/tmp/`。
 - 禁止绝对路径和 `..`。
 
-## 16. 提醒系统
+## 16. 定时提醒
 
-提醒支持：
+2026-09-14 起没有独立的提醒系统（`scheduled_tasks` 表、调度器、`/reminders` 页都撤了）。
+定时提醒是主动陪伴「定时提醒」场景里带钟点的小目标：
 
-- 一次性时间。
-- cron 周期。
-- 创建、编辑、暂停、恢复、重试、删除。
-
-可靠性机制：
-
-- 每 2 秒轮询。
-- 数据库 lease 默认 120 秒。
-- 大约每 30～40 秒续租。
-- fencing token 防止旧 worker 提交新租约持有者的结果。
-- 启动时恢复过期 `running` lease。
-- orderly shutdown 主动释放 lease。
-
-设备离线策略：
-
-- `retry_within_grace`
-- `expire`
-- `deliver_when_online`
-
-勿扰时段（`/preferences` 的 quiet hours，含用户时区）内到期的提醒不会被丢弃或
-硬试：调度器把它 defer 到勿扰窗口结束后再播报（加约 1 秒余量避免重新落回窗口
-内），并记录“勿扰时段内暂缓提醒”摘要。勿扰只约束提醒类下发，不影响用户主动
-对话与语音未就绪反馈。
-
-防重复播放：
-
-1. 设备返回 `played`。
-2. 先持久化 immutable playback receipt。
-3. 再完成 scheduled task 状态。
-4. 如果进程在两次提交之间崩溃，重启后从 receipt 恢复，不重新播。
-
-提醒执行也使用同一 `local` 数据空间；调度元数据与对话文本分开记录，不创建第二套
-会话 scope。
+- `schedule_time`（HH:MM）+ `schedule_days`（每周几，空 = 每天）= 周期提醒；
+- `schedule_date`（YYYY-MM-DD）= 只提醒一次，提过写 `done_at`，7 天后自动清掉；
+- 由 `QuestProactiveLoop` 5 秒轮询按本地时区触发，到点后 2 小时内补提；到点时在勿扰窗口的，
+  勿扰结束后 2 小时内补提；不占每日开口名额；
+- Agent 的 `schedule_task` 工具（`application/timed_reminders`）直接写入，不需主人批准；
+  删除需要主人确认（工具确认账本）。
 
 ## 17. 本地会话、记忆、人物与运行时连接
 
@@ -991,10 +965,8 @@ action：
 | `/expr` | 系统示例、用户表情库、捏脸、AI/JSON 设计、设备预览 |
 | `/lab` | 3D 舵机、真机舵机、相机订阅、PB、场景、TTS、pipeline 日志 |
 | `/memories` | 长期记忆 CRUD |
-| `/reminders` | 提醒 CRUD、暂停、恢复、重试 |
+| `/quest` | 主动陪伴：陪伴场景、定时提醒（每天 / 每周几 / 一次性）、勿扰时段 |
 | `/sessions` | 会话查看、新建、激活、清空、删除、导出 |
-| `/preferences` | 主动行为、勿扰、离线提醒策略和本机音色 |
-| `/people` | 人脸档案改名和删除 |
 | `/devices` | live USB 自动发现、在线状态和运行时目标选择 |
 | `/miot` | 本机米家授权、同步、房间设备和解除授权 |
 | `/advanced` | 本机用量、LLM、Seed ASR、Seed TTS、供应商凭据和调试入口 |
@@ -1026,7 +998,6 @@ service/data/opendesk.db
 | `api_keys` | 本机进程间凭证元数据（配合 `data/.free_api_key` 文件） |
 | `usage_daily` | 本机每日 ASR/视觉/LLM/TTS 汇总用量（计入每日字节配额） |
 | `devices` | 运行时设备记录 |
-| `scheduled_tasks` | 提醒、cron、lease、结果（datetime 统一按 naive-UTC 落库） |
 | `playback_receipts` | 不可变播放回执 |
 | `tool_operations` | LLM 工具副作用 ledger |
 | `tool_confirmations` | 一次性风险确认 |
@@ -1066,9 +1037,8 @@ service/data/local/
 进程凭它访问 Core；配套每日 1 GiB 字节配额只是本机资源保护，不是商业化额度。
 
 时间口径：数据库与 JSON 中的 datetime 一律按 UTC 落库（`core/clock.py` 是唯一
-时间权威；`scheduled_tasks` 通过 PRAGMA `user_version` 迁移把旧 naive-CST 列统一
-为 naive-UTC，迁移前自动备份），只在序列化/展示边界转换为用户偏好时区（默认
-东八区兜底）；cron 表达式保持用户时区的挂钟语义。
+时间权威；PRAGMA `user_version` 仍是后续一次性迁移的锚点），只在序列化/展示边界转换为用户偏好时区（默认
+东八区兜底）；定时提醒的钟点按用户时区的挂钟语义。
 
 旧版本的 `user_memory.json` 只在 `memories.json` 尚不存在时，于第一次读取
 长期记忆时原子迁移到新文件名；已经存在的新文件永远不会被旧文件覆盖。
@@ -1473,6 +1443,7 @@ Flash:  1,377,763 / 8,388,608 bytes (16.4%)
 - `tests/test_layering.py`：依赖方向 `core → application → infrastructure/ws → web`，既有违例白名单，函数内延迟 import 总量只降不升。
 - 固件：绑定 WiFi 时，收包主循环任务发出的任何帧都走短预算（`usb_transport.cpp` `on_poll_task_over_wifi`），有契约测试。
 - 固件内存：`hardware/docs/MEMORY_BUDGET.md` 为预算表；WiFi 绑定期间每 60s 记 `mem@wifi`。
+- 固件 WiFi 收包（0.0.59）：`TcpSocketStream::readBytes` 一次 `recv` 整段进泵，不再逐字节 `read()`（每字节一次 lwIP 系统调用，3 ms 泵预算只够 ~150 B；5.7 KB 接收窗口被表情帧塞满后 PC 侧零窗口探测按秒退避，2026-09-14 实测帧延迟 5～16 s）。Core 侧 WiFi 会话帧确认超时 12 s（USB 仍 6 s），死链路由 6.5 s 心跳兜底；契约测试在 `tests/test_device_power_guard.py`。
 - 控制台生产服务器改为 waitress（`python -m deskbot_server.web`），`DESKBOT_WEB_DEBUG` 时仍用 Werkzeug 开发服务器。
 - macOS 客户端：`service/client-macos/`；带 key 版种子 `service/client/seed.env` 两端构建脚本自动识别，缺失的内置默认项自动补齐，`--no-seed-env` 打公开版。
 

@@ -7,10 +7,15 @@ import time
 from flask import Blueprint, jsonify, redirect, render_template, request, url_for
 from werkzeug.exceptions import RequestEntityTooLarge
 
+from deskbot_server.application.agent_generation import (
+    compose_motion_preset,
+    compose_scene_playbook,
+)
 from deskbot_server.application.cartoon_gen_limit import (
     CartoonGenLimitExceeded,
     check_and_consume_cartoon_gen,
 )
+from deskbot_server.application.persona_generation import GenerationError
 from deskbot_server.ark_face_svg import MAX_IMAGE_BYTES, MAX_IMAGE_UPLOAD_REQUEST_BYTES
 from deskbot_server.ark_image_gen import (
     DEFAULT_STYLE,
@@ -19,6 +24,7 @@ from deskbot_server.ark_image_gen import (
     generate_cartoon_frames,
     list_styles,
 )
+from deskbot_server.env import read_env_file
 from deskbot_server.face_design_store import FaceDesignRevisionConflict
 from deskbot_server.face_expr_scenes_store import (
     load_face_expr_scenes_file,
@@ -40,6 +46,13 @@ from deskbot_server.llm.config_state import (
     read_llm_env_values,
 )
 from deskbot_server.llm.env_store import save_llm_env
+from deskbot_server.llm.provider_keys import (
+    mask_secret,
+    same_provider,
+    saved_key_masks,
+    saved_provider_ids,
+    stored_key_for,
+)
 from deskbot_server.llm.runtime import (
     DEEPSEEK_OPENAI_BASE_URL,
     DEFAULT_LLM_MODEL,
@@ -47,7 +60,6 @@ from deskbot_server.llm.runtime import (
     build_chat_model,
     build_provider_auth_headers,
     chat_completion,
-    resolve_llm_config,
     resolve_system_llm_config,
 )
 from deskbot_server.llm_config_store import (
@@ -146,94 +158,26 @@ def playbooks():
 def playbooks_ai_generate():
     """按自然语言描述生成一个场景编排草稿。
 
-    可用表情/动作目录由前端随请求带入（它已经加载过），服务端把目录写进
-    提示词并对模型输出做白名单过滤，未知名称一律清空，绝不下发到设备。
+    可用表情/动作目录由前端随请求带入（它已经加载过），服务端把目录写进提示词并对模型
+    输出做白名单过滤，未知名称一律清空，绝不下发到设备。实现与对话 Agent 的 generate_scene
+    共用（application.agent_generation.compose_scene_playbook）。
     """
-    import re as _re
-
     payload = request.get_json(silent=True) or {}
     description = str(payload.get("description") or "").strip()
     if not description:
         return jsonify({"ok": False, "error": "请先描述想要的场景"}), 400
-    expressions = [
-        str(s).strip()
-        for s in (payload.get("expressions") or [])
-        if str(s).strip()
-    ][:80]
-    presets_in = payload.get("presets") or []
-    presets = []
-    for row in presets_in[:80]:
-        if isinstance(row, dict) and str(row.get("id") or "").strip():
-            presets.append(
-                {
-                    "id": str(row["id"]).strip(),
-                    "label": str(row.get("label") or "").strip(),
-                }
-            )
-    preset_ids = {p["id"] for p in presets}
-    expr_set = set(expressions)
+    expressions = [str(s).strip() for s in (payload.get("expressions") or []) if str(s).strip()][:80]
+    presets = [row for row in (payload.get("presets") or [])[:80] if isinstance(row, dict)]
 
     _quota, limit_err = _consume_settings_test_quota()
     if limit_err:
         return limit_err
 
-    from deskbot_server.application.persona_generation import GenerationError, generate_json
-
-    system = (
-        "现在你要以自己的身份给自己编一段表演：把主人的描述编成 2-8 个步骤的演出，"
-        "每步可含口播文本、一个表情、一个头部动作。口播要像你平时说话，用你对主人的称呼。"
-        "只输出 JSON 对象，不要任何解释或代码块标记。格式：\n"
-        '{"name":"英文snake_case标识","title":"中文标题","chunks":['
-        '{"text":"口播（可空串）","expr":{"scene":"表情名或空串","ms":800},'
-        '"servo":{"preset":"动作id或空串","ms":800}}]}\n'
-        "表情只能从这里选（不合适就留空串）：" + ("、".join(expressions) or "（无）") + "\n"
-        "动作只能从这里选（不合适就留空串）：" + (
-            "、".join(f"{p['id']}({p['label']})" if p["label"] else p["id"] for p in presets)
-            or "（无）"
-        ) + "\n"
-        "ms 为该步表情/动作时长（200-10000）。口播要口语化、有性格、简短。"
-    )
     try:
-        data = generate_json(system, description, temperature=0.8)
+        playbook = compose_scene_playbook(description, expressions=expressions, presets=presets)
     except GenerationError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 502
-
-    name = _re.sub(r"[^a-z0-9_]+", "_", str(data.get("name") or "ai_scene").lower()).strip("_") or "ai_scene"
-    chunks = []
-    for raw_chunk in (data.get("chunks") or [])[:12]:
-        if not isinstance(raw_chunk, dict):
-            continue
-        expr = raw_chunk.get("expr") or {}
-        servo = raw_chunk.get("servo") or {}
-
-        def _ms(value: object) -> int:
-            try:
-                return max(200, min(10000, int(value)))
-            except (TypeError, ValueError):
-                return 800
-
-        scene = str(expr.get("scene") or "").strip()
-        preset = str(servo.get("preset") or "").strip()
-        chunk = {
-            "text": str(raw_chunk.get("text") or "").strip(),
-            # 白名单过滤：模型编造的名称一律清空。
-            "expr": {"scene": scene if scene in expr_set else "", "ms": _ms(expr.get("ms"))},
-            "servo": {"preset": preset if preset in preset_ids else "", "ms": _ms(servo.get("ms"))},
-        }
-        if chunk["text"] or chunk["expr"]["scene"] or chunk["servo"]["preset"]:
-            chunks.append(chunk)
-    if not chunks:
-        return jsonify({"ok": False, "error": "生成结果为空，请补充描述再试"}), 502
-    return jsonify(
-        {
-            "ok": True,
-            "playbook": {
-                "name": name,
-                "title": str(data.get("title") or "").strip() or "AI 编排",
-                "chunks": chunks,
-            },
-        }
-    )
+    return jsonify({"ok": True, "playbook": playbook})
 
 
 @bp.post("/api/servo/ai_generate")
@@ -242,110 +186,30 @@ def servo_ai_generate():
 
     与 /api/playbooks/ai_generate 不同：那个从已有预设里挑，这个直接生成 x/y 步骤。
     生成结果按前端传入的舵机包络（硬件限位）钳位，绝不越界；不落盘，保存由前端
-    走 /api/servo_config。
+    走 /api/servo_config。实现与对话 Agent 的 generate_motion 共用。
     """
-    import json as _json
-    import re as _re
-
     payload = request.get_json(silent=True) or {}
     description = str(payload.get("description") or "").strip()
     if not description:
         return jsonify({"ok": False, "error": "请先描述想要的动作"}), 400
-
     env = payload.get("envelope") or {}
-    def _envi(key, default):
-        try:
-            return int(env.get(key))
-        except (TypeError, ValueError):
-            return default
-    x_min, x_max = _envi("xMin", 0), _envi("xMax", 180)
-    y_min, y_max = _envi("yMin", 0), _envi("yMax", 180)
-    if x_min > x_max:
-        x_min, x_max = x_max, x_min
-    if y_min > y_max:
-        y_min, y_max = y_max, y_min
-    x_ctr = max(x_min, min(x_max, _envi("xCenter", 90)))
-    y_ctr = max(y_min, min(y_max, _envi("yCenter", 90)))
     try:
         min_ms = max(50, int(payload.get("minMs") or 200))
     except (TypeError, ValueError):
         min_ms = 200
-    max_ms = 3000
-    existing = {str(x).strip().lower() for x in (payload.get("existingIds") or []) if str(x).strip()}
+    existing = [str(x).strip() for x in (payload.get("existingIds") or []) if str(x).strip()]
 
     _quota, limit_err = _consume_settings_test_quota()
     if limit_err:
         return limit_err
 
     try:
-        cfg = resolve_llm_config()
-    except ValueError as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
-
-    system = (
-        "你是桌面机器人「小歪」的头部动作设计师。把用户的中文描述编成 1-6 个步骤的头部动作。"
-        "只输出一个 JSON 对象，不要任何解释或代码块标记。格式：\n"
-        '{"id":"英文snake_case标识","label":"中文短名","steps":[{"x":90,"y":90,"ms":500}]}\n'
-        "坐标系：x=左右转头，取值范围 [%d, %d]，居中约 %d；"
-        "y=上下俯仰，取值范围 [%d, %d]，居中约 %d；数值都是绝对角度（度）。\n"
-        "ms 是该步用时，范围 %d~%d。想要点头/摇头等重复动作就重复相应步骤。"
-        "动作自然流畅，最后一步通常回到居中。"
-        % (x_min, x_max, x_ctr, y_min, y_max, y_ctr, min_ms, max_ms)
-    )
-    try:
-        raw, _meta = chat_completion(
-            [
-                {"role": "system", "content": system},
-                {"role": "user", "content": description},
-            ],
-            temperature=0.7,
-            config=cfg,
+        preset = compose_motion_preset(
+            description, envelope=env if isinstance(env, dict) else {}, min_ms=min_ms, existing_ids=existing
         )
-    except Exception as exc:  # noqa: BLE001
-        return jsonify({"ok": False, "error": f"生成失败：{exc}"}), 502
-
-    text = str(raw or "").strip()
-    match = _re.search(r"\{.*\}", text, _re.S)
-    if not match:
-        return jsonify({"ok": False, "error": "模型未返回有效动作，请换个说法再试"}), 502
-    try:
-        data = _json.loads(match.group())
-    except ValueError:
-        return jsonify({"ok": False, "error": "模型输出解析失败，请重试"}), 502
-
-    base_id = _re.sub(r"[^a-z0-9_]+", "_", str(data.get("id") or "ai_move").lower()).strip("_") or "ai_move"
-    new_id = base_id
-    suffix = 2
-    while new_id.lower() in existing:
-        new_id = f"{base_id}_{suffix}"
-        suffix += 1
-    label = str(data.get("label") or "").strip() or "AI 动作"
-    if len(label) > 40:
-        label = label[:40]
-
-    steps = []
-    for raw_step in (data.get("steps") or [])[:8]:
-        if not isinstance(raw_step, dict):
-            continue
-        def _clampi(v, lo, hi, default):
-            try:
-                return max(lo, min(hi, int(round(float(v)))))
-            except (TypeError, ValueError):
-                return default
-        steps.append({
-            "x": _clampi(raw_step.get("x"), x_min, x_max, x_ctr),
-            "y": _clampi(raw_step.get("y"), y_min, y_max, y_ctr),
-            "xm": 0,
-            "ym": 0,
-            "ms": _clampi(raw_step.get("ms"), min_ms, max_ms, 500),
-        })
-    if not steps:
-        return jsonify({"ok": False, "error": "生成结果为空，请补充描述再试"}), 502
-
-    return jsonify({
-        "ok": True,
-        "preset": {"id": new_id, "label": label, "steps": steps},
-    })
+    except GenerationError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 502
+    return jsonify({"ok": True, "preset": preset})
 
 
 @bp.get("/api/cartoon_face/styles")
@@ -454,9 +318,6 @@ def memories():
     return render_template("app2c/memories.html", active_nav="agent")
 
 
-@bp.get("/reminders")
-def reminders():
-    return render_template("app2c/reminders.html", active_nav="agent")
 
 
 @bp.get("/sessions")
@@ -464,15 +325,8 @@ def sessions():
     return render_template("app2c/sessions.html", active_nav="agent")
 
 
-@bp.get("/preferences")
-def preferences():
-    return render_template("app2c/preferences.html", active_nav="agent")
 
 
-@bp.get("/people")
-def people():
-    # 「认识的人」收进 Agent 对话页右上角「更多功能」，侧栏高亮跟随 Agent。
-    return render_template("app2c/people.html", active_nav="agent")
 
 
 @bp.get("/devices")
@@ -558,6 +412,11 @@ def _system_llm_payload() -> dict:
             **status,
         },
         "default_model": DEFAULT_TEXT_MODEL,
+        # 已经保存过 Key 的提供方（DEEPSEEK / DOUBAO / MIMO / HOST_…）：页面据此提示「留空沿用」还是「请填写」
+        "saved_key_providers": saved_provider_ids(read_env_file()),
+        # 各提供方已保存 Key 的掩码（sk-…3f2a），输入框里展示；提交掩码等于沿用旧值
+        "saved_key_masks": saved_key_masks(read_env_file()),
+        "api_key_masked": mask_secret(sys.api_key) if api_key_set else "",
         "protocols": list(SUPPORTED_PROTOCOLS),
         "needs_config": not configured,
         "configured": configured,
@@ -628,7 +487,7 @@ def setup_llm_post():
         return jsonify({"ok": False, "error": "请填写 LLM 对话 API Key"}), 400
 
     try:
-        save_llm_env(updates)
+        save_llm_env(updates, current_base_url=editable["base_url"])
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
     except OSError as exc:
@@ -688,9 +547,7 @@ def setup_llm_test():
     base_url = str(
         payload.get("base_url") if "base_url" in payload else editable["base_url"]
     ).strip()
-    api_key = str(payload.get("api_key") or "").strip()
-    if not api_key or "*" in api_key or "•" in api_key:
-        api_key = str(current.api_key or "").strip()
+    api_key = _api_key_for_request(payload, current, editable)
     prompt = str(payload.get("prompt") or "你好，请用一句话介绍你自己。").strip()
 
     if not model_name:
@@ -778,9 +635,8 @@ def _list_provider_models(api_key: str, base_url: str | None = None) -> list[dic
 @bp.post("/api/setup/llm/models")
 def setup_llm_models():
     payload = request.get_json(silent=True) or {}
-    api_key = str(payload.get("api_key") or "").strip()
-    if not api_key or "*" in api_key or "•" in api_key:
-        api_key = str(resolve_system_llm_config(require_model=False).api_key or "").strip()
+    current = resolve_system_llm_config(require_model=False)
+    api_key = _api_key_for_request(payload, current, _editable_system_llm_fields(current))
     if not _llm_api_key_set(api_key):
         return jsonify({"ok": False, "error": "请先填写 LLM 对话 API Key"}), 400
     try:
@@ -788,6 +644,20 @@ def setup_llm_models():
     except Exception as exc:  # noqa: BLE001 - surface fetch error to the user
         return jsonify({"ok": False, "error": f"获取模型清单失败：{exc}"}), 502
     return jsonify({"ok": True, "models": models, "default_model": DEFAULT_TEXT_MODEL})
+
+
+def _api_key_for_request(payload: dict, current: ResolvedLlmConfig, editable: dict[str, str]) -> str:
+    """测试连接 / 检测模型用哪把 Key：页面填了就用填的；没填且页面上换了提供方（还没保存），
+    用那家保存过的 Key；否则用当前生效的。"""
+    api_key = str(payload.get("api_key") or "").strip()
+    if api_key and "*" not in api_key and "•" not in api_key:
+        return api_key
+    base_url = str(payload.get("base_url") if "base_url" in payload else editable["base_url"] or "").strip()
+    if base_url and not same_provider(base_url, editable["base_url"]):
+        stored = stored_key_for(read_env_file(), base_url)
+        if stored:
+            return stored
+    return str(current.api_key or "").strip()
 
 
 def _llm_api_key_set(api_key: str | None) -> bool:

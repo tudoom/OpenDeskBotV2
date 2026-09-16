@@ -13,7 +13,6 @@ from deskbot_server.application.camera_broker import CameraImageBroker
 from deskbot_server.application.camera_preview import CameraPreviewLeaseManager, preview_target_fps
 from deskbot_server.application.live_behavior import live_behavior_service
 from deskbot_server.application.quest_proactive import QuestProactiveLoop, QuestProactiveRunner
-from deskbot_server.application.scheduled_task_scheduler import ScheduledTaskScheduler
 from deskbot_server.application.servo_budget import servo_budget
 from deskbot_server.application.thermal_guard import (
     CRIT_HOLD_SEC,
@@ -369,13 +368,7 @@ async def main():
             (rtc_health_snapshot().get("devices") or {}).get(dev, {}).get("agent_attached")
         )
     )
-    scheduler = ScheduledTaskScheduler(
-        chat=pipeline,
-        asr_chat_hub=asr_chat_hub,
-        registry=registry,
-        dp_broker=device_pipeline_broker,
-    )
-    # 剧本冷场主动开口：与定时提醒同一条投递路径，偏好 quest.proactive_enabled 可关。
+    # 剧本冷场主动开口 + 定时提醒（2026-09-14 起定时任务并进主动陪伴），偏好 quest.proactive_enabled 可关。
     quest_loop = QuestProactiveLoop(
         QuestProactiveRunner(
             chat=pipeline,
@@ -484,7 +477,6 @@ async def main():
                 core_discovery.start()
             except Exception:  # noqa: BLE001 - 发现服务失败不影响主链路
                 logger.warning("[core_discovery] start failed", exc_info=True)
-        scheduler.start()
         quest_loop.start()
         logger.info(
             "deskbot-server started on %s://%s:%s "
@@ -541,10 +533,7 @@ async def main():
             await asyncio.gather(rtc_startup_task, return_exceptions=True)
         finally:
             try:
-                try:
-                    await quest_loop.stop()
-                finally:
-                    await scheduler.stop()
+                await quest_loop.stop()
             finally:
                 try:
                     await camera_preview_leases.close()

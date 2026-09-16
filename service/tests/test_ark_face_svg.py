@@ -723,11 +723,13 @@ def test_face_design_generate_from_image_rejects_oversized_request_before_parsin
 
 
 def test_resolve_api_key_uses_unified_llm_key(monkeypatch):
-    """凭证统一走 LLM_API_KEY；旧 ARK_API_KEY 完全不再参与解析。"""
+    """大模型没配 Base URL（历史上就是方舟）时沿用 LLM_API_KEY；旧 ARK_API_KEY 完全不再参与解析。"""
     import deskbot_server.ark_face_svg as ark_face_svg
 
-    for name in ("ARK_API_KEY", "VOLCENGINE_API_KEY", "DOUBAO_API_KEY", "LLM_API_KEY"):
+    for name in ("ARK_API_KEY", "VOLCENGINE_API_KEY", "DOUBAO_API_KEY", "LLM_API_KEY", "LLM_BASE_URL",
+                 "ARK_IMAGE_GEN_API_KEY", "LLM_API_KEY_DOUBAO", "ARK_WEB_SEARCH_API_KEY"):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr("deskbot_server.env.read_env_file", lambda: {})
 
     monkeypatch.setenv("LLM_API_KEY", "llm-unified")
     assert ark_face_svg._resolve_api_key() == "llm-unified"

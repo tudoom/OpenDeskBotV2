@@ -164,21 +164,20 @@ def llm_tools_prompt_appendix() -> str:
         "    维护你对主人这个人的整体理解（性格、说话方式、在意什么、当前处境）。\n"
         "    和 memory_add 的区别：memory_add 记**事实**，user_note 记**你对他的判断**。\n"
         "    发现新的理解就当轮 append；read 可先看已有内容；仅在内容重复或过时时才 replace。\n"
-        "  - schedule_task: cron 定时任务增删改查（北京时间东八区）。"
+        "  - schedule_task: 定时提醒（存在「主动陪伴 → 定时提醒」里，到点由你主动开口；北京时间）。"
         "**用户要求定时/提醒时，必须调用本工具，禁止仅用 tts 口头答应。**\n"
         "    示例：主人说「两分钟后请我喝水」→ 第一轮 JSON：\n"
         "    {\"tools\":[{\"tool\":\"schedule_task\",\"action\":\"create\",\"task\":\"提醒喝水\","
-        "\"delay_minutes\":2,\"task_kind\":\"once\"}],\"tts\":\"\"}\n"
+        "\"delay_minutes\":2}],\"tts\":\"\"}\n"
         "    工具成功后第二轮：{\"tools\":[],\"tts\":\"好，两分钟后提醒你喝水。\"}\n"
-        "    创建时无需填写 session_id（服务端自动绑定当前 session）。\n"
-        "    **先判断一次性还是周期性**：\n"
-        "    · 一次性 once：如「明天9点提醒」→ task_kind=once + cron \"0 9 13 6 *\"（分 时 日 月 周）\n"
-        "    · 周期性 recurring：如「每天8点」→ task_kind=recurring + cron \"0 8 * * *\"\n"
+        "    · 每天固定时间：{\"action\":\"create\",\"task\":\"讲睡前故事\",\"time\":\"21:00\"}\n"
+        "    · 只提醒一次（某天几点）：{\"action\":\"create\",\"task\":\"交房租\",\"time\":\"09:00\",\"date\":\"2026-09-20\"}；"
+        "「明天 9 点」= repeat=once + time（不给 date 就是下一个 9 点）\n"
+        "    · 每周几：{\"action\":\"create\",\"task\":\"倒垃圾\",\"time\":\"20:00\",\"days\":[0,3]}（周一=0…周日=6）\n"
         "    · 相对延迟：delay_minutes 填数字（「两分钟」→ 2）\n"
         "    · 到点先演一段表演：加 scene 字段写表演 name（见可用表演目录），如「生日那天先来段祝福」\n"
-        "    · 查询列表：{\"action\":\"list\"}；读取：{\"action\":\"get\",\"id\":\"…\"}\n"
-        "    · 修改：{\"action\":\"update\",\"id\":\"…\",\"cron\":\"0 9 * * *\",\"task\":\"…\",\"enabled\":true}\n"
-        "    · 删除：{\"action\":\"delete\",\"id\":\"…\"}\n"
+        "    · 查询：{\"action\":\"list\"}；修改：{\"action\":\"update\",\"id\":\"…\",\"time\":\"09:30\"}；"
+        "删除：{\"action\":\"delete\",\"id\":\"…\"}（需主人确认）\n"
         "  - webfetch: {\"tool\":\"webfetch\",\"url\":\"https://…\"} 抓取网页文本\n"
         "  - websearch: {\"tool\":\"websearch\",\"query\":\"搜索词\"} 联网搜索，返回摘要(abstract)与来源(results)。"
         "凡是今天/最近/最新的天气、新闻、股价、赛事、价格等时效性问题，必须先调用它，"
@@ -205,7 +204,52 @@ def llm_tools_prompt_appendix() -> str:
         "    · 跑场景：{\"tool\":\"miot\",\"action\":\"run_scene\",\"scene_name\":\"回家模式\"}\n"
         "    · 刷新缓存：{\"tool\":\"miot\",\"action\":\"sync\"}；授权状态：{\"tool\":\"miot\",\"action\":\"status\"}\n"
         "    失败时结果含 error/hint/solution，请用口语向用户说明原因与解决办法。\n"
+        "  - play_expression: {\"tool\":\"play_expression\",\"name\":\"表情名\",\"duration_ms\":3000}\n"
+        "    主人明确要求你做某个表情时用；name 见下方「可用表情」，不要编造。\n"
+        "  - move_head: {\"tool\":\"move_head\",\"move\":\"动作id\"} 或自编最多 5 步 "
+        "{\"tool\":\"move_head\",\"steps\":[{\"x\":90,\"y\":90,\"ms\":400}]}（x 左右、y 上下，绝对角度）\n"
+        "    主人要求你做动作（点头、摇头、看某边）时用；动作 id 见下方「可用动作」。\n"
+        "  - generate_scene: {\"tool\":\"generate_scene\",\"description\":\"想要的表演\",\"perform\":true}\n"
+        "    主人让你编/设计一段新表演（口播+表情+动作）：生成并存进表演列表，默认立刻表演；已有的表演用 perform_scene。\n"
+        "  - generate_quest_scene: {\"tool\":\"generate_quest_scene\",\"description\":\"想让你主动关心什么\"}\n"
+        "    主人让你安排一个陪伴计划/主动关心的场景：生成主线小目标和日常关心并启用；只提一个小目标用 propose_goal。\n"
+        "  - generate_motion: {\"tool\":\"generate_motion\",\"description\":\"想要的动作\",\"execute\":true}\n"
+        "    主人让你设计一个新的头部动作：生成并存为预设（之后 move_head 可用），默认立刻做一遍。\n"
+        "  - generate_cartoon_faces: {\"tool\":\"generate_cartoon_faces\",\"description\":\"角色特点\","
+        "\"style\":\"kawaii|lineart|doodle|flat\",\"apply\":true}\n"
+        "    主人要一套新的卡通表情/给你换张脸：后台生成约 3～4 分钟，调用后立刻告诉主人在做了、做好会说；"
+        "不要等、不要重复调用；主人追问进度用 generation_status。\n"
+        "  - generate_expression: {\"tool\":\"generate_expression\",\"description\":\"想要的表情\","
+        "\"source\":\"text|camera\",\"set_default\":false}\n"
+        "    主人让你画/设计一个表情（矢量）：source=camera 表示照着眼前画面画；set_default=true 设为待机表情。约 30～60 秒。\n"
+        "  - generation_status: {\"tool\":\"generation_status\"} 查最近一次后台生成的进度/结果。\n"
     )
+
+
+def llm_device_catalog_prompt_appendix() -> str:
+    """play_expression / move_head 在文字链路没有 enum：把本机表情库与模型可见的动作预设列给模型。"""
+    parts: list[str] = []
+    try:
+        from deskbot_server.application.expression_catalog import expression_tool_catalog
+
+        names = [str(v) for v in (expression_tool_catalog().get("values") or []) if str(v)][:40]
+        if names:
+            parts.append("可用表情（play_expression 的 name）：" + "、".join(names))
+    except Exception:  # noqa: BLE001 —— 表情库读不出不能拖垮整轮对话
+        pass
+    try:
+        from deskbot_server.servo_config_store import servo_preset_catalog
+
+        moves = [
+            f"{p['id']}({p.get('label')})" if p.get("label") else str(p["id"])
+            for p in servo_preset_catalog(model_visible_only=True)
+            if isinstance(p, dict) and str(p.get("id") or "")
+        ][:40]
+        if moves:
+            parts.append("可用动作（move_head 的 move）：" + "、".join(moves))
+    except Exception:  # noqa: BLE001
+        pass
+    return "\n".join(parts)
 
 
 def llm_miot_prompt_appendix() -> str:
@@ -249,6 +293,8 @@ def llm_static_context_prompt_appendix() -> str:
         llm_memory_prompt_appendix(),
         llm_miot_prompt_appendix(),
         llm_tools_prompt_appendix(),
+        # 表情库 / 动作预设目录（play_expression、move_head 用；空库时空串）
+        llm_device_catalog_prompt_appendix(),
         # 组合表演目录（无表演时空串）
         scene_catalog_prompt(),
         # 剧本任务：进行中任务 + update_task_result/update_task_strategy 契约（无任务时空串）
@@ -451,15 +497,67 @@ def _coerce_llm_reply_object(obj: Any) -> Optional[dict[str, Any]]:
     return obj
 
 
+# DeepSeek（V3.x / flash）没拿到原生 tools 定义时，偶尔会把想调的工具直接按它训练时的
+# DSML 标记写进正文：<｜DSML｜calls><｜DSML｜invoke name="x"><｜DSML｜parameter name="q" string="true">…
+# 竖线是全角「｜」也可能是半角「|」。不解析的话整段标记会被当成回复念给用户（2026-09-14 实测）。
+_DSML_BAR = r"[｜|]"
+_DSML_CALLS_RE = re.compile(rf"<{_DSML_BAR}DSML{_DSML_BAR}calls>(.*?)</{_DSML_BAR}DSML{_DSML_BAR}calls>", re.S)
+_DSML_INVOKE_RE = re.compile(
+    rf"<{_DSML_BAR}DSML{_DSML_BAR}invoke\s+name=\"([^\"]+)\"\s*>(.*?)</{_DSML_BAR}DSML{_DSML_BAR}invoke>", re.S
+)
+_DSML_PARAM_RE = re.compile(
+    rf"<{_DSML_BAR}DSML{_DSML_BAR}parameter\s+name=\"([^\"]+)\"(?:\s+string=\"(true|false)\")?\s*>(.*?)"
+    rf"</{_DSML_BAR}DSML{_DSML_BAR}parameter>",
+    re.S,
+)
+_DSML_ANY_TAG_RE = re.compile(rf"</?{_DSML_BAR}DSML{_DSML_BAR}[^>]*>")
+
+
+def extract_dsml_tool_calls(text: str) -> tuple[str, list[dict[str, Any]]]:
+    """把正文里的 DSML 工具调用块抽成 ``[{"tool": name, ...参数}]``，返回（去掉标记后的正文, 工具列表）。"""
+    tools: list[dict[str, Any]] = []
+    if "DSML" not in str(text or ""):
+        return str(text or ""), tools
+
+    def _value(raw: str, as_string: str | None) -> Any:
+        body = raw.strip()
+        if as_string == "true":
+            return body
+        try:
+            return json.loads(body)
+        except (TypeError, ValueError):
+            return body
+
+    def _collect(block: str) -> None:
+        for name, inner in _DSML_INVOKE_RE.findall(block):
+            tool: dict[str, Any] = {"tool": name.strip()}
+            for key, as_string, raw in _DSML_PARAM_RE.findall(inner):
+                tool[key.strip()] = _value(raw, as_string)
+            if tool["tool"]:
+                tools.append(tool)
+
+    for block in _DSML_CALLS_RE.findall(text):
+        _collect(block)
+    cleaned = _DSML_CALLS_RE.sub("", text)
+    if not tools:
+        # 没有 calls 外壳（截断输出）：单独的 invoke 也认
+        _collect(cleaned)
+        cleaned = _DSML_INVOKE_RE.sub("", cleaned)
+    cleaned = _DSML_ANY_TAG_RE.sub("", cleaned)
+    return cleaned.strip(), tools
+
+
 def parse_llm_reply(raw: str) -> dict:
     """把 LLM 输出尝试解析为约定 JSON。
 
     格式 ``{"need_reply", "tts", "volume?", "moves", "anims", "tools": [...]}``；
     仍兼容旧版 ``scenes`` 与 ``reply`` 字段；原始 ``servo`` 坐标不再接受。
 
-    失败时把整段文本当作 ``reply`` 返回，**不抛异常**。
+    失败时把整段文本当作 ``reply`` 返回，**不抛异常**。DeepSeek 写成 DSML 标记的工具调用
+    会被抽成 ``tools``（见 ``extract_dsml_tool_calls``），不会念给用户。
     """
-    text = (raw or "").strip()
+    text, dsml_tools = extract_dsml_tool_calls((raw or "").strip())
+    text = text.strip()
     parsed: Optional[dict] = None
 
     candidates = []
@@ -502,7 +600,7 @@ def parse_llm_reply(raw: str) -> dict:
         # expressions use the validated play_expression tool and the common
         # USB expression arbiter.
         anims_out = []
-        tools_out = _parse_llm_tool_items(parsed.get("tools"))
+        tools_out = _parse_llm_tool_items(parsed.get("tools")) + dsml_tools
         reply_tts = parsed.get("tts")
         reply_legacy = parsed.get("reply")
         reply: str
@@ -551,14 +649,14 @@ def parse_llm_reply(raw: str) -> dict:
         "reply": text,
         "moves": [],
         "anims": [],
-        "tools": [],
+        "tools": dsml_tools,
         "scenes": [],
         "volume": None,
         "images": [],
         "need_reply": True,
         "json_ok": False,
-        "contract_ok": bool(text),
-        "contract_error": None if text else "empty model response",
+        "contract_ok": bool(text) or bool(dsml_tools),
+        "contract_error": None if (text or dsml_tools) else "empty model response",
         "raw": text,
     }
 

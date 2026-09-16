@@ -2,7 +2,7 @@
 
 Covers two invariants introduced by the parallelized startup:
 
-* USB-first: the serial bridge, scheduler and WS/HTTP endpoint start without
+* USB-first: the serial bridge and WS/HTTP endpoint start without
   waiting for the Agent SDK; the RTC gateway is installed by a background
   task only after the SDK reports ready.
 * Graceful shutdown: SIGBREAK (Windows) / SIGTERM (POSIX) resolves the
@@ -92,16 +92,6 @@ def _install_fakes(monkeypatch) -> _Ctx:
         async def stop(self):
             ctx.events.append("serial_stop")
 
-    class _FakeScheduler:
-        def __init__(self, **_kw):
-            pass
-
-        def start(self):
-            ctx.events.append("scheduler_start")
-
-        async def stop(self):
-            ctx.events.append("scheduler_stop")
-
     class _FakeLeases:
         def __init__(self, _hub):
             pass
@@ -171,7 +161,6 @@ def _install_fakes(monkeypatch) -> _Ctx:
     m(main_module, "RtcAgentSdkManager", _FakeAgentSdk)
     m(main_module, "LocalLiveKitServerManager", _FakeLiveKit)
     m(main_module, "SerialServiceBridge", _FakeSerialBridge)
-    m(main_module, "ScheduledTaskScheduler", _FakeScheduler)
     m(main_module, "AudioConfig", lambda **kw: SimpleNamespace(**kw))
     m(main_module, "configure_concurrency", lambda **_kw: None)
     m(
@@ -231,11 +220,10 @@ def test_gateway_installs_in_background_after_serial_bridge(
     async def _run():
         ctx = _install_fakes(monkeypatch)
         task = asyncio.create_task(main_module.main())
-        # Serial bridge, scheduler and the WS endpoint come up while the
-        # Agent SDK is still "importing" (gate closed).
+        # Serial bridge and the WS endpoint come up while the Agent SDK is
+        # still "importing" (gate closed).  (2026-09-14：定时任务调度器撤了)
         await asyncio.wait_for(ctx.ws_serving.wait(), timeout=5)
         assert "serial_start" in ctx.events
-        assert "scheduler_start" in ctx.events
         # Only the initial install_rtc_gateway(None) has happened so far.
         assert ctx.gateway_installs == [None]
 
@@ -282,7 +270,6 @@ def test_shutdown_signal_cancels_pending_rtc_startup(
         assert ctx.gateway_installs == [None]
         # The full reverse shutdown chain still executed, in order.
         for step in (
-            "scheduler_stop",
             "leases_close",
             "serial_stop",
             "rtc_runtime_shutdown",
@@ -291,11 +278,10 @@ def test_shutdown_signal_cancels_pending_rtc_startup(
         ):
             assert step in ctx.events
         assert ctx.events.index("sdk_start_cancelled") < ctx.events.index(
-            "scheduler_stop"
+            "leases_close"
         )
         assert (
-            ctx.events.index("scheduler_stop")
-            < ctx.events.index("leases_close")
+            ctx.events.index("leases_close")
             < ctx.events.index("serial_stop")
             < ctx.events.index("rtc_runtime_shutdown")
             < ctx.events.index("sdk_stop")

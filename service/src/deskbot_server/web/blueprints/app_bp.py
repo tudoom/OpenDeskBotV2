@@ -37,11 +37,6 @@ from deskbot_server.miot_service import (
 from deskbot_server.miot_service import (
     unbind as miot_unbind,
 )
-from deskbot_server.scheduled_task_service import (
-    count_scheduled_tasks,
-    delete_scheduled_task,
-    list_scheduled_tasks,
-)
 from deskbot_server.web.helpers import (
     fetch_attached_usb_snapshot,
     fetch_live_device_snapshot,
@@ -251,38 +246,6 @@ def api_select_device():
     return jsonify({"ok": True, "current_device_id": device_id})
 
 
-@bp.get("/api/scheduled-tasks")
-def api_list_scheduled_tasks():
-    page = max(1, int(request.args.get("page") or 1))
-    per_page = int(request.args.get("per_page") or 10)
-    if per_page not in (10, 50, 100, 200):
-        per_page = 10
-    status_filter = str(request.args.get("status") or "").strip().lower() or None
-    try:
-        total = count_scheduled_tasks(status=status_filter)
-    except ValueError as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
-    total_pages = max(1, (total + per_page - 1) // per_page) if total else 1
-    if page > total_pages:
-        page = total_pages
-    offset = (page - 1) * per_page
-    tasks = list_scheduled_tasks(
-        status=status_filter,
-        limit=per_page,
-        offset=offset,
-    )
-    return jsonify(
-        {
-            "ok": True,
-            "scope": "local",
-            "status": status_filter or "",
-            "tasks": tasks,
-            "page": page,
-            "per_page": per_page,
-            "total": total,
-            "total_pages": total_pages,
-        }
-    )
 
 
 @bp.get("/api/face-profiles")
@@ -539,11 +502,6 @@ def api_tts_preview():
     )
 
 
-@bp.delete("/api/scheduled-tasks/<task_id>")
-def api_delete_scheduled_task(task_id: str):
-    if not delete_scheduled_task(task_id):
-        return jsonify({"ok": False, "error": "任务不存在"}), 404
-    return jsonify({"ok": True})
 
 
 # ----- 米家 IoT -----

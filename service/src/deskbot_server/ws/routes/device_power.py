@@ -1,7 +1,10 @@
-"""参数设置页的设备端开关（固件 ≥0.0.53，静音 ≥0.0.54），设置都保存在设备 NVS。
+"""参数设置页的设备端开关（固件 ≥0.0.53，静音 ≥0.0.54）。
+
+上行模式与温度阈值保存在设备 NVS；静音以 PC 端偏好为准（默认 false），连上时推给设备，
+读取时若设备残留的值与 PC 不一致就立刻纠正（2026-09-14）。
 
 GET/POST /api/mic_uplink_mode  {device_id, mode: "vad"|"continuous"}（固件默认 continuous）
-GET/POST /api/mic_mute         {device_id, muted: bool}（默认 false；true = 设备不再采集/上传音频）
+GET/POST /api/mic_mute         {device_id, muted: bool}（PC 端偏好，默认 false；true = 设备不再采集/上传音频）
 GET/POST /api/thermal_cutoff   {device_id, c: 0..120}（0 = 关闭断电保护）
 """
 
@@ -9,6 +12,8 @@ from __future__ import annotations
 
 import json
 
+from deskbot_server.application.device_power_sync import pc_mic_muted
+from deskbot_server.device_preferences import update_preferences
 from deskbot_server.ws.routes import ROUTES_API_KEY, RouteContext, RouteRequest
 
 
@@ -65,10 +70,20 @@ async def handle_mic_mute(ctx: RouteContext, req: RouteRequest):
         if not isinstance(raw, bool):
             return ctx.json_resp(400, {"ok": False, "error": "muted must be a boolean"})
         muted = raw
-    ack = await session.mic_mute_request(muted)
+        update_preferences({"power": {"mic_muted": muted}})  # PC 端是正本
+        ack = await session.mic_mute_request(muted)
+    else:
+        muted = pc_mic_muted()
+        ack = await session.mic_mute_request(None)
+        if ack is not None and bool(ack.get("muted")) != muted:
+            # 设备 NVS 里残留的是别的值（比如上次在别的电脑上开过）：以 PC 为准，顺手纠正
+            ack = await session.mic_mute_request(muted)
     if ack is None:
         return ctx.json_resp(200, {"ok": False, "supported": False, "error": "firmware_too_old"})
-    return ctx.json_resp(200, {"ok": True, "supported": True, **{k: v for k, v in ack.items() if k != "type"}})
+    fields = {k: v for k, v in ack.items() if k != "type"}
+    fields["device_muted"] = bool(ack.get("muted"))
+    fields["muted"] = muted
+    return ctx.json_resp(200, {"ok": True, "supported": True, "source": "pc", **fields})
 
 
 async def handle_thermal_cutoff(ctx: RouteContext, req: RouteRequest):

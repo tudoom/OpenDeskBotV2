@@ -1974,6 +1974,8 @@ void AsrChatClient::pbFreePendingAnim() {
     pb_pending_anim_buf_ = nullptr;
   }
   pb_pending_anim_len_ = 0;
+  pb_pending_face_keep_ = false;
+  pb_pending_face_tag_[0] = '\0';
 }
 
 void AsrChatClient::pbReset(bool stop_audio,
@@ -2097,6 +2099,12 @@ bool AsrChatClient::pbSubmitAnimIfAny(uint32_t chunk_idx,
       pbFreePendingAssets();
     }
     return true;
+  }
+  if (pb_pending_face_keep_ && pb_asset_count_ > 0) {
+    /* 留一份作待机卡通脸（复制，不影响下面的所有权移交）；PC 再发 face_persist 才写 flash。 */
+    (void)display_standby_face_store(pb_pending_anim_buf_, pb_pending_anim_len_, pb_asset_bufs_,
+                                     pb_asset_lens_, pb_asset_count_, pb_pending_face_tag_);
+    pb_pending_face_keep_ = false;
   }
   const bool queued = display_pb_submit_vector_json_owned(
       pb_current_epoch_, pb_req_.c_str(), chunk_idx, start_at_ms,
@@ -3196,6 +3204,13 @@ bool AsrChatClient::pbParseAndStage(const JsonDocument& doc) {
   }
 
   pbFreePendingAnim();
+  /* 0.0.57：face_keep=true 的位图时间线是 PC 设定的待机脸，附件收齐后留一份（见 pbSubmitAnimIfAny）。 */
+  pb_pending_face_keep_ = doc["face_keep"].is<bool>() && doc["face_keep"].as<bool>();
+  if (pb_pending_face_keep_) {
+    const char* face_tag = doc["face_tag"] | "";
+    strncpy(pb_pending_face_tag_, face_tag, sizeof(pb_pending_face_tag_) - 1);
+    pb_pending_face_tag_[sizeof(pb_pending_face_tag_) - 1] = '\0';
+  }
   if (doc["anim"].is<JsonArrayConst>()) {
     JsonArrayConst anim_arr = doc["anim"].as<JsonArrayConst>();
     if (anim_arr.size() > 0) {

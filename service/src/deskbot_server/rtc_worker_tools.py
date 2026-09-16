@@ -10,13 +10,31 @@ import re
 from functools import wraps
 from typing import Any
 
+from deskbot_server.ark_image_gen import CARTOON_STYLES
+
 _BRIDGE_URL_ENV = "DESKBOT_RTC_TOOL_BRIDGE_URL"
 _BRIDGE_TOKEN_ENV = "DESKBOT_RTC_TOOL_BRIDGE_TOKEN"
 _DEVICE_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 _DEVICE_IDENTITY_PREFIX = "deskbot-usb-"
 _HTTP_TIMEOUT_SECONDS = 15.0
 # 网络类工具要等外部站点/联网搜索（方舟 web_search 实测 6-18s），单独放宽。
-_TOOL_HTTP_TIMEOUT_SECONDS = {"websearch": 45.0, "webfetch": 30.0}
+_TOOL_HTTP_TIMEOUT_SECONDS = {
+    "websearch": 45.0,
+    "webfetch": 30.0,
+    # AI 生成：一趟大模型 5～20 s，编完还要表演/做动作；画 SVG 表情走方舟 Responses 30～60 s；
+    # 卡通套图在 Core 后台线程里跑（3～4 分钟），工具本身立刻返回 job_id。
+    "generate_scene": 150.0,
+    "generate_quest_scene": 90.0,
+    "generate_motion": 90.0,
+    "generate_expression": 150.0,
+    "generate_cartoon_faces": 30.0,
+}
+_CARTOON_STYLE_FALLBACK = ("kawaii", "lineart", "doodle", "flat")
+
+
+def _cartoon_style_values() -> list[str]:
+    values = [str(k) for k in CARTOON_STYLES if str(k)]
+    return values or list(_CARTOON_STYLE_FALLBACK)
 _RTC_VISION_IMAGE_B64_KEY = "_rtc_vision_image_b64"
 _RTC_MOVE_MIN_MS = 200
 _RTC_MOVE_MAX_MS = 8000
@@ -129,20 +147,22 @@ _BASE_RTC_TOOL_SCHEMAS: tuple[dict[str, Any], ...] = (
     ),
     _object_schema(
         "schedule_task",
-        "Create, list, read, update, or request deletion of a reminder. "
-        "Use Beijing time; destructive actions require confirmation.",
+        "Timed reminders (定时提醒), stored under the companion plan and spoken by you when due. "
+        "ALWAYS call this when the user asks to be reminded or to do something at a time; never just "
+        "promise verbally. create needs `task` plus either `time` (HH:MM, Beijing time; daily by default, "
+        "add `days` for weekly, `date` or repeat=once for one-off) or `delay_minutes` (one-off, e.g. "
+        "'in two minutes'). Optional `scene` plays a saved show first. list returns reminders; update "
+        "and delete take an `id` (delete requires user confirmation).",
         {
-            "action": {
-                "type": "string",
-                "enum": ["create", "list", "get", "update", "delete"],
-            },
-            "id": {"type": "string", "maxLength": 128},
-            "task": {"type": "string", "maxLength": 500},
+            "action": {"type": "string", "enum": ["create", "list", "update", "delete"]},
+            "id": {"type": "string", "maxLength": 64},
+            "task": {"type": "string", "maxLength": 200, "description": "What to remind, in the user's words."},
+            "time": {"type": "string", "maxLength": 5, "description": "HH:MM in Beijing time."},
+            "date": {"type": "string", "maxLength": 10, "description": "YYYY-MM-DD for a one-off reminder."},
+            "delay_minutes": {"type": "number", "minimum": 1, "maximum": 10080},
+            "repeat": {"type": "string", "enum": ["daily", "once", "weekly"]},
+            "days": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 6}, "maxItems": 7, "description": "Weekdays for repeat=weekly, Monday=0."},
             "scene": {"type": "string", "maxLength": 80},
-            "task_kind": {"type": "string", "enum": ["once", "recurring"]},
-            "cron": {"type": "string", "maxLength": 80},
-            "delay_minutes": {"type": "number", "minimum": 0},
-            "enabled": {"type": "boolean"},
         },
         required=("action",),
     ),
@@ -317,6 +337,72 @@ _BASE_RTC_TOOL_SCHEMAS: tuple[dict[str, Any], ...] = (
             "after": {"type": "string", "maxLength": 64},
         },
         required=("title", "goal"),
+    ),
+    # ---- AI 生成（2026-09-14）：主人要"编一段表演 / 设计个动作 / 做套新表情 / 画个表情 / 安排陪伴计划"时直接做 ----
+    _object_schema(
+        "generate_scene",
+        "Compose a brand-new show (speech + expressions + head motions) from the user's "
+        "description, save it to the show list and, by default, perform it right away. Use "
+        "it when the user asks you to invent, design or arrange a performance that is not in "
+        "the catalog; use perform_scene for shows that already exist.",
+        {
+            "description": {"type": "string", "minLength": 1, "maxLength": 400},
+            "perform": {"type": "boolean", "description": "Perform immediately after saving (default true)."},
+        },
+        required=("description",),
+    ),
+    _object_schema(
+        "generate_quest_scene",
+        "Turn one sentence into a whole companion plan: a story line of goals plus recurring "
+        "daily-care items, saved and activated immediately (the same as the console's AI scene "
+        "button). Use it when the user asks you to plan how to look after or remind them over "
+        "time; use propose_goal for a single small goal.",
+        {
+            "description": {"type": "string", "minLength": 1, "maxLength": 400},
+            "title": {"type": "string", "maxLength": 40},
+        },
+        required=("description",),
+    ),
+    _object_schema(
+        "generate_motion",
+        "Design a brand-new head motion from the user's description, save it as a reusable "
+        "preset (visible to move_head afterwards) and, by default, perform it once. Use it "
+        "when nothing in the motion catalog matches and the user wants a new named move.",
+        {
+            "description": {"type": "string", "minLength": 1, "maxLength": 300},
+            "label": {"type": "string", "maxLength": 40, "description": "Short Chinese name for the preset."},
+            "execute": {"type": "boolean", "description": "Perform once after saving (default true)."},
+        },
+        required=("description",),
+    ),
+    _object_schema(
+        "generate_cartoon_faces",
+        "Generate a complete new cartoon face set (idle / listening / thinking / speaking) with "
+        "the image model in the background. It takes about 3-4 minutes: tell the user it is in "
+        "progress and that you will say so when done; never wait or call it twice. By default the "
+        "set is applied to the robot face when finished.",
+        {
+            "description": {"type": "string", "maxLength": 200, "description": "Character traits, e.g. 戴眼镜的小猫."},
+            "style": {"type": "string", "enum": _cartoon_style_values()},
+            "apply": {"type": "boolean", "description": "Switch the robot to the new set when done (default true)."},
+        },
+    ),
+    _object_schema(
+        "generate_expression",
+        "Draw one new vector expression from a description (source=text) or from what the "
+        "camera sees right now (source=camera), save it to the expression library, and "
+        "optionally make it the idle face. Takes 30-60 seconds.",
+        {
+            "description": {"type": "string", "maxLength": 300},
+            "source": {"type": "string", "enum": ["text", "camera"]},
+            "set_default": {"type": "boolean", "description": "Make it the idle face (default false)."},
+        },
+    ),
+    _object_schema(
+        "generation_status",
+        "Check the progress or result of a background generation (cartoon face set). "
+        "Without job_id it returns the most recent one.",
+        {"job_id": {"type": "string", "maxLength": 32}},
     ),
 )
 

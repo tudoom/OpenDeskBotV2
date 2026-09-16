@@ -303,6 +303,9 @@ private:
   bool pb_sequence_mouth_only_ = false;
   char* pb_pending_anim_buf_ = nullptr;
   size_t pb_pending_anim_len_ = 0;
+  /* 0.0.57：PB 带 face_keep=true 时，这条位图时间线留作待机卡通脸（见 display_standby_face_store）。 */
+  bool pb_pending_face_keep_ = false;
+  char pb_pending_face_tag_[24] = {0};
   void pbFreePendingAnim();
   struct PbServoSeg {
     int xm = 2;

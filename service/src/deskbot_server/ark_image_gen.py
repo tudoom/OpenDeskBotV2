@@ -192,7 +192,10 @@ def _resolve_image_api_key(api_key: str | None = None) -> str:
     try:
         return _resolve_api_key(None)
     except ValueError as exc:
-        raise ValueError("生图 API Key 未配置：在表情页「生图 API 配置」填写火山方舟 Key，或在「模型配置」页填写 LLM_API_KEY。") from exc
+        raise ValueError(
+            "生图 API Key 未配置：在表情页「生图 API 配置」填写火山方舟 Key；大模型本身是火山方舟、"
+            "或在「模型配置」页保存过豆包的 Key 时会自动复用。"
+        ) from exc
 
 
 def _resolve_images_url(images_url: str | None = None) -> str:

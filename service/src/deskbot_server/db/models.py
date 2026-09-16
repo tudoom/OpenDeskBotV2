@@ -80,34 +80,6 @@ class Device(Base):
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
-class ScheduledTask(Base):
-    """PC-local task; dispatch selects the currently connected hardware."""
-
-    __tablename__ = "scheduled_tasks"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-    # 到点先演的组合表演 name（可空）
-    scene: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    cron_expr: Mapped[str] = mapped_column(String(128), nullable=False, default="* * * * *")
-    task_kind: Mapped[str] = mapped_column(String(16), nullable=False, default="once")
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
-    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active", index=True)
-    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # 全表时间字段统一按 UTC 墙钟落库（core.clock 约定）；序列化边界经
-    # scheduled_task_service.format_cst 转成北京时间展示。
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
-    lease_token: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
-    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    offline_wait_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    first_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    occurrence_id: Mapped[str] = mapped_column(
-        String(36), default=_new_id, nullable=False, index=True
-    )
 
 
 class PlaybackReceipt(Base):

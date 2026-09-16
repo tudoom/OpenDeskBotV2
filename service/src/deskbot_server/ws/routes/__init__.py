@@ -56,6 +56,8 @@ def _load_route_modules() -> None:
         camera,
         device_power,
         devices,
+        expression_default,
+        face_store,
         firmware,
         live_behavior,
         quest,

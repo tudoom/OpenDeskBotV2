@@ -522,7 +522,7 @@ def test_rtc_low_latency_defaults_are_consistent_across_worker_patches():
     for source in (plugins, sdk):
         assert 'kwargs.setdefault("preemptive_generation", True)' in source
         assert 'kwargs.setdefault("min_endpointing_delay", 0.35)' in source
-        assert 'kwargs.setdefault("max_endpointing_delay", 1.0)' in source
+        assert 'kwargs.setdefault("max_endpointing_delay", 1.5)' in source
         assert 'kwargs.setdefault("turn_detection", DeskbotTurnDetector())' in source
 
 

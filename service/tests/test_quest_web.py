@@ -100,7 +100,7 @@ def test_overview_defaults_to_bundled_playbook_with_start_running(client):
     assert [t["key"] for t in ov["perform_options"]["templates"]] == ["ask", "expression", "scene"]
     names = {sc["name"] for sc in ov["perform_options"]["scenes"]}
     assert {"new_year", "birthday", "good_morning", "disco", "want_attention"} <= names and "demo_greet" not in names
-    assert ov["settings"] == {"idle_sec": 60, "daily_limit": 16, "care_daily_limit": 10, "reminder_soon_sec": 90, "care_pause_sec": 86400, "wander_per_min": 2, "wander_idle_sec": 60, "idle_live": True, "idle_motion": "normal"}
+    assert ov["settings"] == {"idle_sec": 60, "daily_limit": 16, "care_daily_limit": 10, "care_pause_sec": 86400, "wander_per_min": 2, "wander_idle_sec": 60, "idle_live": True, "idle_motion": "normal"}
     assert ov["proactive"]["service_running"] is False  # Core 不可达
     # Core 不可达时「现在试一句」给出友好错误
     r = client.post("/api/quest/speak_now")
@@ -157,9 +157,12 @@ def test_settings_switch_and_limits(client):
     assert r.status_code == 200
     ov = r.get_json()
     assert ov["enabled"] is False
-    assert ov["settings"] == {"idle_sec": 300, "daily_limit": 0, "care_daily_limit": 10, "reminder_soon_sec": 90, "care_pause_sec": 86400, "wander_per_min": 2, "wander_idle_sec": 60, "idle_live": True, "idle_motion": "normal"}
-    ov = client.put("/api/quest/settings", json={"wander_per_min": 4, "reminder_soon_sec": 0, "care_pause_sec": 7200}).get_json()
-    assert (ov["settings"]["wander_per_min"], ov["settings"]["reminder_soon_sec"], ov["settings"]["care_pause_sec"]) == (4, 0, 7200)
+    assert ov["settings"] == {"idle_sec": 300, "daily_limit": 0, "care_daily_limit": 10, "care_pause_sec": 86400, "wander_per_min": 2, "wander_idle_sec": 60, "idle_live": True, "idle_motion": "normal"}
+    ov = client.put("/api/quest/settings", json={"wander_per_min": 4, "care_pause_sec": 7200}).get_json()
+    assert (ov["settings"]["wander_per_min"], ov["settings"]["care_pause_sec"]) == (4, 7200)
+    # 勿扰时段从行为偏好页搬到这里（2026-09-14）
+    ov = client.put("/api/quest/settings", json={"quiet_hours": {"enabled": True, "start": "23:00", "end": "07:30"}}).get_json()
+    assert (ov["quiet_hours"]["enabled"], ov["quiet_hours"]["start"], ov["quiet_hours"]["end"]) == (True, "23:00", "07:30")
     assert client.put("/api/quest/settings", json={"care_pause_sec": 1}).status_code == 400
     assert client.put("/api/quest/settings", json={"wander_per_min": 11}).status_code == 400
     ov = client.put("/api/quest/settings", json={"idle_live": False}).get_json()
@@ -422,7 +425,7 @@ def test_proposals_become_care_goals_and_story_insert_keeps_chain(client, monkey
     assert new_id in [t["task_id"] for t in svc.get_current_tasks()]
     # 页面：每个主线场景一个「开启」开关，日常关心卡不带开关；同意提议只填频率/条件/定时
     html = client.get("/quest").get_data(as_text=True)
-    assert "日常关心" in html and "多久提一次" in html and "同意，作为日常关心" in html
+    assert "定时提醒" in html and "多久提一次" in html and "同意，作为定时提醒" in html
     assert "onPlaybookChange" in html and "随主动陪伴生效" in html and "选择场景" in html and "toggleScene" not in html
     # 「没有开启」的提示只给关着的主线场景看（曾经 v-else-if 挂错位置，开着的也显示）
     assert 'v-if="!pb.is_care_scene && !pb.enabled && pb.tasks.some(' in html

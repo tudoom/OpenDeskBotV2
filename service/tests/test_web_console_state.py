@@ -257,7 +257,6 @@ eval(fs.readFileSync({json.dumps(str(console_path))}, "utf8"));
         ("/home?device_id=deskbot_console", "Agent 全面日志"),
         ("/devices", "CONNECTION"),
         ("/memories", "它记得的事"),
-        ("/people", "人脸档案"),
         ("/advanced?tab=llm", "method:'PATCH'"),
     ],
 )
@@ -286,10 +285,7 @@ def test_console_and_device_pages_fence_out_of_order_responses():
     assert "requested !== requestedDeviceId()" in console
 
     for name in (
-        "reminders.html",
         "memories.html",
-        "people.html",
-        "preferences.html",
         "sessions.html",
         "voice.html",
     ):

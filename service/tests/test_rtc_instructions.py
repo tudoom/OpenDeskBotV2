@@ -11,10 +11,10 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.db_helpers import temp_db  # noqa: F401
 from tests.quest_helpers import bind, demo_playbook, quest_env  # noqa: F401
 from tests.test_http_api_controls import _Connection, _RemoteConnection, http_api_env  # noqa: F401
 from tests.test_rtc_tool_bridge import _Broker, _Chat, _Hub, _Registry  # noqa: F401
-from tests.test_scheduled_task import temp_db  # noqa: F401
 
 
 @pytest.fixture(autouse=True)
@@ -152,59 +152,6 @@ def test_build_rtc_instruction_is_plain_speech():
 
 
 # ── 定时提醒：语音 Agent 在线时交给它说 ────────────────────────
-
-
-def test_scheduler_hands_reminder_to_voice_agent(temp_db, monkeypatch):
-    from deskbot_server.application import rtc_instructions as ri
-    from deskbot_server.application import scheduled_task_scheduler as sm
-    from deskbot_server.scheduled_task_service import (
-        claim_due_tasks,
-        create_scheduled_task,
-        get_scheduled_task,
-    )
-
-    monkeypatch.setattr(sm, "quiet_hours_resume_at", lambda: None)
-
-    async def _boom(*a, **kw):
-        raise AssertionError("不应走 Core 的 run_chat_turn")
-
-    monkeypatch.setattr(sm, "run_chat_turn", _boom)
-    monkeypatch.setattr(sm, "WsDownlinkAdapter", lambda ws, **kw: SimpleNamespace())
-    monkeypatch.setattr(sm, "WsPipelineEventsAdapter", lambda broker, registry: SimpleNamespace())
-    scenes: list[str] = []
-
-    async def _fake_scene(downlink, chat, device_id, name, *, request_id=None):
-        scenes.append(name)
-        return {"ok": True}
-
-    monkeypatch.setattr(sm, "run_scene_on_lane", _fake_scene)
-    ri.configure(attached_provider=lambda dev: dev == "deskbot-voice")
-
-    class _Hub:
-        device_id = "deskbot-voice"
-
-        async def first_connected_device_id(self):
-            return self.device_id
-
-        async def first_ws(self, device_id):
-            return object() if device_id == self.device_id else None
-
-    entry = create_scheduled_task("提醒喝水", delay_seconds=1, scene="wave")
-    import time
-
-    time.sleep(1.1)
-    scheduler = sm.ScheduledTaskScheduler(
-        chat=SimpleNamespace(settings=object()), asr_chat_hub=_Hub(), registry=object(), dp_broker=object(), lease_seconds=30
-    )
-    item = claim_due_tasks(lease_seconds=30)[0]
-    asyncio.run(scheduler._run_one(item))
-    assert scenes == ["wave"]
-    items = ri.drain("deskbot-voice")
-    assert len(items) == 1 and "提醒喝水" in items[0]["text"] and items[0]["source"] == "scheduled_task"
-    assert get_scheduled_task(entry["id"])["status"] == "completed"
-
-
-# ── worker 侧：把指令交给 AgentSession ──────────────────────────
 
 
 def test_worker_applies_one_instruction_per_poll(monkeypatch):

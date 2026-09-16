@@ -136,9 +136,12 @@ def ark_search_status() -> dict[str, Any]:
         source, model = "llm", llm[2]
     else:
         source, model = "none", _own_search_model()
+    from deskbot_server.llm.provider_keys import mask_secret
+
     return {
         "api_key_set": source != "none",
         "api_key_source": source,
+        "api_key_masked": mask_secret(own if own else (llm[1] if llm is not None else "")),
         "llm_is_ark": llm is not None,
         "model": model,
         "default_model": DEFAULT_ARK_WEB_SEARCH_MODEL,

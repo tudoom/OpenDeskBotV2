@@ -61,6 +61,22 @@ void task_setup_display();
  *  worker 空闲 tick（单一所有者），不进入表情基线、不产生 pb_ack/CRC。 */
 void display_standby_set(bool active);
 
+/** 待机卡通脸（0.0.57）：PC 在 PB 里用 face_keep=true 标记的位图时间线在这里留一份（PSRAM），
+ *  会话断开后由 display worker 循环播放它、断开 10 s 后叠加小字提示，不再回到内建矢量脸；
+ *  face_store 负责写 FFat 与开机恢复。store 会复制传入缓冲，不接管所有权。 */
+bool display_standby_face_store(const char* json, size_t json_len,
+                                uint8_t* const* asset_bufs, const size_t* asset_lens,
+                                uint8_t asset_count, const char* tag);
+bool display_standby_face_available();
+/** PC 给的版本标签（≤23 字符）；没有待机脸时返回空串。 */
+const char* display_standby_face_tag();
+void display_standby_face_clear();
+typedef void (*DisplayStandbyFaceVisitor)(const char* json, size_t json_len,
+                                           uint8_t* const* asset_bufs, const size_t* asset_lens,
+                                           uint8_t asset_count, const char* tag, void* ctx);
+/** 持锁遍历当前待机脸（供 face_store 落盘）；没有待机脸返回 false。回调在调用方任务里执行。 */
+bool display_standby_face_visit(DisplayStandbyFaceVisitor visitor, void* ctx);
+
 /** PB 严格提交：成功后由渲染 worker 回报 terminal；队列满/参数非法时返回
  * false，且仍会释放传入 json 与 assets 的所有权，不会 drop-oldest。 */
 bool display_pb_submit_vector_json_owned(uint32_t epoch, const char* req, uint32_t idx,

@@ -67,9 +67,9 @@ FACE_MODEL_URL="https://storage.googleapis.com/mediapipe-models/face_landmarker/
 FACE_MODEL_TARGET="$DOWNLOADS/face_landmarker.task"
 
 # 带 key 版（内部分发）必须内置的默认项。种子 .env 里缺哪条就补哪条，
-# 已有的值不覆盖。这些是标识符而非凭证，凭证仍只放在 client/seed.env。
+# 已有的值不覆盖。只放公共标识符；任何账号相关的 ID（如复刻音色）一律
+# 只写在 client/seed.env 里，不进仓库。
 BUNDLED_ENV_DEFAULTS=(
-  "DOUBAO_TTS_VOICE_CLONE_SPEAKER_ID=S_FOqDnfbd2"
 )
 
 # ---- 参数 -----------------------------------------------------------------
@@ -197,6 +197,28 @@ log "安装 miloco-miot SDK（$(basename "$MILOCO_WHEEL")）..."
 
 log "预编译字节码（加速冷启动；运行期 PYTHONDONTWRITEBYTECODE=1 不落盘）..."
 "$PY" -m compileall -q -j 0 "$RUNTIME/python/lib/python3.11/site-packages" || true
+# 分发包里不留构建机的绝对路径（公开发布隐私扫描项）：pip 生成的控制台脚本
+# shebang 指向 stage 目录，本地 wheel 安装留下的 direct_url.json 记着 file:// 路径。
+# shebang 改成 pip 自己在解释器路径含空格时用的可搬迁写法：按脚本所在目录找解释器。
+log "抹掉运行时里的构建机绝对路径 ..."
+for f in "$RUNTIME"/python/bin/*; do
+  [[ -f "$f" && ! -L "$f" ]] || continue
+  if head -n 1 "$f" 2>/dev/null | grep -q "^#!.*$STAGE"; then
+    tmp="$f.tmp"
+    {
+      printf '#!/bin/sh\n'
+      printf '%s\n' "'''exec' \"\$(dirname -- \"\$0\")/python3.11\" \"\$0\" \"\$@\""
+      printf '%s\n' "' '''"
+      tail -n +2 "$f"
+    } > "$tmp"
+    chmod +x "$tmp"
+    mv -f "$tmp" "$f"
+  fi
+done
+find "$RUNTIME/python/lib/python3.11/site-packages" -path '*.dist-info/direct_url.json' -delete
+if grep -rIl -F "$STAGE" "$RUNTIME" >/dev/null 2>&1; then
+  die "运行时里仍有构建机路径: $(grep -rIl -F "$STAGE" "$RUNTIME" | head -3 | tr '\n' ' ')"
+fi
 
 # ---- 3. 业务源码 / 模型 / 二进制 / 原生库 ----------------------------------
 APPDIR="$RUNTIME/app"
@@ -275,6 +297,16 @@ if [[ -n "$SEED_ENV" ]]; then
     fi
   done
   log "已打入种子 .env（仅首启且用户无 .env 时落地）"
+  # 内部分发版还可附带 client/seed.d/ 里的任意文件（同样在 .gitignore 里，例如企业 CA 证书包），
+  # 与 .env 一起进 seed/，首启落到用户目录；公开版没有这个目录，安静跳过。
+  SEED_EXTRA_DIR="$SERVICE_ROOT/client/seed.d"
+  if [[ -d "$SEED_EXTRA_DIR" ]]; then
+    for f in "$SEED_EXTRA_DIR"/*; do
+      [[ -f "$f" ]] || continue
+      cp "$f" "$SEED/$(basename "$f")"
+      log "种子附加文件: $(basename "$f")"
+    done
+  fi
 fi
 
 # ---- 5. 烟测门槛（对应 Invoke-StageSmokeGates）-----------------------------

@@ -68,33 +68,6 @@ def test_legacy_user_memory_debug_api_is_not_registered(management_client):
     ).status_code == 404
 
 
-def test_reminder_lifecycle_is_local_and_needs_no_device(management_client):
-    created = management_client.post(
-        "/app/api/scheduled-tasks",
-        json={
-            "description": "local reminder",
-            "task_kind": "once",
-            "run_at": "2099-07-27T15:49:30+08:00",
-        },
-    )
-    assert created.status_code == 201
-    task = created.get_json()["task"]
-    assert task["next_run_at"] == "2099-07-27 15:49:30"
-    assert task["session_id"] is None
-    assert "owner_user_id" not in task
-
-    paused = management_client.post(
-        f"/app/api/scheduled-tasks/{task['id']}/pause", json={}
-    )
-    assert paused.status_code == 200
-    assert paused.get_json()["task"]["status"] == "paused"
-    resumed = management_client.post(
-        f"/app/api/scheduled-tasks/{task['id']}/resume", json={}
-    )
-    assert resumed.status_code == 200
-    assert resumed.get_json()["task"]["status"] == "active"
-
-
 def test_session_center_has_one_pc_local_namespace(management_client):
     created = management_client.post(
         "/app/api/sessions", json={"title": "local conversation"}

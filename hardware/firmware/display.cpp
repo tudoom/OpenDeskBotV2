@@ -46,6 +46,11 @@ static uint32_t s_active_render_epoch = 0;  // display task only
  * 只发生在 display worker 的空闲 tick 里，保持渲染单一所有者原则。 */
 static std::atomic<bool> s_standby_active{false};
 static std::atomic<bool> s_standby_dirty{false};
+/* 0.0.57 待机卡通脸：断开时刻（提示延后 10 s 才叠加）与「离线循环回放作业在途」标记。 */
+static std::atomic<uint32_t> s_standby_since_ms{0};
+static std::atomic<bool> s_standby_replay_inflight{false};
+static SemaphoreHandle_t s_standby_face_mutex = nullptr; /* 待机脸副本互斥（setup_display 创建） */
+static void pb_standby_overlay_if_due();
 
 static bool display_render_cancelled() {
   return s_active_render_epoch != s_render_cancel_epoch.load(std::memory_order_acquire);
@@ -74,6 +79,7 @@ static inline void pb_canvas_push() {
   if (!s_canvas || !s_canvas->getBuffer()) {
     return;
   }
+  pb_standby_overlay_if_due();
   uint16_t* current = s_canvas->getBuffer();
   constexpr int16_t width = DESKBOT_PB_COORD_W;
   constexpr int16_t height = DESKBOT_PB_COORD_H;
@@ -206,6 +212,9 @@ static int16_t s_display_text_sy = 8;
 static constexpr int16_t kDisplayTextServerLineDy = 14;
 
 void setup_display() {
+  if (!s_standby_face_mutex) {
+    s_standby_face_mutex = xSemaphoreCreateMutex();
+  }
   g_display.setupPanel();
   if (g_display.width() <= 0 || g_display.height() <= 0) {
     log_error("[DISPLAY] setup_display panel size invalid w=%d h=%d", (int)g_display.width(),
@@ -452,6 +461,146 @@ struct DisplayPbAssetBlob {
 };
 static DisplayPbAssetBlob s_render_assets[kDisplayMaxPbAssets]{};
 static uint8_t         s_render_asset_count = 0;
+
+/* ---- 待机卡通脸（0.0.57） ----
+ * PC 用 face_keep 标记的位图时间线：anim JSON + JPEG 附件各留一份在 PSRAM。
+ * 只有持 s_standby_face_mutex 才能读写；display worker 回放时先在锁内复制一份
+ * 再走普通 PB 作业路径（作业自己释放副本），所以正本永远不会被作业释放。 */
+struct StandbyFace {
+  char* json = nullptr;
+  size_t json_len = 0;
+  DisplayPbAssetBlob assets[kDisplayMaxPbAssets]{};
+  uint8_t asset_count = 0;
+  char tag[24] = {0};
+};
+static StandbyFace s_standby_face;
+
+static void* standby_face_alloc(size_t n) {
+  void* p = heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  return p ? p : heap_caps_malloc(n, MALLOC_CAP_8BIT);
+}
+
+static void standby_face_free_locked() {
+  if (s_standby_face.json) {
+    heap_caps_free(s_standby_face.json);
+    s_standby_face.json = nullptr;
+  }
+  s_standby_face.json_len = 0;
+  for (uint8_t i = 0; i < kDisplayMaxPbAssets; i++) {
+    if (s_standby_face.assets[i].data) {
+      heap_caps_free(s_standby_face.assets[i].data);
+      s_standby_face.assets[i].data = nullptr;
+    }
+    s_standby_face.assets[i].len = 0;
+  }
+  s_standby_face.asset_count = 0;
+  s_standby_face.tag[0] = '\0';
+}
+
+static bool standby_face_lock() {
+  return s_standby_face_mutex && xSemaphoreTake(s_standby_face_mutex, pdMS_TO_TICKS(200)) == pdTRUE;
+}
+
+static void standby_face_unlock() {
+  if (s_standby_face_mutex) {
+    xSemaphoreGive(s_standby_face_mutex);
+  }
+}
+
+}  // namespace
+
+/* ---- 待机卡通脸公开接口（display.h）：必须在匿名 namespace 之外才能被 face_store / asr_chat / usb_transport 链接 ---- */
+bool display_standby_face_store(const char* json, size_t json_len,
+                                uint8_t* const* asset_bufs, const size_t* asset_lens,
+                                uint8_t asset_count, const char* tag) {
+  if (!json || json_len == 0 || asset_count == 0 || asset_count > kDisplayMaxPbAssets) {
+    return false;
+  }
+  if (!standby_face_lock()) {
+    log_warn("[DISPLAY] standby face store: lock busy");
+    return false;
+  }
+  standby_face_free_locked();
+  bool ok = true;
+  s_standby_face.json = static_cast<char*>(standby_face_alloc(json_len + 1));
+  if (!s_standby_face.json) {
+    ok = false;
+  } else {
+    memcpy(s_standby_face.json, json, json_len);
+    s_standby_face.json[json_len] = '\0';
+    s_standby_face.json_len = json_len;
+  }
+  for (uint8_t i = 0; ok && i < asset_count; i++) {
+    if (!asset_bufs[i] || asset_lens[i] == 0) {
+      ok = false;
+      break;
+    }
+    uint8_t* copy = static_cast<uint8_t*>(standby_face_alloc(asset_lens[i]));
+    if (!copy) {
+      ok = false;
+      break;
+    }
+    memcpy(copy, asset_bufs[i], asset_lens[i]);
+    s_standby_face.assets[i].data = copy;
+    s_standby_face.assets[i].len = asset_lens[i];
+    s_standby_face.asset_count = static_cast<uint8_t>(i + 1);
+  }
+  if (ok) {
+    strncpy(s_standby_face.tag, tag ? tag : "", sizeof(s_standby_face.tag) - 1);
+    s_standby_face.tag[sizeof(s_standby_face.tag) - 1] = '\0';
+    log_info("[DISPLAY] standby face stored tag=%s json=%u assets=%u",
+             s_standby_face.tag, (unsigned)json_len, (unsigned)asset_count);
+  } else {
+    standby_face_free_locked();
+    log_warn("[DISPLAY] standby face store failed (alloc) assets=%u", (unsigned)asset_count);
+  }
+  standby_face_unlock();
+  return ok;
+}
+
+bool display_standby_face_available() {
+  if (!standby_face_lock()) {
+    return false;
+  }
+  const bool has = s_standby_face.json != nullptr && s_standby_face.asset_count > 0;
+  standby_face_unlock();
+  return has;
+}
+
+const char* display_standby_face_tag() {
+  /* 只读一个以 NUL 结尾的小数组：hello 构造在别的任务，允许不持锁读（最坏读到旧标签）。 */
+  return s_standby_face.json ? s_standby_face.tag : "";
+}
+
+void display_standby_face_clear() {
+  if (!standby_face_lock()) {
+    return;
+  }
+  standby_face_free_locked();
+  standby_face_unlock();
+  log_info("[DISPLAY] standby face cleared");
+}
+
+bool display_standby_face_visit(DisplayStandbyFaceVisitor visitor, void* ctx) {
+  if (!visitor || !standby_face_lock()) {
+    return false;
+  }
+  const bool has = s_standby_face.json != nullptr && s_standby_face.asset_count > 0;
+  if (has) {
+    uint8_t* bufs[kDisplayMaxPbAssets];
+    size_t lens[kDisplayMaxPbAssets];
+    for (uint8_t i = 0; i < s_standby_face.asset_count; i++) {
+      bufs[i] = s_standby_face.assets[i].data;
+      lens[i] = s_standby_face.assets[i].len;
+    }
+    visitor(s_standby_face.json, s_standby_face.json_len, bufs, lens,
+            s_standby_face.asset_count, s_standby_face.tag, ctx);
+  }
+  standby_face_unlock();
+  return has;
+}
+
+namespace {
 
 struct JpegBlitCtx {
   uint16_t*     canvas_buf;
@@ -1635,6 +1784,25 @@ static constexpr char kStandbyHintText[] = "请先连接PC服务";
 static constexpr int16_t kStandbyHintX =
     static_cast<int16_t>((DESKBOT_DRAW_W - 86) / 2);
 static constexpr int16_t kStandbyHintY = 208;
+/* 卡通待机脸上的提示：断开 10 s 后才叠加，避免刚断开就遮脸。 */
+static constexpr uint32_t kStandbyHintDelayMs = 10000u;
+
+}  // namespace
+
+/* 前置声明在匿名 namespace 之外（pb_canvas_push 用），定义也必须放在外面才是同一个函数。 */
+static void pb_standby_overlay_if_due() {
+  if (!s_standby_active.load(std::memory_order_acquire) || !s_draw_gfx) {
+    return;
+  }
+  const uint32_t since = s_standby_since_ms.load(std::memory_order_acquire);
+  if (since == 0 || static_cast<uint32_t>(millis() - since) < kStandbyHintDelayMs) {
+    return;
+  }
+  display_text_draw(s_draw_gfx, kStandbyHintX, kStandbyHintY, kStandbyHintText,
+                    1, DESKBOT_DISPLAY_COLOR_WHITE);
+}
+
+namespace {
 
 static void display_draw_standby_screen() {
   pb_build_builtin_face_layers();
@@ -1882,8 +2050,63 @@ struct DisplayRequest {
   uint32_t pb_idx = 0;
   uint32_t pb_start_at_ms = 0;
   bool mouth_only = false;
+  bool standby_replay = false; /* 待机卡通脸的离线循环回放：不追踪终态、不回 ack */
   char pb_req[DESKBOT_PB_REQ_BUFFER_SIZE]{};
 };
+
+extern QueueHandle_t s_queue;
+static void display_free_request_assets(DisplayRequest& req);
+
+/* 在锁内复制一份待机脸，作为普通 PB 作业送进渲染队列（作业自己释放副本）。 */
+static bool display_submit_standby_replay() {
+  if (!s_queue || !standby_face_lock()) {
+    return false;
+  }
+  DisplayRequest req{};
+  bool ok = s_standby_face.json != nullptr && s_standby_face.asset_count > 0;
+  if (ok) {
+    req.json_payload = static_cast<char*>(malloc(s_standby_face.json_len + 1));
+    ok = req.json_payload != nullptr;
+    if (ok) {
+      memcpy(req.json_payload, s_standby_face.json, s_standby_face.json_len + 1);
+      req.json_len = s_standby_face.json_len;
+    }
+  }
+  for (uint8_t i = 0; ok && i < s_standby_face.asset_count; i++) {
+    uint8_t* copy = static_cast<uint8_t*>(standby_face_alloc(s_standby_face.assets[i].len));
+    if (!copy) {
+      ok = false;
+      break;
+    }
+    memcpy(copy, s_standby_face.assets[i].data, s_standby_face.assets[i].len);
+    req.assets[i].data = copy;
+    req.assets[i].len = s_standby_face.assets[i].len;
+    req.asset_count = static_cast<uint8_t>(i + 1);
+  }
+  standby_face_unlock();
+  if (!ok) {
+    if (req.json_payload) {
+      ::free(req.json_payload);
+    }
+    display_free_request_assets(req);
+    return false;
+  }
+  req.scene = DISPLAY_SCENE_PB_VECTOR_JSON;
+  req.cancel_epoch = s_render_cancel_epoch.load(std::memory_order_acquire);
+  req.pb_tracked = false;
+  req.standby_replay = true;
+  req.pb_start_at_ms = millis();
+  if (req.pb_start_at_ms == 0) {
+    req.pb_start_at_ms = 1;
+  }
+  strncpy(req.pb_req, "standby", sizeof(req.pb_req) - 1);
+  if (xQueueSend(s_queue, &req, 0) != pdTRUE) {
+    ::free(req.json_payload);
+    display_free_request_assets(req);
+    return false;
+  }
+  return true;
+}
 
 static void display_free_request_assets(DisplayRequest& req) {
   for (uint8_t i = 0; i < req.asset_count; i++) {
@@ -1977,6 +2200,16 @@ void display_render_task(void* /*arg*/) {
   for (;;) {
     if (xQueueReceive(s_queue, &req, pdMS_TO_TICKS(50)) != pdTRUE) {
       if (s_standby_active.load(std::memory_order_acquire)) {
+        if (display_standby_face_available()) {
+          /* 0.0.57：有 PC 留下的卡通待机脸就循环回放它（一条时间线播完再送下一条），
+           * 提示文字在 pb_canvas_push 里按时叠加；矢量待机屏只在没有卡通脸时才画。 */
+          s_standby_dirty.store(false, std::memory_order_release);
+          if (!s_standby_replay_inflight.load(std::memory_order_acquire) &&
+              display_submit_standby_replay()) {
+            s_standby_replay_inflight.store(true, std::memory_order_release);
+          }
+          continue;
+        }
         /* 待机屏按 dirty 一次性绘制；hello 清除待机态后不再重绘，
          * 后续像素所有权立即回到 PC 下发的 PB 表情。 */
         if (s_standby_dirty.exchange(false, std::memory_order_acq_rel)) {
@@ -2000,6 +2233,9 @@ void display_render_task(void* /*arg*/) {
     }
     s_active_render_epoch = req.cancel_epoch;
     if (req.cancel_epoch != s_render_cancel_epoch.load(std::memory_order_acquire)) {
+      if (req.standby_replay) {
+        s_standby_replay_inflight.store(false, std::memory_order_release);
+      }
       display_emit_pb_terminal(req, DisplayPbTerminalState::kCancelled);
       if (req.scene == DISPLAY_SCENE_PB_VECTOR_JSON) {
         if (req.json_payload) ::free(req.json_payload);
@@ -2058,6 +2294,9 @@ void display_render_task(void* /*arg*/) {
                          : render_ok ? DisplayPbTerminalState::kCompleted
                                      : DisplayPbTerminalState::kFailed,
           display_crc_valid, display_crc32);
+      if (req.standby_replay) {
+        s_standby_replay_inflight.store(false, std::memory_order_release);
+      }
       if (!cancelled && render_ok && pb_prev_has_renderable()) {
         pb_commit_voice_base();
         s_voice_last_drawn_level = UINT8_MAX;
@@ -2142,6 +2381,14 @@ void display_standby_set(bool active) {
   const bool previous =
       s_standby_active.exchange(active, std::memory_order_acq_rel);
   s_standby_dirty.store(active, std::memory_order_release);
+  if (active && !previous) {
+    const uint32_t now = millis();
+    s_standby_since_ms.store(now == 0 ? 1u : now, std::memory_order_release);
+  }
+  if (!active && previous && s_standby_replay_inflight.load(std::memory_order_acquire)) {
+    /* PC 回来了：让离线回放在下一拍看到新纪元退出，PC 的第一条 PB 无需等它播完。 */
+    s_render_cancel_epoch.fetch_add(1, std::memory_order_acq_rel);
+  }
   if (previous != active) {
     log_info("[DISPLAY] standby screen %s",
              active ? "requested (no PC service)"
@@ -2253,6 +2500,9 @@ void display_render_replace(bool preserve_baseline) {
   }
   DisplayRequest dropped{};
   while (xQueueReceive(s_queue, &dropped, 0) == pdTRUE) {
+    if (dropped.standby_replay) {
+      s_standby_replay_inflight.store(false, std::memory_order_release);
+    }
     display_emit_pb_terminal(dropped, DisplayPbTerminalState::kCancelled);
     if (dropped.scene == DISPLAY_SCENE_PB_VECTOR_JSON) {
       if (dropped.json_payload) {

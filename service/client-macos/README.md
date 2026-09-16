@@ -51,6 +51,9 @@
 - `--include-face-stack`：打包人脸视觉栈与 MediaPipe 人脸模型（对应
   Windows 的 `-IncludeFaceStack`）。默认构建不含人脸栈，并有反向断言烟测
   防止依赖漂移后悄悄漏回。
+- `client/seed.d/`（不入库）：内部分发时该目录里的文件（例如企业 CA 证书包
+  `ca-bundle.pem`）随种子一起进包，首启落到用户目录；种子 `.env` 里可写相对路径
+  `SSL_CERT_FILE=ca-bundle.pem`，Core 按 `.env` 所在目录解析。
 - `--seed-env <path>`：内部分发时打入种子 `.env`（仅首启且用户没有 `.env`
   时落地，绝不覆盖既有配置）。
 - `--skip-dmg` / `--skip-smoke`：只出 .app / 跳过烟测（调试脚本用）。

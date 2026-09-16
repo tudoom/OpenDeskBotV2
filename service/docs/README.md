@@ -16,7 +16,7 @@
 
 | 文档 | 内容 |
 |------|------|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | 单机数据空间、进程边界、串口路由、对话与定时任务链路 |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | 单机数据空间、进程边界、串口路由、对话与定时提醒链路 |
 | [SERVO_ACTION_ARCHITECTURE.md](./SERVO_ACTION_ARCHITECTURE.md) | 舵机/动作 catalog、PB 原子事务、固件 motor actor、ACK 闭环和验证边界 |
 | [SERVER.md](./SERVER.md) | 启动、USB 自动发现、配置、部署与运维 |
 

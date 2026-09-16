@@ -417,10 +417,12 @@ class SerialDeviceManager:
             transport=transport,
             link_token_validator=link_token_validator,
             # 半双工空口下高占空比上行会挤压设备的接收窗口，AP 下行帧需要
-            # 多轮重传；USB 的 2s 确认超时在这里过于苛刻，放宽到 6s。
-            # （曾一度给 WiFi 放宽到 10s 兜"射频坏态"下的周期性误杀，但那是
-            #  esp_wifi deinit/reinit 的固件 bug，已在 0.0.36 根治，10s 随之作废。）
-            frame_ack_timeout=6.0,
+            # 多轮重传；USB 的 2s 确认超时在这里过于苛刻。
+            # 2026-09-14：设备 lwIP 接收窗口只有 5.7 KB，一旦塞满，PC 侧 TCP
+            # 零窗口探测按秒退避（实测帧延迟 5～16 s）；6 s 就杀会话会让重连后
+            # 重发的表情帧再次塞满窗口，循环误杀。固件 0.0.59 起整段收包根治
+            # 慢泵，这里放宽到 12 s 兜空口丢包；死链路仍由 6.5 s 心跳兜底。
+            frame_ack_timeout=12.0,
         )
         self._sessions_by_port[name] = session
         try:

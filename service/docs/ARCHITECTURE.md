@@ -94,8 +94,34 @@ USB mic Opus（ESP-SR AEC / NS / VAD，16 kHz）
 动作。RTC Agent 状态只驱动表情状态机；需要访问本机记忆、提醒、相机或设备控制时，
 Agent 通过带随机 token 的 loopback bridge 调用 Core，工具仍由当前 USB session 执行。
 
+### Agent 工具与 AI 生成（2026-09-14）
+
+工具目录只有一处：`application/tool_executor.TOOL_CAPABILITIES`（渠道 × 工具矩阵），
+RTC 侧 schema 在 `rtc_worker_tools`，文字侧说明在 `llm/utils.llm_tools_prompt_appendix`。
+三条链路（Core 主循环 / 控制台文字对话 / RTC 语音）现在拿到同一套工具，包括原来只在
+语音链路的 `play_expression` / `move_head`（文字对话转 Core HTTP `/api/device_face_play`、
+`/api/device_servo`）。
+
+控制台的五个"AI 生成"按钮全部接到了对话上，实现收在 `application/agent_generation`，
+网页路由与 Agent 工具共用同一份提示词和白名单规则：
+
+| 工具 | 做什么 | 落到哪 |
+| --- | --- | --- |
+| `generate_scene` | 编一段新表演（口播 + 表情 + 动作），默认立刻表演 | 表演列表 `scene_playbooks` |
+| `generate_quest_scene` | 一句话生成陪伴场景（主线小目标 + 日常关心）并启用 | 主动陪伴 `quest_playbooks` |
+| `generate_motion` | 设计一个新头部动作，存为模型可见预设，默认立刻做一遍 | `servo.json` presets |
+| `generate_cartoon_faces` | 后台生成整套卡通表情（约 3～4 分钟），存库并换到设备 | 表情库 + 状态映射 |
+| `generate_expression` | 文生 / 照着相机画面画一个矢量表情，可设为待机脸 | 表情库 |
+| `generation_status` | 查后台生成的进度 / 结果 | `application/generation_jobs`（进程内账本） |
+
+渠道差异只在 `agent_generation_tools.ChannelOps`（怎么表演、动头、让设备换表情、拍一帧、
+做完了怎么开口）：Core / RTC 直接用运行时对象，Flask 文字对话经 Core HTTP
+（新增 `/api/expression_apply_default` 让设备按新映射立刻换表情）。耗时的卡通套图在后台
+线程里跑，完成后语音 Agent 在线时经 `rtc_instructions` 让它主动说一句。
+
 两个连接边缘状态由固件/服务显式呈现，而不是装死：未连接 PC 服务时固件 display
-worker 绘制待机屏（内建默认脸 + 「请连接PC服务」，hello 后清除）；RTC 冷启动
+worker 循环播放电脑最后下发的待机卡通脸（固件 ≥0.0.57，落在 FFat 里重启也保持；没有
+卡通脸时画内建矢量脸），断开 10 s 后叠加「请先连接PC服务」，hello 后清除；RTC 冷启动
 窗口内用户开口时，`speech_start` 触发节流的「语音启动中…」短表情反馈。
 
 相机链路：
@@ -152,20 +178,20 @@ accepted → running → completed | failed | cancelled | timeout
 `202 Accepted` 只表示操作已持久化。服务等待设备终态 `played` ACK 后才写
 `completed`。相同 `operation_id` 只能重试完全相同的设备、类型和 payload。
 
-## 定时任务
+## 定时提醒
 
-```text
-ScheduledTaskScheduler
-  → recover_expired_running_tasks
-  → 勿扰时段内到期任务 defer 到窗口结束（不丢弃、不硬试）
-  → claim_due_tasks（fenced lease）
-  → local conversation/tool execution
-  → durable played receipt
-  → completed 或按离线策略 retry
-```
+2026-09-14 起没有独立的定时任务调度器：定时提醒就是主动陪伴「定时提醒」场景里带钟点的
+care 小目标（`quest_playbooks_store`：`schedule_time` HH:MM、`schedule_days` 每周几、
+`schedule_date` 一次性、`done_at` 提过），由 `QuestProactiveLoop` 的 5 秒轮询按本地时区
+触发（`quest_proactive.pick_scheduled_due`）：
 
-调度器跟踪所有派生 worker。服务停止时会取消并等待 worker，并用 fencing token
-安全释放仍归当前进程所有的租约；异常崩溃则由 lease expiry 恢复。
+- 到点后 2 小时内补提（离线 / 通道忙时下个 tick 再试，超过就算今天错过）；
+- 到点时正处在勿扰窗口的，勿扰结束后 2 小时内补提；
+- 定时提醒不占「每天最多开口」名额，也不等冷场；
+- 一次性提醒提过写 `done_at`，页面标「已提醒」，7 天后自动清掉。
+
+Agent 的 `schedule_task` 工具（`application/timed_reminders`）直接往这个场景里写，不需要主人
+在控制台批准；控制台「主动陪伴」页可以增删改。
 
 ## 浏览器与供应商 WebSocket
 
@@ -186,11 +212,11 @@ ScheduledTaskScheduler
 | 模块 | 职责 |
 |------|------|
 | `infrastructure/serial/` | DBOT framing、session、扫描、重连和上下行适配 |
-| `application/` | 对话、相机、控制、turn arbiter 和定时任务用例 |
+| `application/` | 对话、相机、控制、turn arbiter、主动陪伴与定时提醒用例 |
 | `core/` | 类型、设置、端口 Protocol 与并发限制 |
 | `ws/` | `:9000` HTTP、浏览器订阅路由及兼容状态机 |
 | `web/` | `:5050` Flask 本机页面、本地数据 API 和受限代理 |
-| `db/` | SQLAlchemy 提醒、播放回执、工具/控制操作和本机用量 |
+| `db/` | SQLAlchemy 播放回执、工具/控制操作、陪伴进度和本机用量 |
 | `pb/` | PB v2.1、表情、口型、舵机和 wire |
 | `pipeline/` | Opus 编解码运行时、上行批解码与麦克风健康监测 |
 | `vision/` | JPEG、人脸几何/识别和 generation fencing；不控制舵机 |

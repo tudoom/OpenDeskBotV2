@@ -1156,7 +1156,6 @@ try {
         # 只在缺失时追加；种子里已有的值（包括故意留空）一律不动。
         # 与 build-client-macos.sh 的 BUNDLED_ENV_DEFAULTS 保持一致。
         $bundledEnvDefaults = @(
-            "DOUBAO_TTS_VOICE_CLONE_SPEAKER_ID=S_FOqDnfbd2"
         )
         # 种子文件末尾若没有换行，直接追加会粘到上一行（把上一条配置写坏）。
         $seedRaw = [System.IO.File]::ReadAllText($seedEnvDest)
@@ -1177,6 +1176,15 @@ try {
             }
         }
         Write-Host "  Seeded runtime credentials: client\seed.env -> seed\.env (INTERNAL build)"
+        # 内部分发版还可附带 client\seed.d\ 里的任意文件（同样不入库，例如企业 CA 证书包），
+        # 与 .env 一起进 seed\，首启落到用户目录；公开版没有这个目录，安静跳过。
+        $seedExtraDir = Join-Path $clientRoot "seed.d"
+        if (Test-Path -LiteralPath $seedExtraDir -PathType Container) {
+            foreach ($extra in Get-ChildItem -LiteralPath $seedExtraDir -File) {
+                Copy-Item -LiteralPath $extra.FullName -Destination (Join-Path $seedRoot $extra.Name) -Force
+                Write-Host "  Seeded extra file: $($extra.Name)"
+            }
+        }
     }
     Copy-Tree `
         -Source (Join-Path $serviceRoot "data\global") `

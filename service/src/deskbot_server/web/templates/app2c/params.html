@@ -53,7 +53,7 @@
 
   <div class="lab-grid">
     <div class="lab-panel">
-      <div class="lab-head"><div><b>麦克风</b><small>静音一按即生效；上行模式选好后点「应用到设备」。两项都保存在设备上。</small></div></div>
+      <div class="lab-head"><div><b>麦克风</b><small>静音一按即生效，以这台电脑的设置为准（默认关闭，设备连上时自动同步）；上行模式选好后点「应用到设备」，保存在设备上。</small></div></div>
       <label class="lab-switch">
         <input type="checkbox" :checked="power.muted" :disabled="power.busy || !currentDeviceId || power.muteSupported===false" @change="applyMute($event.target.checked)">
         <span class="lab-switch-track" aria-hidden="true"></span>
@@ -88,6 +88,16 @@
         <button type="button" class="btn" :disabled="power.busy || !currentDeviceId" @click="applyCutoff">应用到设备</button>
       </div>
     </div>
+
+    <div class="lab-panel">
+      <div class="lab-head"><div><b>自动回复</b><small>它是否自动接话（从「行为偏好」页搬来，2026-09-14）。勿扰时段和空闲张望在「主动陪伴」页设置。</small></div></div>
+      <label class="lab-switch">
+        <input type="checkbox" :checked="autoReply.enabled" :disabled="autoReply.busy" @change="toggleAutoReply($event.target.checked)">
+        <span class="lab-switch-track" aria-hidden="true"></span>
+        <b>自动回复<em v-if="!autoReply.enabled">已关闭，小歪听到也不接话</em></b>
+        <small>关闭后小歪只听不答（表演、提醒、主动陪伴照常）；一按即生效。[[ autoReply.msg ]]</small>
+      </label>
+    </div>
   </div>
 </div>
 <script>
@@ -103,6 +113,7 @@ createApp({
       cutoffC:70, cutoffSupported:null, cutoffStats:null,
       busy:false,
     },
+    autoReply:{enabled:true,busy:false,msg:''},
   }; },
   computed:{
     muteHint(){ const p=this.power; if(!this.currentDeviceId) return '先选择设备。'; if(p.muteSupported===false) return '设备固件较旧（需要 0.0.54），先在「设备连接」升级。'; return ''; },
@@ -113,6 +124,16 @@ createApp({
     controlError(label,e){
       const detail=(e&&e.message)||String(e);
       return detail.includes('执行状态未知') ? detail : (label+'失败：'+detail);
+    },
+    async loadAutoReply(){
+      try{const d=await this.api('/proxy/deskbot/api/asr_auto_reply');this.autoReply.enabled=d.enabled!==false;}
+      catch(_e){this.autoReply.msg='自动回复状态读取失败';}
+    },
+    async toggleAutoReply(on){
+      this.autoReply.busy=true;this.autoReply.msg='';
+      try{const d=await this.api('/proxy/deskbot/api/asr_auto_reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!!on})});this.autoReply.enabled=d.enabled!==false;this.autoReply.msg=this.autoReply.enabled?'已开启自动回复':'已关闭自动回复';}
+      catch(e){this.autoReply.msg='保存失败：'+(e.message||e);}
+      finally{this.autoReply.busy=false;}
     },
     async api(url, opts){
       return window.DeskbotConsole.apiJson(url, Object.assign({timeoutMs:60000}, opts||{}));
@@ -163,6 +184,7 @@ createApp({
     async loadAll(){
       await this.loadDevices();
       await this.loadPowerSettings();
+      await this.loadAutoReply();
     },
     async loadPowerSettings(){
       if(!this.currentDeviceId) return;
@@ -184,7 +206,7 @@ createApp({
       try{
         const d=await this.api(this.proxyPath('/api/mic_mute'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.currentDeviceId, muted:!!next})});
         this.power.muteSupported=!!d.supported; if(!d.supported){ this.power.muted=false; this.msg='设备固件较旧，不支持静音（需要 0.0.54）'; return; }
-        this.power.muted=!!d.muted; this.msg=this.power.muted ? '已静音：小歪不再采集和上传音频（设置已保存在设备上）' : '已取消静音：麦克风恢复工作';
+        this.power.muted=!!d.muted; this.msg=this.power.muted ? '已静音：小歪不再采集和上传音频（保存在这台电脑，连上设备时自动同步）' : '已取消静音：麦克风恢复工作';
       }catch(e){ this.msg=this.controlError('静音设置',e); } finally{ this.power.busy=false; }
     },
     async applyMicMode(){

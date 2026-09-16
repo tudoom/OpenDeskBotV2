@@ -52,6 +52,7 @@ tmp/
 .env.*
 !.env.example
 service/client/seed.env
+service/client/seed.d/
 *.pem
 credentials.json
 secrets.yaml

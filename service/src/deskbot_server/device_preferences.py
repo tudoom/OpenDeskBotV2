@@ -20,9 +20,6 @@ from deskbot_server.core.json_store import JsonDocumentStore
 from deskbot_server.device_data import local_data_dir
 
 PREFERENCES_FILENAME = "interaction_preferences.json"
-SUPPORTED_OFFLINE_REMINDER_POLICIES = frozenset(
-    {"retry_within_grace", "expire", "deliver_when_online"}
-)
 SUPPORTED_IDLE_MOTION_LEVELS = ("gentle", "normal", "bold")
 
 DEFAULT_PREFERENCES: dict[str, Any] = {
@@ -34,14 +31,17 @@ DEFAULT_PREFERENCES: dict[str, Any] = {
         "end": "08:00",
         "timezone": "Asia/Shanghai",
     },
-    "offline_reminder_policy": "retry_within_grace",
-    "offline_reminder_grace_seconds": 300,
     # 行为：空闲待机张望——开关、档位（轻柔/正常）、每分钟几次（自然分钟内随机）、空闲多久后开始。
     "behavior": {
         "idle_live": True,
         "idle_motion": "normal",
         "wander_per_min": 2,
         "wander_idle_sec": 60,
+    },
+    # 参数设置里以 PC 为准的设备开关：静音默认关闭；设备连上时由 Core 推下去，
+    # 设备自己 NVS 里的残留值不作数（2026-09-14 用户要求：重装电脑端就回到默认）。
+    "power": {
+        "mic_muted": False,
     },
     # Credentials and provider endpoints stay global; this local profile only
     # selects the voice used by robots attached to this PC.
@@ -63,7 +63,6 @@ DEFAULT_PREFERENCES: dict[str, Any] = {
         # 看情况的日常关心两次之间至少隔多久（主线不用：一轮只提一次，结果由小歪标）；页面上不再展示
         "task_retry_sec": 120,
         # 提醒还有多少秒到点时，主动陪伴先让路
-        "reminder_soon_sec": 90,
         # 日常关心连续没回应后歇多久
         "care_pause_sec": 86400,
     },
@@ -87,7 +86,6 @@ def _normalise_quest(raw: object) -> dict[str, Any]:
         "daily_limit": _bounded_int(quest.get("daily_limit", 16), field="quest.daily_limit", lo=0, hi=100),
         "care_daily_limit": _bounded_int(quest.get("care_daily_limit", 10), field="quest.care_daily_limit", lo=0, hi=100),
         "task_retry_sec": _bounded_int(quest.get("task_retry_sec", 120), field="quest.task_retry_sec", lo=0, hi=86400),
-        "reminder_soon_sec": _bounded_int(quest.get("reminder_soon_sec", 90), field="quest.reminder_soon_sec", lo=0, hi=3600),
         "care_pause_sec": _bounded_int(quest.get("care_pause_sec", 86400), field="quest.care_pause_sec", lo=600, hi=604800),
     }
 
@@ -167,22 +165,15 @@ def _normalise(raw: Mapping[str, Any] | None) -> dict[str, Any]:
     _clock_minutes(end, field="quiet_hours.end")
     timezone = _normalise_timezone(quiet.get("timezone"))
 
-    policy = str(
-        source.get("offline_reminder_policy") or "retry_within_grace"
-    ).strip()
-    if policy not in SUPPORTED_OFFLINE_REMINDER_POLICIES:
-        raise ValueError(f"不支持的离线提醒策略: {policy}")
-
     try:
-        grace = int(source.get("offline_reminder_grace_seconds", 300))
         revision = int(source.get("revision", 0))
     except (TypeError, ValueError) as exc:
         raise ValueError("行为偏好的数值字段格式错误") from exc
-    if grace < 0 or grace > 86_400:
-        raise ValueError("offline_reminder_grace_seconds 必须在 0 到 86400 之间")
 
     behavior_raw = source.get("behavior")
     behavior = dict(behavior_raw) if isinstance(behavior_raw, Mapping) else {}
+    power_raw = source.get("power")
+    power = dict(power_raw) if isinstance(power_raw, Mapping) else {}
     idle_motion = str(behavior.get("idle_motion") or "normal").strip().lower()
     if idle_motion not in SUPPORTED_IDLE_MOTION_LEVELS:
         raise ValueError(f"不支持的张望档位: {idle_motion}")
@@ -196,8 +187,6 @@ def _normalise(raw: Mapping[str, Any] | None) -> dict[str, Any]:
             "end": end,
             "timezone": timezone,
         },
-        "offline_reminder_policy": policy,
-        "offline_reminder_grace_seconds": grace,
         "behavior": {
             "idle_live": bool(behavior.get("idle_live", True)),
             "idle_motion": idle_motion,
@@ -213,6 +202,7 @@ def _normalise(raw: Mapping[str, Any] | None) -> dict[str, Any]:
             ),
         },
         "quest": _normalise_quest(source.get("quest")),
+        "power": {"mic_muted": bool(power.get("mic_muted", False))},
     }
 
 
@@ -235,12 +225,6 @@ def update_preferences(
         ):
             raise RuntimeError("配置已被其他页面更新，请刷新后重试")
         merged = copy.deepcopy(current)
-        for key in (
-            "offline_reminder_policy",
-            "offline_reminder_grace_seconds",
-        ):
-            if key in patch:
-                merged[key] = patch[key]
         if "quiet_hours" in patch:
             quiet_patch = patch.get("quiet_hours")
             if not isinstance(quiet_patch, Mapping):
@@ -265,6 +249,14 @@ def update_preferences(
             merged["behavior"] = {
                 **dict(merged.get("behavior") or {}),
                 **dict(behavior_patch),
+            }
+        if "power" in patch:
+            power_patch = patch.get("power")
+            if not isinstance(power_patch, Mapping):
+                raise ValueError("power 必须是 JSON 对象")
+            merged["power"] = {
+                **dict(merged.get("power") or {}),
+                **dict(power_patch),
             }
         if "quest" in patch:
             quest_patch = patch.get("quest")

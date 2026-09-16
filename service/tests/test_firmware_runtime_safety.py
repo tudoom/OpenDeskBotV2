@@ -835,7 +835,7 @@ def test_camera_health_is_reported_in_hello_and_both_heartbeats():
         "usb_partial_tx_failures",
     ):
         assert transport.count(f'\\"{field}\\"') >= 3
-    assert "char json[1600];" in transport  # 0.0.54 hello 加 mic_muted，缓冲从 1536 扩到 1600
+    assert "char json[1664];" in transport  # 0.0.54 加 mic_muted 扩到 1600；0.0.57 hello 加 face_tag，扩到 1664
     assert transport.count("CameraHealthSnapshot camera_health") >= 3
 
 

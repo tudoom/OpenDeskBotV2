@@ -273,20 +273,9 @@ def test_pyproject_moves_face_stack_into_optional_extra() -> None:
     assert "[face]" in requirements  # 注释里指向 optional extra 的安装方式
 
 
-def test_people_page_and_api_expose_face_stack_availability() -> None:
-    people_html = (
-        SERVICE_ROOT
-        / "src"
-        / "deskbot_server"
-        / "web"
-        / "templates"
-        / "app2c"
-        / "people.html"
-    ).read_text(encoding="utf-8")
-    assert "人脸识别组件未随本安装包提供" in people_html
-    assert "faceStackAvailable" in people_html
-    assert "face_stack_available" in people_html
-
+def test_face_profiles_api_exposes_face_stack_availability() -> None:
+    """2026-09-14：人脸档案页撤了（Mac 包不带人脸栈），接口仍报告 face_stack_available 供调试页判断。"""
+    assert not (SERVICE_ROOT / "src" / "deskbot_server" / "web" / "templates" / "app2c" / "people.html").exists()
     app_bp = (
         SERVICE_ROOT
         / "src"

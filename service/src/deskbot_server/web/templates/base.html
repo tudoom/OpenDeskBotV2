@@ -45,8 +45,7 @@
           <div class="nav-group">
             <div class="nav-group-label">工作台</div>
             <a href="{{ url_for('app2c.home') }}" class="{% if active_nav == 'app' %}active{% endif %}">控制台</a>
-            <a href="{{ url_for('app2c.reminders') }}" class="{% if active_nav == 'scheduled_tasks' %}active{% endif %}">定时任务</a>
-            <a href="{{ url_for('app2c.people') }}" class="{% if active_nav == 'face_profiles' %}active{% endif %}">人脸识别</a>
+            <a href="{{ url_for('quest.page') }}" class="{% if active_nav == 'scheduled_tasks' %}active{% endif %}">定时提醒</a>
             <a href="{{ url_for('app2c.memories') }}" class="{% if active_nav == 'memories' %}active{% endif %}">记忆</a>
             <a href="{{ url_for('app2c.advanced') }}" class="{% if active_nav == 'configure' %}active{% endif %}">设置</a>
             <a href="{{ url_for('app2c.advanced') }}" class="{% if active_nav == 'llm_models' %}active{% endif %}">LLM 管理</a>

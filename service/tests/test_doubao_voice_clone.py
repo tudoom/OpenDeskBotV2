@@ -22,7 +22,7 @@ def test_clone_doubao_voice_posts_v3_payload(monkeypatch):
             return None
 
         def read(self):
-            return b'{"status_code":0,"speaker_id":"S_FOqDnfbd2","status":1}'
+            return b'{"status_code":0,"speaker_id":"S_TESTVOICE0","status":1}'
 
     def fake_urlopen(req, timeout):
         captured["url"] = req.full_url
@@ -40,7 +40,7 @@ def test_clone_doubao_voice_posts_v3_payload(monkeypatch):
         audio_format="wav",
         language=0,
         display_name="我的声音",
-        speaker_id="S_FOqDnfbd2",
+        speaker_id="S_TESTVOICE0",
         prompt_text="这是一段训练文本",
     )
 
@@ -49,14 +49,14 @@ def test_clone_doubao_voice_posts_v3_payload(monkeypatch):
     assert captured["headers"]["X-api-access-key"] == "access-token"
     assert captured["headers"]["X-api-resource-id"] == "seed-icl-2.0"
     # 音色 ID 直接用用户填写的值，不再折成 custom_speaker_id
-    assert captured["payload"]["speaker_id"] == "S_FOqDnfbd2"
+    assert captured["payload"]["speaker_id"] == "S_TESTVOICE0"
     assert "custom_speaker_id" not in captured["payload"]
     assert captured["payload"]["language"] == 0
     assert captured["payload"]["display_name"] == "我的声音"
     assert captured["payload"]["audio"]["format"] == "wav"
     assert captured["payload"]["audio"]["text"] == "这是一段训练文本"
     assert captured["payload"]["audio"]["data"] == base64.b64encode(b"RIFF....WAVE").decode("ascii")
-    assert result.speaker_id == "S_FOqDnfbd2"
+    assert result.speaker_id == "S_TESTVOICE0"
     assert result.ready is False
     assert result.status == 1
     assert result.status_label == "训练中"
@@ -194,7 +194,7 @@ def test_clone_requires_user_supplied_speaker_id():
             speaker_id="",
         )
 
-    assert normalize_speaker_id("  S_FOqDnfbd2 ") == "S_FOqDnfbd2"
+    assert normalize_speaker_id("  S_TESTVOICE0 ") == "S_TESTVOICE0"
     assert normalize_speaker_id("ICL_abc") == "ICL_abc"
     with pytest.raises(ValueError):
         normalize_speaker_id("bad id!")

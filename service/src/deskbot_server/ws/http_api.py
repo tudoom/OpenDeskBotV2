@@ -2552,6 +2552,9 @@ def _build_http_request_handler(
                 pb_level = int(body.get("level", PB_LEVEL_TASK))
             except (TypeError, ValueError):
                 pb_level = PB_LEVEL_TASK
+            # 表情页"设为设备默认表情"：位图待机脸带 face_keep/face_tag，固件留住它、断开电脑后自己循环
+            standby = body.get("standby") is True
+            pb_anim_assets: list[bytes] = []
 
             if not dev:
                 return _json_resp(
@@ -2640,6 +2643,11 @@ def _build_http_request_handler(
                 max(1, int(payload.get("chunk_ms") or 0))
                 for payload, _binary in validation_pairs
             )
+            standby_tag = ""
+            if standby and pb_anim_assets:
+                from deskbot_server.application.expression_catalog import standby_face_tag
+
+                standby_tag = standby_face_tag(anim_list, pb_anim_assets)
 
             def _build_anim_sequences(request_id: str):
                 durable_pairs = design_frames_to_pb_chain(
@@ -2650,6 +2658,9 @@ def _build_http_request_handler(
                 for payload, _binary in durable_pairs:
                     payload["action"] = act
                     payload["level"] = pb_level
+                    if standby_tag:
+                        payload["face_keep"] = True
+                        payload["face_tag"] = standby_tag
                 return [(request_id, durable_pairs)]
 
             return await _start_pb_control_operation(
@@ -2673,6 +2684,7 @@ def _build_http_request_handler(
                     "level": pb_level,
                     "frames": len(anim_list),
                     "chunks": len(validation_pairs),
+                    "standby_face_tag": standby_tag,
                 },
             )
 

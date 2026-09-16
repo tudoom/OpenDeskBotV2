@@ -22,11 +22,21 @@ from deskbot_server.core.clock import as_utc, utcnow
 from deskbot_server.device_tmp_store import read_local_tmp_file, write_local_tmp_file
 from deskbot_server.memory_store import add_memory, delete_memory, list_memory_entries
 from deskbot_server.miot_tools import execute_miot_tool
-from deskbot_server.scheduled_task_service import execute_schedule_task_tool
 from deskbot_server.session_store import execute_session_tool
 from deskbot_server.web_tools import webfetch, websearch
 
 logger = logging.getLogger("deskbot-server")
+
+
+
+def execute_schedule_task_tool(raw: dict[str, Any]) -> dict[str, Any]:
+    """定时提醒工具（2026-09-14 起落到主动陪伴的 care 场景）。
+
+    延迟导入：timed_reminders → quest_console → quest_proactive → chat_flow → llm_tool_loop → 本模块成环。"""
+    from deskbot_server.application.timed_reminders import execute_schedule_task_tool as _impl
+
+    return _impl(raw)
+
 
 _CONFIRMATION_TTL_SECONDS = 120
 _OPERATION_RUNNING_TTL_SECONDS = 300

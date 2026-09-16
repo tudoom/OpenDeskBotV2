@@ -203,7 +203,7 @@ try:
         # 半句话（叫我 / 我叫 / 然后…结尾）由 DeskbotTurnDetector 判为"没说完"，
         # 端点等待从 0.35s 拉到 1.0s，后半句并入同一轮而不是各答各的。
         kwargs.setdefault("min_endpointing_delay", 0.35)
-        kwargs.setdefault("max_endpointing_delay", 1.0)
+        kwargs.setdefault("max_endpointing_delay", 1.5)
         # 这段代码运行在 worker 进程的 sitecustomize 里：import 必须写在这里且失败不致命
         # （2026-09-09 曾因引用了外层模块的名字让每个语音会话起不来）。
         try:

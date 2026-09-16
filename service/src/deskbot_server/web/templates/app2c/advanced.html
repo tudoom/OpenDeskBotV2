@@ -34,7 +34,7 @@
           <div>
             <span class="model-step">01 · 必需配置</span>
             <h2>通用大模型</h2>
-            <p>选择提供方后自动填入推荐模型与接入点，也可手动修改任意字段。此处仅管理对话大模型，不与豆包语音共用凭证；图片表情生成同用这里的 LLM Key。</p>
+            <p>选择提供方后自动填入推荐模型与接入点，也可手动修改任意字段。此处仅管理对话大模型，不与豆包语音共用凭证；画表情 / 生图只认火山方舟的 Key：大模型是方舟时复用这里的 Key，否则用保存过的豆包 Key 或表情页「生图 API 配置」里的 Key。</p>
           </div>
           <div class="secondary-actions">
             <span class="model-status" :class="{ok: setup.api_key_set}">[[ setup.api_key_set ? '已配置' : '待配置' ]]</span>
@@ -64,10 +64,12 @@
               <option value="mimo">Xiaomi MiMo</option>
               <option value="custom">自定义</option>
             </select>
+            <small style="display:block;color:var(--dim);font-size:12px;margin-top:4px">切换提供方只是把推荐模型和接入点填进表单，点下方「保存并应用」后才真正切换。</small>
           </label>
           <label class="model-field model-field-key">
             <span>API Key</span>
-            <input class="tinput" v-model="setup.api_key" type="password" autocomplete="new-password" :placeholder="setup.api_key_set ? '更新 API Key（留空则保留原值）' : '粘贴提供方的 API Key'">
+            <input class="tinput" v-model="setup.api_key" type="password" autocomplete="new-password" :placeholder="setupKeyPlaceholder">
+            <small v-if="savedKeyLabels" style="display:block;color:var(--dim);font-size:12px;margin-top:4px">已分别保存 Key 的提供方：[[ savedKeyLabels ]]；切换提供方时自动带出，无需重填。</small>
           </label>
           <label class="model-field">
             <span>默认模型</span>
@@ -160,7 +162,7 @@
             <template v-if="asr.provider==='doubao_streaming'">
               <label class="model-field model-field-key">
                 <span>火山语音 API Key</span>
-                <input class="tinput" v-model.trim="asr.api_key" type="password" autocomplete="new-password" :placeholder="asr.api_key_set ? '更新 API Key（留空保留）' : '填写新版火山语音 API Key'">
+                <input class="tinput" v-model.trim="asr.api_key" type="password" autocomplete="new-password" :placeholder="asr.api_key_masked || (asr.api_key_set ? '更新 API Key（留空保留）' : '填写新版火山语音 API Key')">
               </label>
               <label class="model-field">
                 <span>Resource ID</span>
@@ -174,7 +176,7 @@
             <template v-else-if="asr.provider==='openai_compatible'">
               <label class="model-field model-field-key">
                 <span>ASR API Key</span>
-                <input class="tinput" v-model.trim="asr.api_key" type="password" autocomplete="new-password" :placeholder="asr.api_key_set ? '更新 ASR_API_KEY（留空保留）' : '粘贴语音识别服务 API Key'">
+                <input class="tinput" v-model.trim="asr.api_key" type="password" autocomplete="new-password" :placeholder="asr.api_key_masked || (asr.api_key_set ? '更新 ASR_API_KEY（留空保留）' : '粘贴语音识别服务 API Key')">
               </label>
               <label class="model-field">
                 <span>模型</span>
@@ -237,14 +239,14 @@
           <fieldset class="system-config-fieldset">
           <label class="model-field model-field-key">
             <span>豆包流式 TTS 2.0 API Key</span>
-            <input class="tinput" v-model.trim="tts.api_key" type="password" autocomplete="off" :placeholder="tts.api_key_set ? '更新语音 API Key（留空则不修改）' : '粘贴 DOUBAO_TTS_API_KEY，不要填 LLM_API_KEY'">
+            <input class="tinput" v-model.trim="tts.api_key" type="password" autocomplete="off" :placeholder="tts.api_key_masked || (tts.api_key_set ? '更新语音 API Key（留空则不修改）' : '粘贴 DOUBAO_TTS_API_KEY，不要填 LLM_API_KEY')">
           </label>
           <button type="submit" class="btn ghost voice-save-btn" :disabled="tts.saving">[[ tts.saving ? '保存中…' : '保存声音配置' ]]</button>
           <details class="voice-advanced-fields">
             <summary>声音高级参数</summary>
             <div class="voice-advanced-grid">
-              <input class="tinput" v-model.trim="tts.app_id" autocomplete="off" :placeholder="tts.app_id_set ? '更新 App ID（留空则不修改）' : 'DOUBAO_TTS_APP_ID · 声音复刻必填'">
-              <input class="tinput" v-model.trim="tts.access_token" type="password" autocomplete="off" :placeholder="tts.access_token_set ? '更新 Access Token（留空则不修改）' : 'DOUBAO_TTS_ACCESS_TOKEN · 声音复刻必填'">
+              <input class="tinput" v-model.trim="tts.app_id" autocomplete="off" :placeholder="tts.app_id_masked || (tts.app_id_set ? '更新 App ID（留空则不修改）' : 'DOUBAO_TTS_APP_ID · 声音复刻必填')">
+              <input class="tinput" v-model.trim="tts.access_token" type="password" autocomplete="off" :placeholder="tts.access_token_masked || (tts.access_token_set ? '更新 Access Token（留空则不修改）' : 'DOUBAO_TTS_ACCESS_TOKEN · 声音复刻必填')">
               <input class="tinput" v-model.trim="tts.resource_id" placeholder="Resource ID">
               <input class="tinput" v-model.trim="tts.voice_clone_resource_id" placeholder="声音复刻 Resource ID">
               <input class="tinput" v-model.trim="tts.model" placeholder="模型">
@@ -397,12 +399,12 @@ createApp({
     llm:{protocols:['openai','ark'], models:[], active_model_id:null, active:null, system_default:null, error:''},
     setup:{
       provider:'deepseek',
-      api_key_set:false,model_name:'',default_model:'',api_key:'',protocol:'openai',
+      api_key_set:false,saved_key_providers:[],saved_key_masks:{},api_key_masked:'',model_name:'',default_model:'',api_key:'',protocol:'openai',
       protocols:['openai','ark'],base_url:'',models:[],revision:null,applied_revision:null,
       saving:false,detecting:false,testing:false,result:null,
     },
     websearch:{
-      api_key:'',api_key_set:false,api_key_source:'none',llm_is_ark:false,model:'',default_model:'',console_url:'',
+      api_key:'',api_key_set:false,api_key_masked:'',api_key_source:'none',llm_is_ark:false,model:'',default_model:'',console_url:'',
       saving:false,testing:false,result:null,
     },
     asr:{
@@ -439,6 +441,7 @@ createApp({
     },
     websearchKeyPlaceholder(){
       const w=this.websearch;
+      if(w.api_key_masked) return w.api_key_masked;
       if(w.api_key_source==='own') return '更新 API Key（留空则保留原值）';
       if(w.api_key_source==='llm') return '已复用大模型的火山方舟 Key，留空即可';
       return '粘贴火山方舟的 API Key';
@@ -451,6 +454,20 @@ createApp({
       return model+'Key 留空表示保留原值；凭证只存在本机，不会下发到设备。';
     },
     setupPreset(){ return LLM_PROVIDER_PRESETS[this.setup.provider]||null; },
+    // 与 Core 的 llm/provider_keys.py 同一套规则：按 Base URL 主机识别提供方
+    setupProviderId(){ return this.providerIdFor(this.setup.base_url); },
+    setupKeySaved(){ const id=this.setupProviderId; return !!id && (this.setup.saved_key_providers||[]).includes(id); },
+    // 当前提供方已保存 Key 的掩码（sk-…3f2a）：在输入框里展示，粘贴新 Key 才覆盖
+    setupKeyMask(){ const id=this.setupProviderId; const masks=this.setup.saved_key_masks||{}; return (id&&masks[id])||(this.setupKeySaved?this.setup.api_key_masked:'')||''; },
+    setupKeyPlaceholder(){
+      if(this.setupKeySaved) return this.setupKeyMask||'已保存该提供方的 Key，留空沿用；粘贴新 Key 则更新';
+      if(this.setup.api_key_set) return '请粘贴该提供方的 API Key（当前生效的是别家的 Key，不能沿用）';
+      return '粘贴提供方的 API Key';
+    },
+    savedKeyLabels(){
+      const labels={DEEPSEEK:'DeepSeek',DOUBAO:'豆包（火山方舟）',MIMO:'Xiaomi MiMo'};
+      return (this.setup.saved_key_providers||[]).map(id=>labels[id]||id.replace(/^HOST_/,'').toLowerCase()).join('、');
+    },
   },
   methods:{
     toggleAdvanced(key){
@@ -485,6 +502,15 @@ createApp({
       return window.DeskbotConsole.apiJson(url,opts);
     },
     normalizeBaseUrl(url){ return String(url||'').trim().replace(/\/+$/,'').toLowerCase(); },
+    providerIdFor(baseUrl){
+      let host='';
+      try{ host=new URL(String(baseUrl||'').trim()).hostname.toLowerCase(); }catch(_e){ return ''; }
+      if(!host) return '';
+      for(const [suffix,id] of [['deepseek.com','DEEPSEEK'],['volces.com','DOUBAO'],['xiaomimimo.com','MIMO']]){
+        if(host===suffix||host.endsWith('.'+suffix)) return id;
+      }
+      return 'HOST_'+host.toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+    },
     // 页面载入时按已保存的 Base URL 反推提供方；从未配置过（无 Base URL）默认 DeepSeek 并
     // 预填推荐模型/接入点（2026-09-11 用户决定：默认提供方 DeepSeek、模型 deepseek-flash；
     // 2026-09-03 曾定为豆包）；已配置但无匹配则落到「自定义」态，不改动任何字段。
@@ -517,7 +543,7 @@ createApp({
     },
     applyWebsearch(d){
       const w=this.websearch; d=d||{};
-      w.api_key=''; w.api_key_set=!!d.api_key_set; w.api_key_source=d.api_key_source||'none'; w.llm_is_ark=!!d.llm_is_ark;
+      w.api_key=''; w.api_key_set=!!d.api_key_set; w.api_key_masked=String(d.api_key_masked||''); w.api_key_source=d.api_key_source||'none'; w.llm_is_ark=!!d.llm_is_ark;
       w.model=d.model||''; w.default_model=d.default_model||''; w.console_url=d.console_url||'';
     },
     async loadWebsearch(){
@@ -551,6 +577,9 @@ createApp({
         const d = await this.api('/api/setup/llm');
         const config=d.config||{};
         this.setup.api_key_set=!!config.api_key_set;
+        this.setup.saved_key_providers=Array.isArray(d.saved_key_providers)?d.saved_key_providers:[];
+        this.setup.saved_key_masks=(d.saved_key_masks&&typeof d.saved_key_masks==='object')?d.saved_key_masks:{};
+        this.setup.api_key_masked=String(d.api_key_masked||'');
         this.setup.default_model = d.default_model || '';
         this.setup.model_name=config.model_name||this.setup.default_model||'';
         this.setup.protocol=config.protocol||'openai';
@@ -751,11 +780,13 @@ createApp({
         this.api('/api/advanced'),
       ]);
       const errors=[];
+      // 与上面 allSettled 的顺序一一对应：模型 / 联网检索 / ASR / 语音 / 高级设置数据
       if(results[0].status==='rejected')errors.push('模型配置：'+(results[0].reason.message||'加载失败'));
-      if(results[1].status==='rejected')errors.push('ASR 配置：'+(results[1].reason.message||'加载失败'));
-      if(results[2].status==='rejected')errors.push('语音配置：'+(results[2].reason.message||'加载失败'));
-      if(results[3].status==='fulfilled')this.applyPayload(results[3].value);
-      else errors.push('高级设置数据：'+(results[3].reason.message||'加载失败'));
+      if(results[1].status==='rejected')errors.push('联网检索：'+(results[1].reason.message||'加载失败'));
+      if(results[2].status==='rejected')errors.push('ASR 配置：'+(results[2].reason.message||'加载失败'));
+      if(results[3].status==='rejected')errors.push('语音配置：'+(results[3].reason.message||'加载失败'));
+      if(results[4].status==='fulfilled')this.applyPayload(results[4].value||{});
+      else errors.push('高级设置数据：'+(results[4].reason.message||'加载失败'));
       this.msg=errors.join('；');
       this.loading=false;
     },

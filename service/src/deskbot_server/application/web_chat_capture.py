@@ -103,6 +103,116 @@ def run_core_scene(
     return {"tool": "perform_scene", "ok": False, "error": str(err)[:200]}
 
 
+def _core_post_json(
+    path: str,
+    payload: dict[str, Any],
+    *,
+    base_url: str | None = None,
+    post: Callable[[str, bytes], tuple[int, str, bytes]] | None = None,
+) -> tuple[int, dict[str, Any]]:
+    """向 Core 发一个 JSON POST，返回 (status, 解析后的 body)。网络异常 → (0, {"error": …})。"""
+    if base_url is None:
+        base_url = _upstream_base()
+    url = f"{base_url.rstrip('/')}{path}"
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    try:
+        status, _ctype, raw = (post or _default_post)(url, body)
+    except Exception as exc:  # noqa: BLE001
+        return 0, {"error": f"Core 请求失败：{str(exc)[:160]}"}
+    try:
+        data = json.loads(raw.decode("utf-8") or "{}")
+    except (ValueError, UnicodeDecodeError):
+        data = {}
+    return status, data if isinstance(data, dict) else {}
+
+
+def run_core_move_head(
+    device_id: str,
+    arguments: dict[str, Any],
+    *,
+    base_url: str | None = None,
+    post: Callable[[str, bytes], tuple[int, str, bytes]] | None = None,
+) -> dict[str, Any]:
+    """Flask 进程里的 move_head：预设或自编步骤都转 Core ``/api/device_servo``（与语音链路同一限位/包络）。"""
+    dev = str(device_id or "").strip()
+    if not dev:
+        return {"tool": "move_head", "ok": False, "error": "请先在控制台选择设备，再让我做动作"}
+    move = str(arguments.get("move") or arguments.get("preset") or "").strip()
+    steps = arguments.get("steps")
+    body: dict[str, Any] = {"device_id": dev}
+    if move:
+        body["preset"] = move
+        try:
+            duration_ms = int(arguments.get("duration_ms") or 0)
+        except (TypeError, ValueError):
+            duration_ms = 0
+        if duration_ms > 0:
+            body["duration_ms"] = max(200, min(8000, duration_ms))
+    elif isinstance(steps, list) and steps:
+        clean: list[dict[str, Any]] = []
+        for raw in steps[:5]:
+            if not isinstance(raw, dict):
+                return {"tool": "move_head", "ok": False, "error": "steps 里每一步都要是对象"}
+            clean.append(
+                {
+                    "x": raw.get("x", 90),
+                    "y": raw.get("y", 90),
+                    "xm": raw.get("xm", 0),
+                    "ym": raw.get("ym", raw.get("xm", 0)),
+                    "ms": raw.get("ms", 400),
+                }
+            )
+        body["steps"] = clean
+    else:
+        return {"tool": "move_head", "ok": False, "error": "move_head 需要 move（预设 id）或 steps"}
+    status, data = _core_post_json("/api/device_servo", body, base_url=base_url, post=post)
+    if status == 200 and data.get("ok", True) and not data.get("error"):
+        return {"tool": "move_head", "ok": True, "status": "moved", "move": move or "composed", "steps": len(body.get("steps") or []) or None}
+    err = data.get("error") or f"HTTP {status}"
+    return {"tool": "move_head", "ok": False, "status": "invalid_move" if status == 400 else "failed", "error": str(err)[:200]}
+
+
+def run_core_play_expression(
+    device_id: str,
+    arguments: dict[str, Any],
+    *,
+    base_url: str | None = None,
+    post: Callable[[str, bytes], tuple[int, str, bytes]] | None = None,
+) -> dict[str, Any]:
+    """Flask 进程里的 play_expression：转 Core ``/api/device_face_play``（表情库里的表情按 name 播）。"""
+    dev = str(device_id or "").strip()
+    name = str(arguments.get("name") or arguments.get("expression") or "").strip()
+    if not dev:
+        return {"tool": "play_expression", "ok": False, "error": "请先在控制台选择设备，再让我做表情"}
+    if not name:
+        return {"tool": "play_expression", "ok": False, "error": "play_expression 需要 name"}
+    query = urlparse.urlencode({"device_id": dev, "kind": "emotion", "name": name})
+    status, data = _core_post_json(f"/api/device_face_play?{query}", {}, base_url=base_url, post=post)
+    if status == 200 and data.get("ok", True) and not data.get("error"):
+        return {"tool": "play_expression", "ok": True, "status": "accepted", "name": name}
+    err = str(data.get("error") or f"HTTP {status}")
+    valid = data.get("valid_names")
+    if isinstance(valid, list) and valid:
+        err += "；可用：" + "、".join(str(v) for v in valid[:30])
+    return {"tool": "play_expression", "ok": False, "error": err[:400]}
+
+
+def run_core_apply_default_expression(
+    device_id: str,
+    *,
+    base_url: str | None = None,
+    post: Callable[[str, bytes], tuple[int, str, bytes]] | None = None,
+) -> dict[str, Any]:
+    """Flask 进程里让设备立刻换上新的表情映射：转 Core ``/api/expression_apply_default``。"""
+    dev = str(device_id or "").strip()
+    if not dev:
+        return {"ok": False, "error": "没有目标设备"}
+    status, data = _core_post_json("/api/expression_apply_default", {"device_id": dev}, base_url=base_url, post=post)
+    if status == 200:
+        return {"ok": True, **{k: v for k, v in data.items() if k != "device_id"}}
+    return {"ok": False, "error": str(data.get("error") or f"HTTP {status}")[:200]}
+
+
 def _default_fetch(url: str) -> tuple[int, str, bytes]:
     headers = {"Accept": "image/jpeg, application/json"}
     key = read_free_api_key_raw()
@@ -187,4 +297,8 @@ __all__ = [
     "execute_web_chat_tools",
     "fetch_core_camera_capture",
     "is_capture_tool",
+    "run_core_apply_default_expression",
+    "run_core_move_head",
+    "run_core_play_expression",
+    "run_core_scene",
 ]

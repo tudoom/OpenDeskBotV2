@@ -11,7 +11,7 @@ PB/DBOT 字段见 [esp32_pb_protocol.md](./esp32_pb_protocol.md)。
 - 一台 PC 只有一个可写数据空间 `data/local/`。
 - `data/global/` 是只读系统模板，首次使用时可作为 `data/local/` 的初始化种子。
 - 本地会话只有 `local` scope。人脸识别结果可以进入本轮上下文，但不产生另一套会话、记忆或配置。
-- 表情、口型、情绪映射、场景、记忆、人脸档案、提醒、偏好、音色和模型配置均不按硬件隔离。
+- 表情、口型、情绪映射、场景、记忆、定时提醒、偏好、音色和模型配置均不按硬件隔离。定时提醒是主动陪伴场景里的小目标（`/api/quest/playbooks/care/tasks`），不再有独立的提醒接口。
 - `device_id` 只标识已完成 hello 的 live USB/RTC 会话，用于真机下发、ACK 对账、调试订阅、重连和日志。
 - 换一台机器人接入同一 PC 时继续使用相同本地数据；浏览器字符串不能创建 live 连接。
 
@@ -74,9 +74,7 @@ token 默认不放 URL query，也不写入访问日志。
 | GET | `/expr` | 本机表情库、捏脸与设备预览 |
 | GET | `/lab` | 摄像头、舵机、场景、PB 与流水线实验功能 |
 | GET | `/memories` | 本机长期记忆 |
-| GET | `/reminders` | 本机提醒 |
 | GET | `/sessions` | 唯一 local 会话 |
-| GET | `/preferences` | 本机互动偏好 |
 | GET | `/people` | 本机人脸档案 |
 | GET | `/devices` | live USB 连接与当前运行时目标 |
 | GET | `/miot` | 本机米家配置与同步 |
@@ -88,7 +86,6 @@ token 默认不放 URL query，也不写入访问日志。
 |------|------|------|
 | GET | `/app/` | 本机工作台 |
 | GET | `/app/devices` | live USB 连接状态 |
-| GET | `/app/scheduled-tasks` | 提醒列表 |
 | GET | `/app/face-profiles` | 人脸档案 |
 | GET | `/app/memories` | 长期记忆 |
 | GET | `/app/llm-models` | LLM 模型配置 |
@@ -124,11 +121,6 @@ token 默认不放 URL query，也不写入访问日志。
 
 | 方法 | 路径 | 用途 | 主要输入 |
 |------|------|------|----------|
-| GET | `/app/api/scheduled-tasks` | 分页查询提醒 | query: `page`, `per_page` |
-| POST | `/app/api/scheduled-tasks` | 创建一次性或 cron 提醒 | JSON: `description`, `run_at`/`delay_seconds`/`delay_minutes`/`cron`, `task_kind` |
-| PATCH | `/app/api/scheduled-tasks/{task_id}` | 编辑提醒 | JSON: 待修改字段 |
-| POST | `/app/api/scheduled-tasks/{task_id}/{pause\|resume\|retry}` | 暂停、恢复或重试 | - |
-| DELETE | `/app/api/scheduled-tasks/{task_id}` | 删除提醒 | - |
 | GET | `/app/api/preferences` | 读取本机互动偏好与 revision | - |
 | PATCH | `/app/api/preferences` | CAS 更新互动偏好 | JSON: `expected_revision`, `preferences` |
 | GET | `/app/api/sessions` | 查询唯一 local 会话 | query: `page`, `per_page` |

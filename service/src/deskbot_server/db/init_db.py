@@ -21,7 +21,6 @@ from deskbot_server.db.models import (
     ControlOperation,
     Device,
     QuestInstance,
-    ScheduledTask,
     SettingsTestDaily,
     ToolConfirmation,
     ToolOperation,
@@ -135,7 +134,6 @@ def _legacy_schema_present(engine) -> bool:
             "revoking_at",
             "retired_data_path",
         },
-        "scheduled_tasks": {"device_id", "run_at"},
         "tool_operations": {
             "device_id",
             "owner_user_id",
@@ -198,7 +196,6 @@ def _legacy_schema_present(engine) -> bool:
     rebuild_specs = (
         (ApiKey.__table__, ("key_hash",)),
         (Device.__table__, ("device_id",)),
-        (ScheduledTask.__table__, None),
         (ToolOperation.__table__, ("tool_name", "operation_id")),
         (ToolConfirmation.__table__, None),
         (ControlOperation.__table__, ("operation_id",)),
@@ -487,40 +484,6 @@ def _migrate_devices_schema(engine) -> None:
     _rebuild_table(engine, table, transform)
 
 
-def _migrate_scheduled_tasks_schema(engine) -> None:
-    """Move scheduled tasks from per-device scope to the local workspace."""
-
-    table = ScheduledTask.__table__
-    if not _needs_rebuild(engine, table):
-        return
-
-    def transform(rows: list[dict[str, Any]]) -> Iterable[dict[str, Any]]:
-        for row in rows:
-            payload = _copy_common(row, table)
-            payload.update(
-                id=str(payload.get("id") or _new_id()),
-                description=str(payload.get("description") or "") or "legacy task",
-                cron_expr=str(payload.get("cron_expr") or "* * * * *"),
-                task_kind=str(payload.get("task_kind") or "once"),
-                enabled=bool(True if payload.get("enabled") is None else payload["enabled"]),
-                next_run_at=(
-                    payload.get("next_run_at")
-                    or row.get("run_at")
-                    or _utc_text()
-                ),
-                status=(
-                    "active"
-                    if str(payload.get("status") or "active") == "pending"
-                    else str(payload.get("status") or "active")
-                ),
-                created_at=payload.get("created_at") or _utc_text(),
-                attempt_count=max(0, int(payload.get("attempt_count") or 0)),
-                offline_wait_count=max(0, int(payload.get("offline_wait_count") or 0)),
-                occurrence_id=str(payload.get("occurrence_id") or _new_id()),
-            )
-            yield payload
-
-    _rebuild_table(engine, table, transform)
 
 
 def _migrate_quest_instances_schema(engine) -> None:
@@ -768,7 +731,6 @@ def _migrate_legacy_schema(engine) -> None:
     _migrate_single_api_key_data(engine)
     _migrate_api_keys_schema(engine)
     _migrate_devices_schema(engine)
-    _migrate_scheduled_tasks_schema(engine)
     _migrate_quest_instances_schema(engine)
     _migrate_tool_safety_schema(engine)
     _migrate_control_operations_schema(engine)
@@ -778,10 +740,6 @@ def _migrate_legacy_schema(engine) -> None:
     _drop_obsolete_identity_tables(engine)
 
 
-def _migrate_scheduled_tasks_drop_legacy_run_at(engine) -> None:
-    """Compatibility entry point retained for older migration tests."""
-
-    _migrate_scheduled_tasks_schema(engine)
 
 
 # ---------------------------------------------------------------------------
@@ -790,15 +748,9 @@ def _migrate_scheduled_tasks_drop_legacy_run_at(engine) -> None:
 # 因此只能各跑一次。执行始终处于 ``_schema_migration_lock`` 之内。
 # ---------------------------------------------------------------------------
 
-#: v1: scheduled_tasks 时间字段从 naive-CST 统一为 naive-UTC（core.clock 口径）。
+#: v1 曾把 scheduled_tasks 的时间口径统一为 UTC；该表随定时任务功能一起撤了（2026-09-14），
+#: 版本号保留作为后续迁移的锚点，旧库里残留的表不再读写。
 _DB_USER_VERSION = 1
-
-_SCHEDULED_TASK_CST_COLUMNS = (
-    "next_run_at",
-    "executed_at",
-    "lease_expires_at",
-    "first_due_at",
-)
 
 
 def _read_user_version(engine) -> int:
@@ -806,67 +758,12 @@ def _read_user_version(engine) -> int:
         return int(conn.exec_driver_sql("PRAGMA user_version").scalar() or 0)
 
 
-def _migrate_scheduled_tasks_naive_cst_to_utc(engine) -> None:
-    """One-time shift: scheduled_tasks 混存修复（naive-CST 字段 -8h 转 UTC）。
-
-    历史约定：``created_at`` 由 ``db.models._utcnow`` 写入（naive-UTC 墙钟），
-    而 ``next_run_at/executed_at/lease_expires_at/first_due_at`` 由旧
-    ``cst_now`` 写入（naive-CST 墙钟）。统一为 naive-UTC 后：
-
-    - 无时区后缀的值按 CST 墙钟解释，减 8 小时（上海无夏令时，偏移恒定）；
-    - 带显式 ``+HH:MM`` 后缀的值（旧 ``_utc_text`` 迁移兜底所写）本就无歧义，
-      仅经 ``datetime()`` 规范化成 naive-UTC，不做偏移；
-    - 无法解析的值保持原样（``COALESCE`` 兜底），不让迁移中断启动。
-    """
-
-    if "scheduled_tasks" not in set(inspect(engine).get_table_names()):
-        return
-    with engine.connect() as conn:
-        has_rows = conn.exec_driver_sql(
-            "SELECT 1 FROM scheduled_tasks LIMIT 1"
-        ).first()
-    if has_rows is None:
-        return
-    _ensure_backup_snapshot(engine, suffix=".pre-utc-clock.bak")
-    with engine.begin() as conn:
-        for column in _SCHEDULED_TASK_CST_COLUMNS:
-            conn.exec_driver_sql(
-                f'''
-                UPDATE scheduled_tasks SET "{column}" = COALESCE(
-                    CASE
-                        WHEN "{column}" IS NULL THEN NULL
-                        WHEN instr(substr("{column}", 12), '+') > 0
-                            THEN datetime("{column}")
-                        ELSE datetime("{column}", '-8 hours')
-                    END,
-                    "{column}"
-                )
-                '''
-            )
-        # created_at 已是 UTC；仅把带显式偏移后缀的旧值规范化成 naive-UTC，
-        # 使全表字符串可作字典序比较。
-        conn.exec_driver_sql(
-            """
-            UPDATE scheduled_tasks SET created_at = COALESCE(
-                CASE
-                    WHEN created_at IS NULL THEN NULL
-                    WHEN instr(substr(created_at, 12), '+') > 0
-                        THEN datetime(created_at)
-                    ELSE created_at
-                END,
-                created_at
-            )
-            """
-        )
-    logger.warning("scheduled_tasks 时间口径已统一为 UTC（user_version=1）")
 
 
 def _run_versioned_migrations(engine) -> None:
     version = _read_user_version(engine)
     if version >= _DB_USER_VERSION:
         return
-    if version < 1:
-        _migrate_scheduled_tasks_naive_cst_to_utc(engine)
     with engine.begin() as conn:
         conn.exec_driver_sql(f"PRAGMA user_version = {_DB_USER_VERSION:d}")
 

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import asyncio
 
+PRIORITY_REMINDER = 20  # 曾是 turn_arbiter 的提醒优先级；定时任务撤掉后这里只当"介于自动与手动之间"的样例值
+
 
 def test_interactive_turn_preempts_active_reminder_without_overlap():
     from deskbot_server.application.turn_arbiter import (
         PRIORITY_INTERACTIVE,
-        PRIORITY_REMINDER,
         DeviceTurnArbiter,
         TurnInterrupted,
     )
@@ -76,7 +77,6 @@ def test_interactive_turn_preempts_active_reminder_without_overlap():
 def test_waiting_interactive_turn_runs_before_deferred_reminder():
     from deskbot_server.application.turn_arbiter import (
         PRIORITY_INTERACTIVE,
-        PRIORITY_REMINDER,
         DeviceTurnArbiter,
     )
 

@@ -125,6 +125,9 @@ enum ProfileInitializer {
         if fm.fileExists(atPath: seedEnv.path) {
             try copyIfMissing(seedEnv, paths.appRoot.appendingPathComponent(".env"))
         }
+        // 内部分发包可在 seed/ 顶层放任意附加文件（如企业 CA 证书包），首启一并落地，不覆盖既有文件。
+        try copyTopLevelFilesIfMissing(
+            seed, paths.appRoot, skipping: ["config.yaml", ".env.example", ".env"])
         try copyTreeIfMissing(
             seed.appendingPathComponent("data/global"),
             paths.appRoot.appendingPathComponent("data/global"))
@@ -146,6 +149,22 @@ enum ProfileInitializer {
             at: destination.deletingLastPathComponent(),
             withIntermediateDirectories: true)
         try fm.copyItem(at: source, to: destination)
+    }
+
+    private static func copyTopLevelFilesIfMissing(
+        _ sourceRoot: URL, _ destRoot: URL, skipping: Set<String>
+    ) throws {
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(
+            at: sourceRoot, includingPropertiesForKeys: [.isRegularFileKey], options: [])
+        else { return }
+        for item in items {
+            let name = item.lastPathComponent
+            if skipping.contains(name) || name == ".DS_Store" { continue }
+            let values = try item.resourceValues(forKeys: [.isRegularFileKey])
+            guard values.isRegularFile == true else { continue }
+            try copyIfMissing(item, destRoot.appendingPathComponent(name))
+        }
     }
 
     private static func copyTreeIfMissing(_ sourceRoot: URL, _ destRoot: URL) throws {

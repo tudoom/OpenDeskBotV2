@@ -17,6 +17,7 @@ import websockets
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 
 from deskbot_server.env import load_dotenv
+from deskbot_server.llm.provider_keys import mask_secret
 from deskbot_server.safe_fetch import connect_provider_websocket_socket
 from deskbot_server.tts.protocols import (
     EventType,
@@ -107,6 +108,7 @@ class DoubaoTtsConfig:
             "streaming": True,
             "api_key": "",
             "api_key_set": bool(self.api_key),
+            "api_key_masked": mask_secret(self.api_key),
             "speaker": self.speaker,
             "resource_id": self.resource_id,
             "model": self.model,
@@ -116,8 +118,10 @@ class DoubaoTtsConfig:
             "enable_timestamp": self.enable_timestamp,
             "app_id": "",
             "app_id_set": bool(self.app_id),
+            "app_id_masked": mask_secret(self.app_id),
             "access_token": "",
             "access_token_set": bool(self.access_token),
+            "access_token_masked": mask_secret(self.access_token),
             "voice_clone_resource_id": self.voice_clone_resource_id,
             "voice_clone_speaker_id": self.voice_clone_speaker_id,
             "voice_clone_url": self.voice_clone_url,

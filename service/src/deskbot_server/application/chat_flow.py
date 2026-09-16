@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("deskbot-server")
 
-_SCHEDULED_TASK_PREFIX = "[系统定时任务]"
 # 剧本主动推进（冷场开口）：与定时任务同为"系统发起轮"——强制开口、兜底口播语。
 _QUEST_PROACTIVE_PREFIX = "[系统剧情推进]"
 
@@ -185,31 +184,6 @@ async def _play_llm_error_fallback(
     )
 
 
-def _is_scheduled_task_user_text(user_text: str) -> bool:
-    return str(user_text or "").strip().startswith(_SCHEDULED_TASK_PREFIX)
-
-
-def _scheduled_task_description(user_text: str) -> str:
-    text = str(user_text or "").strip().split("\n", 1)[0]
-    m = re.search(
-        r"请(?:向主人朗声提醒并)?执行以下任务(?:并向主人汇报结果)?[:：](.+)$",
-        text,
-    )
-    if m:
-        return m.group(1).strip()
-    return text.replace(_SCHEDULED_TASK_PREFIX, "").strip()
-
-
-def _scheduled_reminder_tts(description: str) -> str:
-    desc = str(description or "").strip()
-    if not desc:
-        return "主人，提醒时间到了。"
-    if desc.startswith("提醒"):
-        body = desc[2:].strip() or "一下"
-        return f"主人，该{body}啦。"
-    return f"主人，{desc}。"
-
-
 def _scheduled_tts_looks_like_meta_report(text: str) -> bool:
     t = str(text or "").strip()
     if not t:
@@ -258,12 +232,10 @@ async def run_chat_turn(
 ) -> ChatTurnResult:
     """在已有用户侧文本后执行 LLM + TTS/pb 管道（应用层，不依赖 WebSocket 类型）。"""
     result = ChatTurnResult()
-    is_scheduled = _is_scheduled_task_user_text(user_text)
     is_quest = _is_quest_proactive_user_text(user_text)
-    is_system_turn = is_scheduled or is_quest
+    is_system_turn = is_quest
     if not is_system_turn and device_id:
         user_activity.note(device_id)  # 主人侧的话：主动陪伴据此判断「上次开口后主人回应了」
-    sched_desc = _scheduled_task_description(user_text) if is_scheduled else ""
     session_id: Optional[str] = None
     session_turn_request_id = str(request_id or uuid.uuid4().hex[:16])
     assistant_session_recorded = False
@@ -500,17 +472,7 @@ async def run_chat_turn(
             return result
 
         playback_text = (reply_text or "").strip()
-        if is_scheduled and (
-            not playback_text or _scheduled_tts_looks_like_meta_report(playback_text)
-        ):
-            playback_text = _scheduled_reminder_tts(sched_desc)
-            logger.info(
-                "[scheduler] 定时任务使用兜底提醒语 device_id=%s req=%s content=%s",
-                device_id,
-                request_id,
-                safe_log_content(playback_text),
-            )
-        elif is_quest and (
+        if is_quest and (
             not playback_text or _scheduled_tts_looks_like_meta_report(playback_text)
         ):
             playback_text = _quest_proactive_fallback_tts(user_text)

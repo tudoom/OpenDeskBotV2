@@ -55,7 +55,8 @@ KIND_CARE = "care"
 KINDS = (KIND_STORY, KIND_CARE)
 CARE_DEFAULT_MAX_MISSES = 2  # 日常关心：连续这么多次没回应 → 暂停一天
 CARE_PAUSE_SEC = 86400
-SCHEDULE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")  # 日常关心的定时：每天 HH:MM
+SCHEDULE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")  # 定时提醒的钟点：HH:MM
+SCHEDULE_DATE_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")  # 一次性提醒：只在这一天提
 DEFAULT_REPEAT_INTERVAL_SEC = 86400  # 可重复的小目标：达成后过多久重新开始
 
 PLAYBOOK_NAME_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
@@ -124,6 +125,9 @@ def _errs_for_task(task: dict) -> list[str]:
     st = task.get("schedule_time")
     if st not in (None, "") and not SCHEDULE_TIME_RE.match(str(st)):
         errs.append(f"{label}: schedule_time 必须是 HH:MM（{st!r}）")
+    sd = task.get("schedule_date")
+    if sd not in (None, "") and not SCHEDULE_DATE_RE.match(str(sd)):
+        errs.append(f"{label}: schedule_date 必须是 YYYY-MM-DD（{sd!r}）")
     days = task.get("schedule_days")
     if days is not None and (not isinstance(days, list) or any(not isinstance(d, int) or isinstance(d, bool) or d < 0 or d > 6 for d in days)):
         errs.append(f"{label}: schedule_days 必须是 0-6（周一=0）的列表")
@@ -331,12 +335,20 @@ def normalize_task(raw: dict, *, existing: list[dict] | None = None) -> dict:
         # 日常关心的定时：每天 HH:MM（空 = 看情况由小歪判断）；schedule_days 空 = 每天
         "schedule_time": _schedule_time(raw.get("schedule_time")),
         "schedule_days": sorted({int(d) for d in (raw.get("schedule_days") or []) if isinstance(d, int) and not isinstance(d, bool) and 0 <= d <= 6}),
+        # 一次性提醒：只在这一天的 schedule_time 提一次，提过就写 done_at（列表里标「已提醒」，7 天后自动清掉）
+        "schedule_date": _schedule_date(raw.get("schedule_date")),
+        "done_at": str(raw.get("done_at") or "").strip()[:40],
     }
 
 
 def _schedule_time(raw: Any) -> str:
     val = str(raw or "").strip()
     return val if SCHEDULE_TIME_RE.match(val) else ""
+
+
+def _schedule_date(raw: Any) -> str:
+    val = str(raw or "").strip()
+    return val if SCHEDULE_DATE_RE.match(val) else ""
 
 
 def _merge_conditions(success: Any, failure: Any) -> str:

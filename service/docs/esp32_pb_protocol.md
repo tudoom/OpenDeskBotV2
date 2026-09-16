@@ -34,7 +34,8 @@ PC 打开 CDC 后创建新的 session epoch，并发送带非零 `client_nonce` 
 - 固件/协议版本；
 - capabilities；
 - 当前 epoch；
-- 与请求完全相同的 `ack_client_nonce`。
+- 与请求完全相同的 `ack_client_nonce`；
+- `face_tag`（固件 ≥0.0.57）：设备当前待机卡通脸的内容标签（开机从 FFat 恢复的那张），空串 = 内建矢量脸，见 §5.7。
 
 同一次握手重试复用相同 nonce。PC 只接受 epoch 与 nonce 都匹配的 ACK；重复 ACK
 不得重复触发 ready。握手完成前设备不发送媒体或普通日志。
@@ -330,6 +331,30 @@ c  = (R5 << 11) | (G6 << 5) | B5
 ### 5.6 可选 `assets[]`（JPEG 等）
 
 若存在 `assets[]`，读完 PCM 后按 `assets[i].next_bin_len` 依次读 binary；`shape: image` 的 `asset` 指向下标。
+
+### 5.7 待机卡通脸的保持与持久化（固件 ≥0.0.57）
+
+固件对 PB 只播一遍；以前电脑一断开，设备就回到内建矢量待机脸。0.0.57 起：
+
+- 待机（idle）位图表情链上带 `face_keep: true` 和 `face_tag: "<16 位十六进制>"`（Core 在
+  `build_expression_pb_frames(face_keep=…)` / 表情页 `device_pb_anim` 的 `standby: true` 里加）。
+  固件把这条时间线（anim JSON + JPEG 附件）留一份在 PSRAM；只有带附件的位图链才会被留住。
+- 会话结束进入待机后，display worker 循环回放这份时间线（不追踪 terminal、不回 `pb_ack`），
+  断开 10 s 后在画面上叠加"请先连接PC服务"小字；期间新的 PB 到来会立即打断回放。
+- `face_tag` 是内容哈希（JPEG 内容 + 各帧时长 + image 图元引用），Core 的
+  `standby_face_tag()` 给语音运行时和表情页算出同一个值。
+- 落盘用 CONTROL_JSON（回执类型固定，PC 用 `control_request` 等）：
+
+| 请求 | 回执 | 说明 |
+| --- | --- | --- |
+| `{"type":"face_persist"}` | `{"type":"face_persist_ack","ok":true,"tag":"…","bytes":N}` / `{"ok":true,"already":true}` / `{"ok":false,"error":"no_standby_face\|busy\|too_large\|write_*"}` | 把 PSRAM 里的待机脸写进 FFat（`/face/meta.json` + `anim.json` + `a<i>.jpg`，≤256 KB、≤8 张）。固件在独立任务里写，回执可能晚 1～2 s；标签与盘上相同时不重写直接 `already` |
+| `{"type":"face_clear"}` | `{"type":"face_clear_ack","ok":true}` | 删盘上的文件并清掉 PSRAM 副本，待机回内建矢量脸 |
+| `{"type":"face_status_req"}` | `{"type":"face_status_ack","tag":"…","persisted":bool}` | 当前 PSRAM 里的标签、以及它是否已在盘上 |
+
+- 开机 `face_store_load()` 读回 FFat 里的脸交给 display，hello 的 `face_tag` 报这个标签。
+- Core 侧：语音运行时在 idle 位图链被设备接收后自动 `face_status_req` → 需要时 `face_persist`；
+  idle 是矢量脸时若设备还留着卡通脸则 `face_clear`。表情页"设为设备默认表情"走
+  `/api/face_persist`（`ws/routes/face_store.py`）。
 
 ---
 

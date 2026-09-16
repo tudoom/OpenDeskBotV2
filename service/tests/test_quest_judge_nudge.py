@@ -186,3 +186,43 @@ def test_quest_result_tools_do_not_trigger_follow_up_in_instruction_turns(monkey
             return None
 
     assert plugins._deskbot_apply_instructions(_Bare(), [{"text": "x"}]) == 1
+
+
+def test_restart_reasks_story_goal_that_was_spoken_but_never_judged(quest_env, monkeypatch):
+    """2026-09-14：目标 5 开口、催判定的那一轮随应用重启一起没了，之后一直「等小歪标结果」——
+    重启后循环第一拍：主线里「上次提在这轮开始之后、还没结果」的任务，清掉上次提的记录，下个冷场窗口重新问。"""
+    from deskbot_server.application import quest_proactive as qp
+    from deskbot_server.application import quest_service as svc
+
+    clear_care_scene()
+    svc.save_playbook("demo", demo_playbook())
+    bind("demo")
+    tasks = svc.get_current_tasks()
+    greet = next(t for t in tasks if t["task_id"] == "g_greet")
+    persisted = []
+
+    class RestartedRunner(FakeRunner):
+        def __init__(self):
+            super().__init__()
+            self._task_last_attempt = {"g_greet": float(greet["started_at_ts"]) + 30.0, "g_care_x": 5.0}
+            self.last_turn = None  # 内存里的「上次开口」随进程没了
+
+        def _persist_state(self):
+            persisted.append(dict(self._task_last_attempt))
+
+        async def attempt(self, device_id, *, ignore_limits=False, task_id=None, scheduled_hit="", chain=False):
+            return True
+
+    runner = RestartedRunner()
+    state = {"s": "idle"}
+    activity = {"t": 0.0}
+    loop = _loop(qp, runner, state=state, activity=activity, monkeypatch=monkeypatch)
+    monkeypatch.setattr(loop, "_gate", lambda *a, **k: (False, "reminder_soon"))
+    asyncio.run(loop.tick(now=time.time()))
+    assert runner._task_last_attempt["g_greet"] == 0.0  # 这轮当作没提过 → 下个冷场窗口重新问
+    assert runner._task_last_attempt["g_care_x"] == 5.0  # 日常关心 / 其它记录不动
+    assert persisted and persisted[-1]["g_greet"] == 0.0
+    # 只恢复一次：再 tick 不会重复清
+    runner._task_last_attempt["g_greet"] = 99.0
+    asyncio.run(loop.tick(now=time.time()))
+    assert runner._task_last_attempt["g_greet"] == 99.0

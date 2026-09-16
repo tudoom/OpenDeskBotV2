@@ -6,6 +6,7 @@
 #include "camera.h"
 #include "common.h"
 #include "deskbot_uplink_state.h"
+#include "display.h"
 #include "head.h"
 #include "mic_uplink_policy.h"
 #include "thermal_cutoff.h"
@@ -185,11 +186,37 @@ constexpr uint32_t kUsbQuietBeforeWifiMs = 3000u;
  * 又晚了几秒，机器人就绑到 WiFi 再也回不来（2026-09-11）。主机存在要连续看到这么久才算数，避免抖动。
  */
 constexpr uint32_t kUsbHostPresentDebounceMs = 3000u;
+/* 0.0.58：主机"不在场"也要连续看这么久才算数——SOF 采样偶尔会瞬间漏判，此前一个漏判就把链路绑到
+ * WiFi，下一拍又因"主机在场"拽回 USB，hello 永远收不完整（2026-09-14 黑匣子：bind wifi → pump →
+ * 3 ms 后 bind usb，反复四次）。 */
+constexpr uint32_t kUsbHostAbsentDebounceMs = 3000u;
+/* 0.0.59：主机信号在、但 USB 上这么久没有任何字节（Core 在的话开机几秒内就会 hello）→ 也走 WiFi。
+ * 机器人插在别的电脑 / 扩展坞的 USB 口上供电时 SOF 一直在，光等"主机消失"永远等不到（2026-09-14）；
+ * 之后 USB 上真来了字节（Core 起来了）再由主机在场 + 字节切回。 */
+constexpr uint32_t kUsbHostQuietFallbackMs = 20000u;
 
 uint32_t s_usb_host_seen_since_ms = 0;
+uint32_t s_usb_host_absent_since_ms = 0;
+/* 绑到 WiFi 那一刻的 millis()：之后 USB 上真的来了字节（只有 Core 会发）才允许因主机在场切回。 */
+uint32_t s_wifi_bound_at_ms = 0;
 
 bool usb_host_present_now() {
   return HWCDCSerial.isPlugged();
+}
+
+/* 主机 SOF 连续消失 ≥ kUsbHostAbsentDebounceMs 才认定"没接电脑"。 */
+bool usb_host_absent_stable() {
+  if (usb_host_present_now()) {
+    s_usb_host_absent_since_ms = 0;
+    return false;
+  }
+  const uint32_t now = millis();
+  if (s_usb_host_absent_since_ms == 0) {
+    s_usb_host_absent_since_ms = now == 0 ? 1u : now;
+    return false;
+  }
+  return static_cast<uint32_t>(now - s_usb_host_absent_since_ms) >=
+         kUsbHostAbsentDebounceMs;
 }
 
 /* 主机 SOF 连续存在 ≥ kUsbHostPresentDebounceMs 才认定"接着电脑"。 */
@@ -642,7 +669,7 @@ void send_session_end_notice(const char* reason) {
 }
 
 bool send_hello_ack(uint32_t rx_sequence, uint32_t client_nonce) {
-  char json[1600];  /* 0.0.54 加 mic_muted 字段；超长会整条丢弃，留余量 */
+  char json[1664];  /* 0.0.57 加 face_tag；0.0.54 加 mic_muted；超长会整条丢弃，留余量 */
   const CameraHealthSnapshot camera_health = camera_health_snapshot();
   const HeadServoHealthSnapshot servo_health = head_servo_health_snapshot();
   int servo_heat_x = 0, servo_heat_y = 0;
@@ -694,6 +721,7 @@ bool send_hello_ack(uint32_t rx_sequence, uint32_t client_nonce) {
        "\"servo_idle_relax_ms\":%u,\"servo_relaxed\":%s,"
        "\"servo_heat_x\":%d,\"servo_heat_y\":%d,\"servo_cooldowns\":%u,"
        "\"chip_temp_c\":%d,\"mic_uplink_mode\":\"%s\",\"mic_muted\":%s,"
+       "\"face_tag\":\"%s\","
        "\"thermal_cutoff_c\":%u,\"thermal_trips\":%u,"
 
       "\"capabilities\":[\"control_json\",\"pb_wire\","
@@ -747,6 +775,7 @@ bool send_hello_ack(uint32_t rx_sequence, uint32_t client_nonce) {
        servo_heat_x, servo_heat_y,
        static_cast<unsigned>(head_servo_cooldown_count()),
        chip_temp_c, mic_uplink_mode_name(), mic_uplink_muted() ? "true" : "false",
+       display_standby_face_tag(),
        static_cast<unsigned>(thermal_cutoff_c()), static_cast<unsigned>(thermal_cutoff_trips()),
 
       rtc_audio_caps,
@@ -1236,6 +1265,9 @@ void switch_link(bool to_wifi, const char* reason) {
   if (s_tx_mutex != nullptr) {
     xSemaphoreGive(s_tx_mutex);
   }
+  if (to_wifi) {
+    s_wifi_bound_at_ms = millis() == 0 ? 1u : millis();
+  }
   reset_parser();
   s_usb_takeover_match = 0;
   s_wifi_pump_probe_pending = to_wifi;
@@ -1282,8 +1314,13 @@ void service_link_arbitration() {
       }
       usb_available = HWCDCSerial.available();
     }
-    /* 主机在场就回 USB：Core 就在这台电脑上，WiFi 只是没有主机时的备胎。 */
-    if (usb_host_present_stable()) {
+    /* 主机在场且 USB 上真的来过字节（只有 Core 会发）才回 USB：Core 就在这台电脑上，WiFi 只是备胎。
+     * 光有 SOF 不算——机器人插在别的电脑 / 扩展坞上供电时也有 SOF，那边没有 Core，回去就等于断线
+     * （2026-09-14：拔下 Mac 插到带电脑的口上供电，WiFi 握手被反复拽回 USB 打断）。 */
+    const bool usb_bytes_since_wifi_bind =
+        s_last_usb_byte_ms != 0 &&
+        static_cast<int32_t>(s_last_usb_byte_ms - s_wifi_bound_at_ms) >= 0;
+    if (usb_host_present_stable() && usb_bytes_since_wifi_bind) {
       switch_link(false, "usb_host_present");
     }
     return;
@@ -1292,11 +1329,14 @@ void service_link_arbitration() {
   /* Bound to USB.  Fall over to a connected WiFi peer only when there is no
    * live session, USB has been silent long enough that no handshake can be
    * in flight, and no USB host is attached (a charger-only cable has no SOF). */
-  if (wifi != nullptr && !s_active.load(std::memory_order_acquire) &&
-      !usb_host_present_now() &&
-      static_cast<uint32_t>(millis() - s_last_usb_byte_ms) >=
-          kUsbQuietBeforeWifiMs) {
-    switch_link(true, "usb_idle_wifi_ready");
+  if (wifi != nullptr && !s_active.load(std::memory_order_acquire)) {
+    const uint32_t usb_quiet_ms =
+        static_cast<uint32_t>(millis() - s_last_usb_byte_ms);
+    const bool host_absent = usb_host_absent_stable();
+    if ((host_absent && usb_quiet_ms >= kUsbQuietBeforeWifiMs) ||
+        usb_quiet_ms >= kUsbHostQuietFallbackMs) {
+      switch_link(true, host_absent ? "usb_idle_wifi_ready" : "usb_host_quiet_wifi_ready");
+    }
   }
 }
 
@@ -1476,13 +1516,34 @@ void usb_transport_poll(void) {
   size_t drained = 0;
   while (available > 0 && drained < 16u * 1024u &&
          static_cast<uint32_t>(micros() - started) < 3000u) {
+    if (!link_is_usb) {
+      /* WiFi：逐字节 read() 每次都是 lwIP 系统调用，3ms 预算只够 ~150 B，
+       * 接收窗口塞满后 PC 侧零窗口探测按秒退避（2026-09-14 帧延迟 5～16 s，
+       * 6 s 确认超时反复杀会话）。整段 recv 进静态缓冲再逐字节喂解析器。 */
+      static uint8_t s_wifi_rx_bulk[1024];
+      size_t want = static_cast<size_t>(available);
+      if (want > sizeof(s_wifi_rx_bulk)) {
+        want = sizeof(s_wifi_rx_bulk);
+      }
+      const size_t got = link->readBytes(s_wifi_rx_bulk, want);
+      if (got == 0) {
+        break;
+      }
+      for (size_t i = 0; i < got; ++i) {
+        consume_rx_byte(s_wifi_rx_bulk[i]);
+      }
+      drained += got;
+      available = link->available();
+      if (available > 0) {
+        update_max(s_cdc_rx_high_water, static_cast<uint32_t>(available));
+      }
+      continue;
+    }
     const int value = link->read();
     if (value < 0) {
       break;
     }
-    if (link_is_usb) {
-      s_last_usb_byte_ms = millis();
-    }
+    s_last_usb_byte_ms = millis();
     consume_rx_byte(static_cast<uint8_t>(value));
     drained++;
     available = link->available();

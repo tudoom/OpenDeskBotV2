@@ -13,7 +13,7 @@
               :class="{primary: openDoc===d.name}" @click="toggleDoc(d)">
         [[ d.name ]]
       </button>
-      <a class="btn ghost" href="{{ url_for('app2c.reminders') }}">更多功能</a>
+      <a class="btn ghost" href="{{ url_for('app2c.memories') }}">更多功能</a>
     </div>
   </div>
 
@@ -55,7 +55,7 @@
   <form class="agent-input" @submit.prevent="send">
     <textarea class="tinput" v-model="draft" rows="2" maxlength="2000"
               placeholder="和它说点什么…（Enter 发送，Shift+Enter 换行）"
-              @keydown.enter.exact.prevent="send"></textarea>
+              @keydown.enter.exact="onEnter"></textarea>
     <button class="btn primary" type="submit" :disabled="pending || !draft.trim()">
       [[ pending ? '发送中…' : '发送' ]]
     </button>
@@ -92,10 +92,10 @@ createApp({
         rows.push({key:'scenes',label:'表演',href:'{{ url_for("app2c.playbooks") }}',
           text: list.length ? `${list.length} 段：${list.slice(0,3).map(p=>p.title||p.name).join('、')}${list.length>3?'…':''}` : '还没有表演'});
       }
-      const rm=await safe(()=>this.api('/app/api/scheduled-tasks?status=active&per_page=50'));
-      if(rm && rm.ok){
-        const n=Array.isArray(rm.tasks)?rm.tasks.length:(rm.total||0);
-        rows.push({key:'reminders',label:'定时提醒',href:'{{ url_for("app2c.reminders") }}', text: n ? `${n} 条待发` : '没有待发的提醒'});
+      if(qv && qv.ok){
+        // 定时提醒 = 主动陪伴里带钟点的那些（2026-09-14 起定时任务并进来了）
+        const timed=(qv.care_tasks||[]).filter(t=>t && t.schedule_time && !t.done_at);
+        rows.push({key:'reminders',label:'定时提醒',href:'{{ url_for("quest.page") }}', text: timed.length ? `${timed.length} 条：${timed.slice(0,3).map(t=>t.title).join('、')}${timed.length>3?'…':''}` : '还没有定时提醒'});
       }
       const mi=await safe(()=>this.api('/app/api/miot/status'));
       if(mi && mi.ok){
@@ -162,6 +162,13 @@ createApp({
         const el = this.$refs.scroller;
         if(el) el.scrollTop = el.scrollHeight;
       });
+    },
+    onEnter(e){
+      // 中文输入法里按回车是"上屏候选词"，此时 v-model 还停在已上屏的前半句（比如「中秋」），
+      // 直接发送就会把后半句丢掉（2026-09-14 实测）；组合结束后再按一次回车才发送。
+      if(e && (e.isComposing || e.keyCode === 229)) return;
+      if(e) e.preventDefault();
+      this.send();
     },
     async send(){
       const text = this.draft.trim();

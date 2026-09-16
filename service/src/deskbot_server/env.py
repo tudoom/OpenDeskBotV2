@@ -40,6 +40,23 @@ def _parse_env_file() -> dict[str, str]:
     return out
 
 
+# .env 里这几项写相对路径时，按 .env 所在目录解析成绝对路径再放进环境：随包种子可以把证书包
+# 和 .env 一起落到用户目录，种子里只需写 `SSL_CERT_FILE=ca-bundle.pem`，不必知道用户目录的绝对
+# 路径（2026-09-14，内部分发版在企业网络里免手工配置）。文件不存在就原样保留，交给下游报错。
+_CA_PATH_KEYS = ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE")
+
+
+def _resolve_relative_ca_paths(values: dict[str, str]) -> None:
+    base = ENV_FILE.parent
+    for key in _CA_PATH_KEYS:
+        raw = str(values.get(key) or "").strip()
+        if not raw or os.path.isabs(raw):
+            continue
+        candidate = (base / raw).resolve()
+        if candidate.is_file():
+            values[key] = str(candidate)
+
+
 def load_dotenv(*, force_reload: bool = False) -> bool:
     """Load `.env`, and hot-reload values previously sourced from that file.
 
@@ -57,6 +74,7 @@ def load_dotenv(*, force_reload: bool = False) -> bool:
         if not force_reload and signature == _last_signature:
             return False
         incoming = _parse_env_file()
+        _resolve_relative_ca_paths(incoming)
         previous = dict(_file_managed_values)
         for key, value in incoming.items():
             current = os.environ.get(key)

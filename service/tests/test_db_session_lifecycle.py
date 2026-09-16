@@ -86,21 +86,6 @@ class _ReadSession:
         self.closed = True
 
 
-def test_scheduled_task_read_closes_on_early_return_and_query_error(monkeypatch):
-    import deskbot_server.scheduled_task_service as service
-
-    missing = _ReadSession(scalar_result=None)
-    monkeypatch.setattr(service, "get_session", lambda: missing)
-    assert service.get_scheduled_task("missing") is None
-    assert missing.closed is True
-
-    failed = _ReadSession(error=RuntimeError("query failed"))
-    monkeypatch.setattr(service, "get_session", lambda: failed)
-    with pytest.raises(RuntimeError, match="query failed"):
-        service.get_scheduled_task("broken")
-    assert failed.closed is True
-
-
 def test_settings_quota_closes_on_limit_exception(monkeypatch):
     import deskbot_server.application.settings_test_limit as limits
 

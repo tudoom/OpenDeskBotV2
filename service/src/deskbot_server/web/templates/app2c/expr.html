@@ -147,11 +147,12 @@
   .cartoon-api-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px}
   .cartoon-api-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px}
   @media(max-width:900px){.cartoon-api-form{grid-template-columns:1fr}}
+.standby-face-hint{margin:4px 0 0;font-size:12px;opacity:.72}
 </style>
 {% endblock %}
 {% block content %}
 <div id="app">
-  <div class="pagehd"><div><div class="eyebrow">FACE · CONFIG</div><h1>表情</h1><p>表情库保存在这台电脑上，连接任意一台小歪都会使用同一套内容。</p></div>
+  <div class="pagehd"><div><div class="eyebrow">FACE · CONFIG</div><h1>表情</h1><p>表情库保存在这台电脑上，连接任意一台小歪都会使用同一套内容。</p><p class="standby-face-hint" v-if="standbyFace.text">[[ standbyFace.text ]]</p></div>
     <div class="page-actions">
       <button class="btn ghost" type="button" @click="sendPreviewToDevice" :disabled="sending || settingDefault || !deviceId" :title="deviceId ? '' : '设备预览需要先选择一台设备'">[[ sending ? '发送中…' : '设备预览' ]]</button>
       <button class="btn" type="button" @click="setAsDeviceDefaultExpression" :disabled="settingDefault || sending || mutationBusy || !deviceId" :title="deviceId ? '保存当前表情为待机默认表情，并立即发送到当前设备' : '设置默认表情需要先选择一台设备'">[[ settingDefault ? '设置中…' : '设为设备默认表情' ]]</button>
@@ -409,6 +410,7 @@ createApp({
     cartoonApi:{open:false,loaded:false,api_key:'',api_key_set:false,api_key_source:'none',url:'',url_overridden:false,default_url:'',model:'',model_overridden:false,default_model:'',models:[],console_url:'',saving:false,msg:''},
     mouthGroups:[], mouthBusy:false, mouthMsg:'', mouthEdit:null, deviceId:'', sending:false, settingDefault:false, mutationBusy:false, savingProfessional:false, loadSeq:0, _stopDeviceListener:null,
     runtimeState:null, runtimeError:'', runtimeTimer:null, runtimePollSeq:0, lastWebPreview:null,
+    standbyFace:{tag:'',persisted:false,supported:true,text:''},
     faceParts:FACE_PARTS_EDITOR.parts, shapeOptions:FACE_PARTS_EDITOR.shapeOptions,
     msg:'', professionalDesign:null, professionalFileName:'',
     imageExpressionFile:null, imageExpressionFileName:'', imageExpressionResult:null,
@@ -1121,7 +1123,7 @@ createApp({
         if(id){next=id;try{window.DeskbotConsole.selectDevice(id,{pinPage:true});}catch(_){}}
       }
       if(next===this.deviceId)return;
-      this.deviceId=next;this.runtimeState=null;this.runtimeError='';this.lastWebPreview=null;this.scheduleRuntimePoll(0);
+      this.deviceId=next;this.runtimeState=null;this.runtimeError='';this.lastWebPreview=null;this.scheduleRuntimePoll(0);void this.loadStandbyFaceStatus();
     },
     clearRuntimeTimer(){if(this.runtimeTimer){clearTimeout(this.runtimeTimer);this.runtimeTimer=null;}},
     shortFingerprint(value){const text=String(value||'');return text?text.slice(0,12):'-';},
@@ -1162,9 +1164,42 @@ createApp({
       const operationId=window.DeskbotConsole.newControlOperationId('expr-default');
       return await window.DeskbotConsole.submitControlOperation({
         url:'/proxy/deskbot/api/device_pb_anim',
-        requestOptions:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.deviceId,operation_id:operationId,action:'replace',expression_name:String(scene&&scene.name||'adhoc_web'),expression_title:String(scene&&(scene.title||scene.name)||this.previewTitle),anim,assets:Array.isArray(scene&&scene.assets)?scene.assets:[]})},
+        requestOptions:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.deviceId,operation_id:operationId,action:'replace',standby:true,expression_name:String(scene&&scene.name||'adhoc_web'),expression_title:String(scene&&(scene.title||scene.name)||this.previewTitle),anim,assets:Array.isArray(scene&&scene.assets)?scene.assets:[]})},
         baseUrl:'/proxy/deskbot',deviceId:this.deviceId,operationId
       });
+    },
+    // 待机卡通脸落到设备存储（固件 ≥0.0.57）：设为默认后调用，断开电脑/重启后设备仍显示这套表情。
+    async loadStandbyFaceStatus(){
+      const deviceId=this.deviceId;
+      if(!deviceId){this.standbyFace={tag:'',persisted:false,supported:true,text:''};return;}
+      try{
+        const r=await fetch('/proxy/deskbot/api/face_status?device_id='+encodeURIComponent(deviceId),{cache:'no-store'}),p=await r.json();
+        if(deviceId!==this.deviceId)return;
+        if(p.supported===false){this.standbyFace={tag:'',persisted:false,supported:false,text:'当前固件不支持在设备上保存待机表情（需 ≥0.0.57），断开电脑后显示内建表情'};return;}
+        if(!r.ok||!p.ok){this.standbyFace={tag:'',persisted:false,supported:true,text:''};return;}
+        const tag=String(p.tag||''),persisted=!!p.persisted;
+        this.standbyFace={tag,persisted,supported:true,text:tag?(persisted?'设备已保存待机卡通表情：断开电脑或重启后仍会显示':'设备暂存了待机卡通表情，尚未写入存储（重启后会丢）'):'设备未保存待机卡通表情：断开电脑后显示内建表情'};
+      }catch(_){}
+    },
+    async persistStandbyFace(){
+      const r=await fetch('/proxy/deskbot/api/face_persist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.deviceId})}),p=await r.json().catch(()=>({}));
+      if(p.supported===false)throw new Error('当前固件不支持（需 ≥0.0.57）');
+      if(!r.ok||!p.ok)throw new Error(p.error||('HTTP '+r.status));
+      await this.loadStandbyFaceStatus();return p;
+    },
+    async clearStandbyFace(){
+      const r=await fetch('/proxy/deskbot/api/face_clear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:this.deviceId})}),p=await r.json().catch(()=>({}));
+      if(p.supported===false)return null;
+      if(!r.ok||!p.ok)throw new Error(p.error||('HTTP '+r.status));
+      await this.loadStandbyFaceStatus();return p;
+    },
+    // 设为默认后：卡通脸 → 写入设备存储；矢量脸 → 清掉设备里残留的卡通脸。返回追加到提示里的一句话。
+    async syncStandbyFaceAfterDefault(scene){
+      const isBitmap=Array.isArray(scene&&scene.assets)&&scene.assets.length>0;
+      try{
+        if(isBitmap){const p=await this.persistStandbyFace();return p&&p.already?'，设备存储里已有这套表情':'，已写入设备存储（断开电脑或重启后仍显示）';}
+        const p=await this.clearStandbyFace();return p?'，断开电脑后设备显示内建表情':'';
+      }catch(e){return '（写入设备存储失败：'+(e&&e.message?e.message:e)+'）';}
     },
     async setAsDeviceDefaultExpression(){
       if(this.settingDefault||this.sending||this.mutationBusy)return;
@@ -1197,7 +1232,7 @@ createApp({
         if(saved)this.editExpressionScene(saved,{silent:true});
         const title=String(deviceScene.title||deviceScene.name||this.previewTitle);
         const backToSvg=Object.keys(pendingMap).some((k)=>['listening','thinking','speaking'].includes(k)&&pendingMap[k]===null);
-        try{await this.queueDefaultSceneToDevice(deviceScene);this.msg='已设为设备默认表情并在设备播放完成：'+title+(backToSvg?'（倾听/思考/说话已一并切回 SVG 表情）':'');}
+        try{await this.queueDefaultSceneToDevice(deviceScene);const stored=await this.syncStandbyFaceAfterDefault(deviceScene);this.msg='已设为设备默认表情并在设备播放完成：'+title+(backToSvg?'（倾听/思考/说话已一并切回 SVG 表情）':'')+stored;}
         catch(error){const soft=this.devicePushTakenOverNote(error);if(soft){this.msg='已设为设备默认表情：'+title+'。'+soft;return;}const detail=error&&error.message?error.message:String(error);this.msg='默认表情映射已保存，但设备应用失败：'+detail;}
       }catch(error){this.msg='设置设备默认表情失败：'+(error&&error.message?error.message:error);}
       finally{this.settingDefault=false;}
@@ -1242,8 +1277,9 @@ createApp({
         }
         const idleScene=this.sceneByName(names.idle);
         let note='';
-        if(idleScene){ try{ await this.queueDefaultSceneToDevice(idleScene); }catch(e){ note=this.devicePushTakenOverNote(e); if(!note){ this.cartoon.msg='映射已保存，但设备立即应用失败：'+(e.message||e); this.msg=this.cartoon.msg; return; } } }
-        this.cartoon.msg='已应用到设备：待机/倾听/思考/说话都换成这套卡通表情'+(note?'。'+note:''); this.msg=this.cartoon.msg;
+        let stored='';
+        if(idleScene){ try{ await this.queueDefaultSceneToDevice(idleScene); stored=await this.syncStandbyFaceAfterDefault(idleScene); }catch(e){ note=this.devicePushTakenOverNote(e); if(!note){ this.cartoon.msg='映射已保存，但设备立即应用失败：'+(e.message||e); this.msg=this.cartoon.msg; return; } } }
+        this.cartoon.msg='已应用到设备：待机/倾听/思考/说话都换成这套卡通表情'+stored+(note?'。'+note:''); this.msg=this.cartoon.msg;
       }catch(e){ this.cartoon.msg='应用失败：'+(e.message||e); }
       finally{ this.cartoon.busy=false; this.cartoon.progress=''; }
     },

@@ -16,6 +16,7 @@
 #include "display_panel.h"
 #include "head.h"
 #include "mic_uplink_policy.h"
+#include "face_store.h"
 #include "thermal_cutoff.h"
 #include "rtc_audio_downlink.h"
 #include "runtime_supervisor.h"
@@ -57,6 +58,10 @@ void on_usb_frame(const DeskbotUsbRxFrame& frame, void*) {
       return;
     }
     if (thermal_cutoff_handle_control_json(frame.payload, frame.payload_length)) {
+      return;
+    }
+    /* 待机卡通脸的持久化 / 清除 / 查询：清除/查询内联回执；持久化在独立任务里写 FFat 后再回执。 */
+    if (face_store_handle_control_json(frame.payload, frame.payload_length)) {
       return;
     }
     /*
@@ -185,6 +190,8 @@ void setup() {
         "[BOOT] RTC Opus worker unavailable; full-duplex capability disabled");
   }
   task_setup_display();
+  /* 0.0.57：FFat 里有上次 PC 存下的待机卡通脸就先恢复，待机屏直接显示它。 */
+  (void)face_store_load();
   task_setup_cpu_runtime_stats();
 
   asrChatClient.enableUsbTransport();

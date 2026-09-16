@@ -504,11 +504,6 @@ def task_retry_sec() -> float:
     return _pref_number("task_retry_sec", 120, lo=0)
 
 
-def reminder_soon_sec() -> float:
-    """提醒还有多少秒到点时主动陪伴让路，偏好 ``quest.reminder_soon_sec``。"""
-    return _pref_number("reminder_soon_sec", 90, lo=0)
-
-
 def care_pause_sec() -> float:
     """日常关心连续没回应后歇多久（秒），偏好 ``quest.care_pause_sec``。"""
     return _pref_number("care_pause_sec", CARE_PAUSE_SEC, lo=600)
@@ -529,12 +524,29 @@ def is_care_scene(name: str | None) -> bool:
     return str(name or "") == CARE_PLAYBOOK_NAME
 
 
+CARE_SCENE_TITLE = "定时提醒"
+_LEGACY_CARE_TITLES = ("日常关心",)
+_care_title_checked = False
+
+
 def care_playbook() -> str | None:
-    """「日常关心」场景名（缺失时从随包模板补上；补不上 → None）。"""
+    """「定时提醒」场景名（缺失时从随包模板补上；补不上 → None）。
+
+    2026-09-14 起「日常关心」改名「定时提醒」（定时任务并进来了）：老文件里的标题读到一次就改过来。"""
+    global _care_title_checked
     try:
-        if load_playbook(CARE_PLAYBOOK_NAME) is None:
+        pb = load_playbook(CARE_PLAYBOOK_NAME)
+        if pb is None:
             ensure_care_playbook()
-        return CARE_PLAYBOOK_NAME if load_playbook(CARE_PLAYBOOK_NAME) is not None else None
+            pb = load_playbook(CARE_PLAYBOOK_NAME)
+        if pb is None:
+            return None
+        if not _care_title_checked:
+            _care_title_checked = True
+            if str(pb.get("title") or "") in _LEGACY_CARE_TITLES:
+                pb["title"] = CARE_SCENE_TITLE
+                save_playbook(CARE_PLAYBOOK_NAME, pb)
+        return CARE_PLAYBOOK_NAME
     except QuestError:
         return None
 
@@ -1323,7 +1335,7 @@ def scheduled_care_candidates(device_id: str | None = None) -> list[dict[str, An
     rows = {r.task_id: r for r in _list_rows(dev, playbook)}
     out: list[dict[str, Any]] = []
     for t in pb.get("tasks") or []:
-        if not is_care(t) or t.get("proposed") or not t.get("schedule_time"):
+        if not is_care(t) or t.get("proposed") or not t.get("schedule_time") or t.get("done_at"):
             continue
         row = rows.get(t["id"])
         out.append(
@@ -1333,11 +1345,54 @@ def scheduled_care_candidates(device_id: str | None = None) -> list[dict[str, An
                 "title": t.get("title") or t["id"],
                 "schedule_time": t["schedule_time"],
                 "schedule_days": list(t.get("schedule_days") or []),
+                "schedule_date": str(t.get("schedule_date") or ""),
                 "status": row.status if row else STATUS_RUNNING,
                 "paused_until": _dt_str(getattr(row, "paused_until", None)) if row else None,
             }
         )
     return out
+
+
+def mark_scheduled_done(playbook_name: str, task_id: str) -> None:
+    """一次性提醒提过了：写 done_at，之后不再触发（列表里显示「已提醒」）。"""
+    pb = require_playbook(playbook_name)
+    for t in pb.get("tasks") or []:
+        if t.get("id") == task_id:
+            t["done_at"] = utcnow().replace(microsecond=0).isoformat()
+            save_playbook(playbook_name, pb)
+            return
+
+
+def prune_done_reminders(*, days: int = 7, now: datetime | None = None) -> list[str]:
+    """提过 ``days`` 天以上的一次性提醒自动清掉（省得列表越堆越长）。返回删掉的 id。"""
+    care = care_playbook()
+    if care is None:
+        return []
+    try:
+        pb = require_playbook(care)
+    except QuestError:
+        return []
+    base = now or utcnow()
+    doomed: list[str] = []
+    for t in pb.get("tasks") or []:
+        done = str(t.get("done_at") or "")
+        if not done:
+            continue
+        try:
+            done_dt = datetime.fromisoformat(done)
+        except ValueError:
+            doomed.append(str(t.get("id")))
+            continue
+        if done_dt.tzinfo is not None:
+            done_dt = done_dt.replace(tzinfo=None)
+        if (base.replace(tzinfo=None) - done_dt).total_seconds() >= days * 86400:
+            doomed.append(str(t.get("id")))
+    for tid in doomed:
+        try:
+            delete_task(care, tid)
+        except QuestError:
+            pass
+    return doomed
 
 
 def prepare_scheduled_task(device_id: str | None, playbook_name: str, task_id: str) -> bool:
@@ -1527,7 +1582,7 @@ def execute_quest_tool(raw: dict[str, Any], *, device_id: str | None = None) -> 
     if tool == "propose_goal" and not playbook:
         playbook = care_playbook() or ""
         if not playbook:
-            raise QuestError("「日常关心」场景不可用")
+            raise QuestError("「定时提醒」场景不可用")
     if not playbook:
         playbook = resolve_task_playbook(task_id) or bound_playbook() or ""
     if not playbook:
@@ -1814,7 +1869,6 @@ __all__ = [
     "reset_attempts",
     "proactive_daily_limit",
     "proactive_idle_sec",
-    "reminder_soon_sec",
     "require_playbook",
     "reset_instances",
     "resolve_task_playbook",

@@ -166,3 +166,37 @@ def test_ark_responses_llm_disables_thinking_and_server_state(monkeypatch):
     assert extra["extra_body"] == {"thinking": {"type": "disabled"}}
     assert extra["store"] is False
     assert extra["max_output_tokens"] == 160
+
+
+def test_non_ark_chat_llm_gets_thinking_disabled(monkeypatch):
+    """DeepSeek 等混合思考模型：思考模式下拒绝 tool_choice=required（2026-09-14 实测 400），
+    非方舟链路也要像 Core 一样带 thinking: disabled；其它参数原样透传，已有 extra_body 只补不盖。"""
+    import lampgo_livekit_agent.llm as lampgo_llm
+    import lampgo_livekit_agent.worker as lampgo_worker
+
+    from deskbot_server import rtc_llm_adapter as adapter
+
+    class _FakeLLM:
+        def __init__(self):
+            self.calls = []
+
+        def chat(self, **kwargs):
+            self.calls.append(kwargs)
+            return "STREAM"
+
+    fake = _FakeLLM()
+    monkeypatch.setattr(lampgo_llm, "create_llm", lambda *, config, runtime: fake)
+    monkeypatch.setattr(lampgo_worker, "create_llm", lampgo_llm.create_llm)
+    monkeypatch.setattr(adapter, "_installed", False)
+    assert adapter.install_lampgo_llm_adapter() is True
+    config, runtime = _fake_lampgo(base_url="https://api.deepseek.com")
+    llm = lampgo_llm.create_llm(config=config, runtime=runtime)
+    assert llm is fake
+    assert llm.chat(chat_ctx="ctx", tool_choice="required") == "STREAM"
+    assert fake.calls[-1] == {
+        "chat_ctx": "ctx", "tool_choice": "required",
+        "extra_kwargs": {"extra_body": {"thinking": {"type": "disabled"}}},
+    }
+    llm.chat(chat_ctx="ctx", extra_kwargs={"extra_body": {"thinking": {"type": "enabled"}, "x": 1}, "timeout": 3})
+    assert fake.calls[-1]["extra_kwargs"] == {"extra_body": {"thinking": {"type": "enabled"}, "x": 1}, "timeout": 3}
+    monkeypatch.setattr(adapter, "_installed", False)

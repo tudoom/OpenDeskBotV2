@@ -20,10 +20,16 @@ def test_every_channel_can_capture_control_home_and_search(channel):
         assert tool in allowed, f"{channel.value} 缺少 {tool}"
 
 
-def test_device_only_tools_stay_on_rtc():
-    assert "move_head" in te.tools_for_channel(te.ToolChannel.RTC)
-    assert "move_head" not in te.tools_for_channel(te.ToolChannel.WEB)
-    assert "play_expression" not in te.tools_for_channel(te.ToolChannel.CORE)
+def test_device_tools_reach_every_channel_but_rtc_bridge_still_owns_them():
+    """2026-09-14：move_head / play_expression 不再是语音独有——文字对话转 Core HTTP、Core 主循环直接下发；
+    RTC 桥仍自己分发这两个（rtc_tool_service._CORE_TOOL_NAMES 把它们排除在通用执行器之外）。"""
+    from deskbot_server.application import rtc_tool_service as rts
+
+    for channel in te.ToolChannel:
+        assert {"move_head", "play_expression"} <= te.tools_for_channel(channel), channel.value
+    assert te.is_device_tool("move_head") and te.is_device_tool("play_expression")
+    assert not ({"move_head", "play_expression"} & rts._CORE_TOOL_NAMES)
+    assert not te._RTC_ONLY_TOOLS
 
 
 def test_rtc_allowlist_is_derived_from_the_matrix():

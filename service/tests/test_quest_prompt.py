@@ -119,7 +119,7 @@ def test_chat_flow_treats_quest_prefix_as_system_turn():
     )
     assert text.startswith(cf._QUEST_PROACTIVE_PREFIX)
     assert cf._is_quest_proactive_user_text(text)
-    assert not cf._is_scheduled_task_user_text(text)
+    assert not hasattr(cf, "_is_scheduled_task_user_text")  # 2026-09-14 定时任务撤掉
     assert "need_reply 必须为 true" in text and "禁止写「已发送」" in text
     assert "update_task_result" in text
     # 兜底口播：按任务标题起话头；汇报语被判为 meta

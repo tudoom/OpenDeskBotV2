@@ -173,6 +173,31 @@ def params_from_lampgo(config: Any, runtime: Any) -> ArkLlmParams | None:
     )
 
 
+def disable_thinking_on_chat_llm(llm: Any) -> Any:
+    """非方舟的 Chat Completions 链路同样关闭深度思考，与 Core 的 chat 载荷一致（全部调用路径
+    ``thinking: disabled``）。DeepSeek 这类混合思考模型默认开思考：思考模式下拒绝
+    ``tool_choice=required``（主动陪伴催标结果就用它，2026-09-14 实测 400），而且每轮多几秒推理。
+    就地包一层 ``chat``，只补 ``extra_body.thinking``，其它参数原样透传。"""
+    chat = getattr(llm, "chat", None)
+    if not callable(chat):
+        return llm
+
+    def _chat(*args: Any, **kwargs: Any):
+        raw = kwargs.pop("extra_kwargs", None)
+        extra = dict(raw) if isinstance(raw, dict) else {}
+        body = dict(extra.get("extra_body") or {})
+        body.setdefault("thinking", {"type": "disabled"})
+        extra["extra_body"] = body
+        kwargs["extra_kwargs"] = extra
+        return chat(*args, **kwargs)
+
+    try:
+        llm.chat = _chat
+    except Exception:  # noqa: BLE001 - 不可写属性的对象就原样返回
+        return llm
+    return llm
+
+
 def install_lampgo_llm_adapter() -> bool:
     """把 LampGo 的 ``create_llm`` 换成方舟 Responses（仅当 LLM 指向方舟时生效）。"""
 
@@ -189,7 +214,7 @@ def install_lampgo_llm_adapter() -> bool:
         params = params_from_lampgo(config, runtime)
         if params is None or not web_search_enabled_for(params.base_url):
             os.environ.pop(ACTIVE_ENV, None)
-            return original_create_llm(config=config, runtime=runtime)
+            return disable_thinking_on_chat_llm(original_create_llm(config=config, runtime=runtime))
         try:
             llm = build_ark_responses_llm(params)
         except Exception as exc:  # 任何构造失败都退回原链路，不能让语音会话起不来

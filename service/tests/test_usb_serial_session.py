@@ -526,6 +526,7 @@ def test_session_hello_epoch_heartbeat_and_single_writer():
             "servo_x_pulse_us": 1500,
             "servo_y_pulse_us": 1500,
             "servo_write_failures": 0,
+            "face_tag": "a1b2c3d4e5f60718",
             "capabilities": [
                 "control_json",
                 "pb_wire",
@@ -568,6 +569,7 @@ def test_session_hello_epoch_heartbeat_and_single_writer():
         assert info.servo_pwm_hz == 50
         assert info.servo_x_pulse_us == 1500
         assert info.servo_y_pulse_us == 1500
+        assert info.face_tag == "a1b2c3d4e5f60718"
         assert info.servo_write_failures == 0
         assert session.mic_signal_healthy is False
         assert len(ready) == 1
@@ -678,6 +680,7 @@ def test_usb_telemetry_defaults_updates_and_ignores_invalid_heartbeat(caplog):
         assert info.servo_ready is False
         assert info.servo_backend == ""
         assert info.servo_pwm_hz == 0
+        assert info.face_tag == ""
         initial = session.diagnostics()
         assert initial.usb_partial_tx_failures == 0
         assert initial.usb_payload_crc_errors == 0

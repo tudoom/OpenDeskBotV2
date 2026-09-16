@@ -157,7 +157,7 @@
         <div class="grow"></div>
         <span class="qs-msg" :class="{err: msgErr}" v-if="msg">[[ msg ]]</span>
         <span class="qs-msg" style="font-family:inherit">选择场景</span>
-        <select :value="ov.playbook ? ov.playbook.name : ''" @change="onPlaybookChange($event.target.value)" title="主线场景同时只用一个；日常关心不在这里选，它随主动陪伴一直生效">
+        <select :value="ov.playbook ? ov.playbook.name : ''" @change="onPlaybookChange($event.target.value)" title="主线场景同时只用一个；定时提醒不在这里选，它随主动陪伴一直生效">
           <option v-if="!ov.playbook" value="">先选一个场景</option>
           <option v-for="p in storyPlaybooks" :key="p.name" :value="p.name">[[ p.title ]]</option>
         </select>
@@ -181,25 +181,25 @@
           <b style="font-size:15px">[[ pb.title ]]</b>
           <span class="qs-tag on" v-if="pb.is_care_scene" style="margin-left:8px">随主动陪伴生效</span>
           <span class="qs-tag on" v-else-if="pb.enabled" style="margin-left:8px">使用中</span>
-          <span class="qs-msg" style="font-family:inherit;margin-left:6px" v-if="pb.is_care_scene">[[ pb.care_count ]] 项日常关心</span>
+          <span class="qs-msg" style="font-family:inherit;margin-left:6px" v-if="pb.is_care_scene">[[ pb.care_count ]] 项定时提醒</span>
           <span class="qs-msg" style="font-family:inherit;margin-left:6px" v-else>[[ pb.task_count ]] 个小目标</span>
         </div>
-        <button class="btn primary" v-if="pb.is_care_scene" style="padding:7px 12px;font-size:12px" @click="openCreate(pb, 'care')">＋ 添加日常关心</button>
+        <button class="btn primary" v-if="pb.is_care_scene" style="padding:7px 12px;font-size:12px" @click="openCreate(pb, 'care')">＋ 添加定时提醒</button>
         <button class="btn primary" v-else style="padding:7px 12px;font-size:12px" @click="openCreate(pb, 'story')">＋ 添加小目标</button>
       </div>
 
       <template v-if="pb.is_care_scene">
         <div class="qs-status">
-          <div><span class="k">今天日常关心已提</span><b>[[ ov.proactive.care_today_count ]]</b><span v-if="ov.settings.care_daily_limit > 0"> / [[ ov.settings.care_daily_limit ]] 次</span><span v-else> 次（不限）</span></div>
+          <div><span class="k">今天定时提醒已提</span><b>[[ ov.proactive.care_today_count ]]</b><span v-if="ov.settings.care_daily_limit > 0"> / [[ ov.settings.care_daily_limit ]] 次</span><span v-else> 次（不限）</span></div>
           <div><span class="k">怎么触发</span>看情况的在小歪空闲、主线没得提时顺带提；定时的到点就提</div>
-          <div v-if="!ov.enabled"><span class="k">状态</span>主动陪伴已关，日常关心也不会提</div>
+          <div v-if="!ov.enabled"><span class="k">状态</span>主动陪伴已关，定时提醒也不会提</div>
         </div>
       </template>
       <template v-if="pb.is_current && !pb.is_care_scene">
         <div class="qs-status">
           <div><span class="k">正在做</span><b v-if="running(pb).length">[[ running(pb).map(t => t.title).join('、') ]]</b><span v-else-if="pb.settled">场景已走完</span><span v-else-if="pb.finished">本轮走完，[[ pb.unmet_count ]] 个未达成等下次检测</span><span v-else>没有进行中的小目标</span></div>
           <div><span class="k">上次开口</span><b v-if="ov.proactive.last_spoke_at">[[ ago(ov.proactive.last_spoke_at) ]]</b><span v-else>还没有</span><span v-if="ov.proactive.last_task_title">，聊的是「[[ ov.proactive.last_task_title ]]」</span></div>
-          <div><span class="k">今天已开口</span><b>[[ ov.proactive.today_count ]]</b><span v-if="ov.settings.daily_limit > 0"> / [[ ov.settings.daily_limit ]] 次</span><span v-else> 次（不限）</span><span v-if="pb.care_count">，其中日常关心 [[ ov.proactive.care_today_count ]]<template v-if="ov.settings.care_daily_limit > 0"> / [[ ov.settings.care_daily_limit ]]</template></span></div>
+          <div><span class="k">今天已开口</span><b>[[ ov.proactive.today_count ]]</b><span v-if="ov.settings.daily_limit > 0"> / [[ ov.settings.daily_limit ]] 次</span><span v-else> 次（不限）</span><span v-if="pb.care_count">，其中定时提醒 [[ ov.proactive.care_today_count ]]<template v-if="ov.settings.care_daily_limit > 0"> / [[ ov.settings.care_daily_limit ]]</template></span></div>
           <div><span class="k">什么时候会开口</span>[[ triggerText ]]</div>
           <div><span class="k">目标检测</span>每 [[ pb.check_interval_hours ]] 小时一次<template v-if="pb.next_check_at">，下次约 [[ clock(pb.next_check_at) ]]</template><template v-if="pb.unmet_count">；现在有 [[ pb.unmet_count ]] 个未达成会按顺序再提</template></div>
         </div>
@@ -227,7 +227,7 @@
               <input type="text" style="flex:1;min-width:200px;padding:5px 8px;font-size:12px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);color:var(--ink)" v-model="approveOpts[t.id].hint" maxlength="200" placeholder="什么情况下提（例：主人连续写代码一小时以上）">
               <span class="qs-msg" style="font-family:inherit">或定时</span>
               <input type="time" v-model="approveOpts[t.id].time" style="padding:4px 6px;font-size:12px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);color:var(--ink)">
-              <button class="btn primary" @click="approve(t)">同意，作为日常关心</button>
+              <button class="btn primary" @click="approve(t)">同意，作为定时提醒</button>
               <button class="btn ghost" @click="reject(t)">不要</button>
             </div>
           </div>
@@ -236,7 +236,7 @@
       <div class="qs-note" v-if="!pb.is_care_scene && !pb.enabled && pb.tasks.some(t => t.status !== 'not_started')">没在使用，上次的进度保留着；在上面「选择场景」里选它就接着走。</div>
 
       <div class="qs-empty" v-if="!pb.is_care_scene && !pb.tasks.length">这个场景还是空的。点「添加小目标」写第一个：要达成什么、怎么做、怎样算成。</div>
-      <div class="qs-empty" v-if="pb.is_care_scene && !pb.care_tasks.length && !pb.proposals.length">还没有日常关心。点「添加日常关心」，或者等小歪自己来提。</div>
+      <div class="qs-empty" v-if="pb.is_care_scene && !pb.care_tasks.length && !pb.proposals.length">还没有定时提醒。点「添加定时提醒」，或者等小歪自己来提。</div>
 
       <template v-if="!pb.is_care_scene && pb.tasks.length">
         <div class="qs-group-hd" style="margin-top:14px">小目标 <small>[[ pb.tasks.length ]]</small><small>· 按顺序一个接一个：小歪聊完一步就标达成或未达成，安静几秒后进入下一个；未达成的按目标检测间隔再提。拖右侧把手换顺序</small></div>
@@ -280,7 +280,7 @@
       </template>
 
       <template v-if="pb.is_care_scene && pb.care_tasks.length">
-        <div class="qs-group-hd" style="margin-top:16px">日常关心 <small>[[ pb.care_tasks.length ]]</small><small>· 条件满足或到点时提一句，不进主线</small></div>
+        <div class="qs-group-hd" style="margin-top:16px">定时提醒 <small>[[ pb.care_tasks.length ]]</small><small>· 到点或条件满足时提一句，不进主线；对小歪说「每天九点提醒我…」也会加到这里</small></div>
         <div v-for="t in pb.care_tasks" :key="t.id" class="qs-task" :class="[careClass(t), {open: openId===pb.name+'/'+t.id}]" @click="toggle(pb, t)">
           <div class="qs-task-row">
             <span class="qs-dot" :class="careClass(t)"></span>
@@ -288,6 +288,7 @@
             <span class="qs-tag" v-if="t.proposed_after !== undefined && t.id.startsWith('p')">小歪提的</span>
             <span class="qs-tag" v-if="t.schedule_time">[[ scheduleLabel(t) ]]</span>
             <span class="qs-tag" v-else>[[ intervalLabel(t.repeat_interval_sec) ]]</span>
+            <span class="qs-tag" v-if="t.done_at">已提醒</span>
             <span class="qs-tag" v-if="t.status==='running' && t.max_attempts>0 && t.attempt_count">没回应 [[ t.attempt_count ]]/[[ t.max_attempts ]] 次</span>
             <span class="qs-tag" v-if="t.paused">[[ pauseLabel(t) ]]</span>
             <span class="qs-tag" v-else-if="t.status==='success'">[[ resumeLabel(t) ]]</span>
@@ -343,11 +344,15 @@
               <label class="qs-num"><span>张望频率</span><input type="number" min="0" max="10" step="1" :value="ov.settings.wander_per_min" @change="saveNum('wander_per_min', $event, 1, 0, 10)"><em>次/分钟</em><small>每个自然分钟内随机时刻触发；0 = 不张望</small></label>
               <label class="qs-num"><span>空闲多久开始张望</span><input type="number" min="10" max="600" step="10" :value="ov.settings.wander_idle_sec" @change="saveNum('wander_idle_sec', $event, 1, 10, 600)"><em>秒</em><small>没对话、没动作这么久后才开始</small></label>
               <label class="qs-num"><span>每天最多开口</span><input type="number" min="0" max="100" step="1" :value="ov.settings.daily_limit" @change="saveNum('daily_limit', $event, 1, 0, 100)"><em>次</em><small>0 = 不限</small></label>
-              <label class="qs-num"><span>其中日常关心最多</span><input type="number" min="0" max="100" step="1" :value="ov.settings.care_daily_limit" @change="saveNum('care_daily_limit', $event, 1, 0, 100)"><em>次</em><small>主线优先，主线没得提才轮到日常关心；0 = 不限</small></label>
-              <label class="qs-num"><span>提醒快到点时让路</span><input type="number" min="0" max="3600" step="10" :value="ov.settings.reminder_soon_sec" @change="saveNum('reminder_soon_sec', $event, 1, 0, 3600)"><em>秒</em><small>定时提醒还有这么久到点，主动陪伴先不开口；0 = 不让</small></label>
-              <label class="qs-num"><span>日常关心没回应后歇</span><input type="number" min="1" max="168" step="1" :value="Math.round(ov.settings.care_pause_sec/3600)" @change="saveNum('care_pause_sec', $event, 3600, 600, 604800)"><em>小时</em><small>连续几次没回应在每条日常关心里各自设置</small></label>
+              <label class="qs-num"><span>其中定时提醒最多</span><input type="number" min="0" max="100" step="1" :value="ov.settings.care_daily_limit" @change="saveNum('care_daily_limit', $event, 1, 0, 100)"><em>次</em><small>主线优先，主线没得提才轮到定时提醒；0 = 不限</small></label>
+              <label class="qs-num"><span>定时提醒没回应后歇</span><input type="number" min="1" max="168" step="1" :value="Math.round(ov.settings.care_pause_sec/3600)" @change="saveNum('care_pause_sec', $event, 3600, 600, 604800)"><em>小时</em><small>连续几次没回应在每条定时提醒里各自设置</small></label>
             </div>
-            <div class="qs-adv-row"><span class="hint">勿扰时段在「配置 → 行为偏好」里设置；勿扰期间主动陪伴和空闲张望都不会动。</span></div>
+            <div class="qs-adv-row" style="align-items:center;gap:10px;flex-wrap:wrap">
+              <label class="qs-num" style="min-width:0"><span>勿扰时段</span><input type="checkbox" :checked="ov.quiet_hours.enabled" @change="saveQuiet({enabled: $event.target.checked})"><em>启用</em></label>
+              <label class="qs-num" style="min-width:0"><span>从</span><input type="time" :value="ov.quiet_hours.start" @change="saveQuiet({start: $event.target.value})"></label>
+              <label class="qs-num" style="min-width:0"><span>到</span><input type="time" :value="ov.quiet_hours.end" @change="saveQuiet({end: $event.target.value})"></label>
+              <span class="hint">勿扰期间主动陪伴和空闲张望都不动；定时提醒到点时正在勿扰的，勿扰结束后两小时内补提。你主动说话不受影响。</span>
+            </div>
           </template>
           <template v-if="!pb.is_care_scene">
             <div class="qs-adv-hd">场景设置</div>
@@ -357,7 +362,7 @@
           </template>
           <div class="qs-adv-row">
             <button class="btn ghost" v-if="!pb.is_care_scene" @click="renamePlaybook(pb)">重命名场景</button>
-            <button class="btn ghost" @click="resetProgress(pb)">[[ pb.is_care_scene ? '日常关心全部重新开始' : '从头开始这个场景' ]]</button>
+            <button class="btn ghost" @click="resetProgress(pb)">[[ pb.is_care_scene ? '定时提醒全部重新开始' : '从头开始这个场景' ]]</button>
             <button class="btn ghost" v-if="pb.is_current" @click="showPrompt">看小歪收到的任务说明</button>
             <template v-if="!pb.is_care_scene">
               <button class="btn ghost" @click="exportPb(pb)">导出场景</button>
@@ -373,13 +378,13 @@
   <!-- 编辑 / 新建小目标抽屉 -->
   <div v-if="drawer" class="qs-drawer-bg" @click.self="closeDrawer">
     <div class="qs-drawer">
-      <h3>[[ drawer.id ? '编辑' : '添加' ]][[ drawer.kind==='care' ? '日常关心' : '小目标' ]] <small style="font-weight:400;color:var(--faint)">· [[ drawer.playbookTitle ]]</small></h3>
+      <h3>[[ drawer.id ? '编辑' : '添加' ]][[ drawer.kind==='care' ? '定时提醒' : '小目标' ]] <small style="font-weight:400;color:var(--faint)">· [[ drawer.playbookTitle ]]</small></h3>
       <div class="qs-field">
         <label>类型</label>
         <div class="row">
           <select v-model="drawer.kind">
             <option value="story">主线小目标（按顺序推进的一步）</option>
-            <option value="care">日常关心（长期反复做的小事，不进主线）</option>
+            <option value="care">定时提醒（长期反复做的小事，不进主线）</option>
           </select>
         </div>
       </div>
@@ -404,10 +409,20 @@
         </div>
         <template v-if="drawer.schedule_mode==='time'">
           <div class="qs-field">
-            <small>每天几点</small>
-            <div class="row"><input type="time" v-model="drawer.schedule_time" style="width:140px;padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);color:var(--ink)"><span class="qs-msg" style="font-family:inherit">到点后两小时内都会补提；勿扰时段过后再提</span></div>
+            <small>重复</small>
+            <div class="row">
+              <select v-model="drawer.schedule_repeat">
+                <option value="daily">每天 / 每周几</option>
+                <option value="once">只提醒一次（某一天）</option>
+              </select>
+              <input v-if="drawer.schedule_repeat==='once'" type="date" v-model="drawer.schedule_date" style="width:160px;padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);color:var(--ink)">
+            </div>
           </div>
           <div class="qs-field">
+            <small>[[ drawer.schedule_repeat==='once' ? '那天几点' : '每天几点' ]]</small>
+            <div class="row"><input type="time" v-model="drawer.schedule_time" style="width:140px;padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:var(--rs);background:var(--panel2);color:var(--ink)"><span class="qs-msg" style="font-family:inherit">到点后两小时内都会补提；勿扰时段过后再提</span></div>
+          </div>
+          <div class="qs-field" v-if="drawer.schedule_repeat!=='once'">
             <small>哪几天（不选 = 每天）</small>
             <div class="qs-days"><label v-for="(d,i) in ['一','二','三','四','五','六','日']" :key="i"><input type="checkbox" :value="i" v-model="drawer.schedule_days"> 周[[ d ]]</label></div>
           </div>
@@ -533,7 +548,7 @@
       <div class="lab-modal-head">
         <div>
           <b>AI 生成场景</b>
-          <small>用一句话说说想让小歪怎么主动和你互动，它会自己拆成几个小目标：按顺序做的放进新场景，需要反复做的放进「日常关心」。</small>
+          <small>用一句话说说想让小歪怎么主动和你互动，它会自己拆成几个小目标：按顺序做的放进新场景，需要反复做的放进「定时提醒」。</small>
         </div>
         <button type="button" class="x" @click="closeAiGen" aria-label="关闭">×</button>
       </div>
@@ -579,7 +594,7 @@ const api = async (path, opts = {}) => {
 const enc = encodeURIComponent;
 const EMPTY = { enabled: true, playbook: null, playbooks: [], tasks: [], care_tasks: [], proposals: [], finished: false,
   perform_options: { expressions: [], scenes: [], templates: [] },
-  settings: { idle_sec: 60, daily_limit: 16, care_daily_limit: 10, reminder_soon_sec: 90, care_pause_sec: 86400, idle_live: true, idle_motion: 'normal', wander_per_min: 2, wander_idle_sec: 60 }, quiet_hours: { enabled: false, active: false }, proactive: {} };
+  settings: { idle_sec: 60, daily_limit: 16, care_daily_limit: 10, care_pause_sec: 86400, idle_live: true, idle_motion: 'normal', wander_per_min: 2, wander_idle_sec: 60 }, quiet_hours: { enabled: false, start: '22:00', end: '08:00', active: false }, proactive: {} };
 
 createApp({
   delimiters: ['[[', ']]'],
@@ -747,7 +762,7 @@ createApp({
         const gen = r.generated || {};
         const parts = [];
         if (gen.playbook_title) parts.push(`新场景「${gen.playbook_title}」：${gen.story_count || 0} 个小目标${g.select ? '，已开始使用' : ''}`);
-        if (gen.care_count) parts.push(`${gen.playbook_title ? '另有 ' : ''}${gen.care_count} 条加进了「日常关心」：${(gen.care_titles || []).join('、')}`);
+        if (gen.care_count) parts.push(`${gen.playbook_title ? '另有 ' : ''}${gen.care_count} 条加进了「定时提醒」：${(gen.care_titles || []).join('、')}`);
         if (!gen.playbook_title && !gen.care_count) parts.push('没有生成任何小目标');
         g.result = parts.join('；') + '。可以在下面的场景卡里继续改。';
         this.say('场景已生成');
@@ -779,7 +794,7 @@ createApp({
       catch (e) { this.fail(e); }
     },
     async resetProgress(pb) {
-      if (!confirm(pb.is_care_scene ? '把所有日常关心的暂停和冷却都清掉，重新开始？' : `把「${pb.title}」的进度清零，从起点重新来？`)) return;
+      if (!confirm(pb.is_care_scene ? '把所有定时提醒的暂停和冷却都清掉，重新开始？' : `把「${pb.title}」的进度清零，从起点重新来？`)) return;
       try { this.apply(await api(`/api/quest/playbooks/${enc(pb.name)}/reset`, { method: 'POST' })); this.openId = null; this.say('已从头开始'); }
       catch (e) { this.fail(e); }
     },
@@ -810,11 +825,12 @@ createApp({
     // ── 小歪提的 ──
     async approve(t) {
       const o = this.approveOpts[t.id] || { interval: 86400, hint: '' };
-      try { this.apply(await api(`/api/quest/proposals/${enc(t.id)}/approve`, { method: 'POST', body: { kind: 'care', repeat_interval_sec: o.interval, trigger_hint: o.hint, schedule_time: o.time || '' } })); this.say(`已加入日常关心「${t.title}」`); }
+      try { this.apply(await api(`/api/quest/proposals/${enc(t.id)}/approve`, { method: 'POST', body: { kind: 'care', repeat_interval_sec: o.interval, trigger_hint: o.hint, schedule_time: o.time || '' } })); this.say(`已加入定时提醒「${t.title}」`); }
       catch (e) { this.fail(e); }
     },
     careClass(t) { return t.paused ? 'paused' : t.status; },
     scheduleLabel(t) {
+      if (t.schedule_date) return `${t.schedule_date} ${t.schedule_time} 提醒一次`;
       if (!t.schedule_time) return '';
       const names = ['一','二','三','四','五','六','日'];
       const days = (t.schedule_days || []).length ? '周' + t.schedule_days.map(d => names[d]).join('') : '每天';
@@ -875,13 +891,17 @@ createApp({
       d.perform = { mode: tp.mode, expression: d.perform.expression || '', scene: d.perform.scene || '' };
       d.strategy = tp.strategy;
     },
+    async saveQuiet(patch) {
+      try { this.apply(await api('/api/quest/settings', { method: 'PUT', body: { quiet_hours: patch } })); this.say('勿扰时段已保存'); }
+      catch (e) { this.say('保存失败：' + (e.message || e), true); }
+    },
     openCreate(pb, kind) {
       const tp = (this.ov.perform_options.templates || [])[0];
       const care = kind === 'care';
       this.drawer = { playbook: pb.name, playbookTitle: pb.title, id: null, kind: care ? 'care' : 'story', title: '', goal: '', strategy: tp ? tp.strategy : '', success_condition: '',
         trigger_hint: '', perform: { mode: tp ? tp.mode : 'speak', expression: '', scene: '' }, template: tp ? tp.key : 'custom',
         max_attempts: care ? 2 : 0, next_delay_sec: 10, repeat_interval_sec: 86400, after: '',
-        schedule_mode: 'condition', schedule_time: '', schedule_days: [], err: '' };
+        schedule_mode: 'condition', schedule_repeat: 'daily', schedule_time: '', schedule_date: '', schedule_days: [], err: '' };
     },
     openEdit(pb, t) {
       const perform = Object.assign({ mode: 'speak', expression: '', scene: '' }, t.perform || {});
@@ -891,7 +911,7 @@ createApp({
         success_condition: t.success_condition,
         trigger_hint: t.trigger_hint || '', perform, template: this.templateFor(perform, t.strategy),
         max_attempts: t.max_attempts, next_delay_sec: t.next_delay_sec === undefined ? 10 : t.next_delay_sec, repeat_interval_sec: t.repeat_interval_sec || 86400,
-        schedule_mode: t.schedule_time ? 'time' : 'condition', schedule_time: t.schedule_time || '', schedule_days: (t.schedule_days || []).slice(), err: '',
+        schedule_mode: t.schedule_time ? 'time' : 'condition', schedule_repeat: t.schedule_date ? 'once' : 'daily', schedule_time: t.schedule_time || '', schedule_date: t.schedule_date || '', schedule_days: (t.schedule_days || []).slice(), err: '',
       };
     },
     closeDrawer() { this.drawer = null; },
@@ -901,6 +921,7 @@ createApp({
       if (d.perform.mode === 'expression' && !d.perform.expression) { d.err = '选一个先做的表情，或换成别的执行方式'; return; }
       if (d.perform.mode === 'scene' && !d.perform.scene) { d.err = '选一段先演的表演，或换成别的执行方式'; return; }
       if (d.kind === 'care' && d.schedule_mode === 'time' && !d.schedule_time) { d.err = '定时要选一个时间'; return; }
+      if (d.kind === 'care' && d.schedule_mode === 'time' && d.schedule_repeat === 'once' && !d.schedule_date) { d.err = '只提醒一次要选哪一天'; return; }
       const delay = Number(d.next_delay_sec);
       if (d.kind !== 'care' && (!Number.isInteger(delay) || delay < 0 || delay > 600)) { d.err = '完成后多久触发下一个要在 0 ~ 600 秒之间'; return; }
       this.busy.save = true;
@@ -908,7 +929,9 @@ createApp({
         const base = `/api/quest/playbooks/${enc(d.playbook)}/tasks`;
         const body = { kind: d.kind, title: d.title, goal: d.goal, strategy: d.strategy, success_condition: d.success_condition,
           trigger_hint: d.trigger_hint, perform: d.perform, max_attempts: d.kind === 'care' ? d.max_attempts : 0, next_delay_sec: d.kind === 'care' ? 0 : delay, repeat_interval_sec: d.repeat_interval_sec,
-          schedule_time: (d.kind === 'care' && d.schedule_mode === 'time') ? d.schedule_time : '', schedule_days: (d.kind === 'care' && d.schedule_mode === 'time') ? d.schedule_days.map(Number) : [] };
+          schedule_time: (d.kind === 'care' && d.schedule_mode === 'time') ? d.schedule_time : '',
+          schedule_date: (d.kind === 'care' && d.schedule_mode === 'time' && d.schedule_repeat === 'once') ? d.schedule_date : '',
+          schedule_days: (d.kind === 'care' && d.schedule_mode === 'time' && d.schedule_repeat !== 'once') ? d.schedule_days.map(Number) : [] };
         let r;
         if (d.id) r = await api(`${base}/${enc(d.id)}`, { method: 'PUT', body });
         else r = await api(base, { method: 'POST', body: { ...body, after: d.kind === 'care' ? '' : (d.after || '') } });

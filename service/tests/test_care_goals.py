@@ -150,9 +150,9 @@ def test_throttle_rules_come_from_preferences(quest_env, monkeypatch):
     from tests.test_quest_proactive import FakeHub, FakeRegistry
 
     assert svc.task_retry_sec() == 120.0 and svc.care_daily_limit() == 10
-    assert svc.reminder_soon_sec() == 90.0 and svc.care_pause_sec() == 86400.0
-    update_preferences({"quest": {"task_retry_sec": 300, "reminder_soon_sec": 0, "care_pause_sec": 3600}})
-    assert (svc.task_retry_sec(), svc.reminder_soon_sec(), svc.care_pause_sec()) == (300.0, 0.0, 3600.0)
+    assert svc.care_pause_sec() == 86400.0
+    update_preferences({"quest": {"task_retry_sec": 300, "care_pause_sec": 3600}})
+    assert (svc.task_retry_sec(), svc.care_pause_sec()) == (300.0, 3600.0)
     # runner 不再固定 30 分钟：现读偏好（只管看情况的日常关心）；主线一轮只提一次，重开 / 定时检测重新计时后才再提
     runner = qp.QuestProactiveRunner(chat=SimpleNamespace(settings=None), asr_chat_hub=FakeHub(ws=object()), registry=FakeRegistry(), dp_broker=None)
     tasks = [{"task_id": "a", "kind": "care", "ratio": 1.0, "repeat_interval_sec": 60}]
@@ -165,12 +165,9 @@ def test_throttle_rules_come_from_preferences(quest_env, monkeypatch):
     assert runner.pick_task(story, now=1000.0 + 99999) is None  # 这轮提过：不管隔多久都不再提
     story[0]["started_at_ts"] = 1002.0  # 重开 / 定时检测重新计时
     assert runner.pick_task(story, now=1000.0 + 5)["task_id"] == "s"
-    # 提醒让路 = 0 → 不让
+    # 2026-09-14：定时任务并进定时提醒，门禁不再有「提醒让路」
     monkeypatch.setattr(gate, "quiet_hours_active", lambda: False)
-    monkeypatch.setattr(gate, "seconds_until_next_reminder", lambda: 5.0)
     assert gate.can_be_proactive(gate.SOURCE_QUEST) == (True, "")
-    update_preferences({"quest": {"reminder_soon_sec": 60}})
-    assert gate.can_be_proactive(gate.SOURCE_QUEST) == (False, "reminder_soon")
     # 日常关心歇多久：连续没回应后按偏好暂停 1 小时
     svc.save_playbook("demo", _pb_with_care())
     bind("demo")

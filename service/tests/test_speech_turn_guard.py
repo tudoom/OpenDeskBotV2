@@ -116,7 +116,7 @@ def test_endpointing_and_playbook_carry_the_fix():
     plugins = (ROOT / "service/src/deskbot_server/rtc_livekit_plugins.py").read_text(encoding="utf-8")
     for src in (sdk, plugins):
         assert 'kwargs.setdefault("min_endpointing_delay", 0.35)' in src
-        assert 'kwargs.setdefault("max_endpointing_delay", 1.0)' in src
+        assert 'kwargs.setdefault("max_endpointing_delay", 1.5)' in src
         assert 'kwargs.setdefault("turn_detection", DeskbotTurnDetector())' in src
     assert 'kwargs.setdefault("min_silence_duration", 0.55)' in sdk
     # rtc_agent_sdk 的会话补丁运行在 worker 进程的 sitecustomize 字符串模板里：

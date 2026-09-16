@@ -10,7 +10,6 @@ from typing import Awaitable, Callable, Generic, TypeVar
 T = TypeVar("T")
 
 PRIORITY_AUTOMATION = 10
-PRIORITY_REMINDER = 20
 PRIORITY_MANUAL = 60
 PRIORITY_INTERACTIVE = 100
 

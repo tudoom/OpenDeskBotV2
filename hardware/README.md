@@ -53,10 +53,11 @@ USB 烧录，不需要安装任何开发工具。注意它只重写 0x10000 起�
 | 命令 | 作用 |
 |---|---|
 | `wifi_config` / `wifi_status_req` | 配网与查询 Wi-Fi 状态 |
-| `mic_mute` / `mic_mute_req` | 静音开关（存在设备 NVS，重装电脑端不会重置） |
+| `mic_mute` / `mic_mute_req` | 静音开关（以电脑端设置为准，连上时由电脑下发；设备 NVS 里的值只是断开电脑时的兜底） |
 | `mic_uplink_mode` / `mic_uplink_mode_req` | 麦克风上行模式：`continuous`（默认，会话内全部上行）或 `vad`（设备端能量门控，只上行有声片段） |
 | `thermal_cutoff` / `thermal_cutoff_req` | 温度断电阈值（默认 70 ℃，持续 30 s 触发，深睡 10 分钟后自恢复） |
 | `servo_relax` / `servo_relax_req` | 动作停下 N 毫秒后释放舵机力矩 |
+| `face_persist` / `face_clear` / `face_status_req` | 待机卡通表情落盘（0.0.57）：电脑下发的待机位图表情留在设备里，断开电脑后设备自己循环播放，写进 FFat 后重启也保持；`face_clear` 回内建矢量表情 |
 | `head_pos`、`task`、`reboot` / `restart`、`factory` | 位置查询、任务与 CPU 诊断转储、重启 |
 
 hello 与心跳会上报固件版本、片内温度、麦克风上行模式与静音状态，供电脑端

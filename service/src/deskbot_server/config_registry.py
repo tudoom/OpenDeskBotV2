@@ -87,6 +87,9 @@ ENV_KEYS: dict[str, tuple[str, bool]] = {
     "DESKBOT_BARGE_IN_NEAR_END_P95": ("打断近端 P95", False),
     # ---- LLM ----
     "LLM_API_KEY": ("LLM 密钥", True),
+    "LLM_API_KEY_DEEPSEEK": ("DeepSeek 的 LLM 密钥（切换提供方时自动带出）", True),
+    "LLM_API_KEY_DOUBAO": ("豆包（火山方舟）的 LLM 密钥（切换提供方时自动带出）", True),
+    "LLM_API_KEY_MIMO": ("Xiaomi MiMo 的 LLM 密钥（切换提供方时自动带出）", True),
     "LLM_BASE_URL": ("LLM 接入点", False),
     "LLM_MODEL": ("LLM 模型", False),
     "LLM_PROTOCOL": ("LLM 协议", False),

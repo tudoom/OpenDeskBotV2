@@ -46,6 +46,7 @@ from deskbot_server.quest_playbooks_store import (
     PERFORM_SCENE,
     PERFORM_SPEAK,
     RESULT_STATUS,
+    SCHEDULE_DATE_RE,
     SCHEDULE_TIME_RE,
     SETTLED_STATUS,
     STATUS_FAILED,
@@ -201,7 +202,7 @@ def _generated_tasks(data: dict[str, Any]) -> list[dict]:
 
 def generate_playbook(description: str, *, title: str = "", select: bool = True) -> dict[str, Any]:
     """「AI 生成场景」：模型按格式给出几件事 → 主线小目标新建一个场景按顺序排成一条线；
-    反复做的（kind=care）直接加进「日常关心」。只给了日常关心时不建空场景。
+    反复做的（kind=care）直接加进「定时提醒」。只给了定时提醒时不建空场景。
     模型抄已有小目标（同名）的直接丢掉——User.md 里记着「陪伴小目标 xx 达成」，模型见了爱照抄。
 
     返回 {"playbook": 场景定义或 None, "story_count", "care_count", "care_titles", "dropped"}。"""
@@ -290,7 +291,7 @@ def update_playbook_settings(name: str, raw: dict[str, Any]) -> dict:
         changed = True
     if "check_interval_hours" in raw:
         if quest_service.is_care_scene(name):
-            raise QuestError("日常关心没有目标检测间隔")
+            raise QuestError("定时提醒没有目标检测间隔")
         try:
             hours = int(raw.get("check_interval_hours"))
         except (TypeError, ValueError) as exc:
@@ -320,9 +321,16 @@ def save_settings(patch: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     if "enabled" in patch:
         out["proactive_enabled"] = bool(patch.get("enabled"))
-    for key in ("idle_sec", "daily_limit", "care_daily_limit", "reminder_soon_sec", "care_pause_sec"):
+    for key in ("idle_sec", "daily_limit", "care_daily_limit", "care_pause_sec"):
         if key in patch:
             out[key] = patch.get(key)
+    quiet: dict[str, Any] = {}
+    if isinstance(patch.get("quiet_hours"), dict):
+        # 勿扰时段从「行为偏好」页搬到这里（2026-09-14 行为偏好页撤了）
+        raw_quiet = patch["quiet_hours"]
+        for key in ("enabled", "start", "end", "timezone"):
+            if key in raw_quiet:
+                quiet[key] = raw_quiet[key]
     if "playbook" in patch:
         value = patch.get("playbook")
         value = "" if value is None else str(value).strip()
@@ -343,7 +351,7 @@ def save_settings(patch: dict[str, Any]) -> dict[str, Any]:
                 behavior[key] = int(patch.get(key))
             except (TypeError, ValueError) as exc:
                 raise QuestError(f"{label}必须是整数") from exc
-    if not out and not behavior:
+    if not out and not behavior and not quiet:
         raise QuestError("没有可保存的设置")
     try:
         merged: dict[str, Any] = {}
@@ -351,6 +359,8 @@ def save_settings(patch: dict[str, Any]) -> dict[str, Any]:
             merged["quest"] = out
         if behavior:
             merged["behavior"] = behavior
+        if quiet:
+            merged["quiet_hours"] = quiet
         update_preferences(merged)
     except ValueError as exc:
         raise QuestError(str(exc)) from exc
@@ -380,7 +390,7 @@ def _pick_fields(raw: dict) -> dict:
         except (TypeError, ValueError) as exc:
             raise QuestError("重复间隔必须是数字") from exc
     if "max_attempts" in raw:
-        # 只对日常关心有意义：连续几次没回应就先歇一天（主线不数次数，存时会归零）
+        # 只对定时提醒有意义：连续几次没回应就先歇一天（主线不数次数，存时会归零）
         try:
             out["max_attempts"] = max(int(raw.get("max_attempts") or 0), 0)
         except (TypeError, ValueError) as exc:
@@ -400,12 +410,19 @@ def _pick_fields(raw: dict) -> dict:
         if not isinstance(days, list):
             raise QuestError("schedule_days 必须是列表")
         out["schedule_days"] = [int(d) for d in days if isinstance(d, int) and not isinstance(d, bool) and 0 <= d <= 6]
+    if "schedule_date" in raw:
+        val = str(raw.get("schedule_date") or "").strip()
+        if val and not SCHEDULE_DATE_RE.match(val):
+            raise QuestError("一次性提醒的日期要写成 YYYY-MM-DD，比如 2026-09-20")
+        out["schedule_date"] = val
+        if val:
+            out["done_at"] = ""  # 改了日期就当作还没提过
     if "kind" in raw:
         kind = str(raw.get("kind") or KIND_STORY).strip()
         if kind not in KINDS:
-            raise QuestError("类型只能是 主线 或 日常关心")
+            raise QuestError("类型只能是 主线 或 定时提醒")
         out["kind"] = kind
-        # 反复做的事是日常关心；主线不回头
+        # 反复做的事是定时提醒；主线不回头
         out["repeatable"] = kind == KIND_CARE
     return out
 
@@ -429,7 +446,7 @@ def add_task(name: str, raw: dict, *, after: str | None = None) -> dict:
     """添加小目标：不用给 id；主线默认接在末尾，也可以「插在某一步之后」。"""
     fields = _pick_fields(raw)
     if fields.get("kind") == KIND_CARE or quest_service.is_care_scene(name):
-        # 日常关心只住在「日常关心」场景里
+        # 定时提醒只住在「定时提醒」场景里
         fields["kind"] = KIND_CARE
         fields["repeatable"] = True
         name = quest_service.care_playbook() or name
@@ -455,7 +472,7 @@ def add_task(name: str, raw: dict, *, after: str | None = None) -> dict:
 def reorder_tasks(name: str, ids: list[str]) -> list[dict]:
     """拖动排序：传主线小目标的完整新顺序（id 列表）。结果跟着小目标走，当前按「第一个没结果的」重算。"""
     if quest_service.is_care_scene(name):
-        raise QuestError("日常关心不分先后，不用排序")
+        raise QuestError("定时提醒不分先后，不用排序")
     quest_service.ensure_linear_playbook(name)
     pb = quest_service.require_playbook(name)
     seq_ids = [str(t.get("id")) for t in story_sequence(pb)]
@@ -471,27 +488,27 @@ def reorder_tasks(name: str, ids: list[str]) -> list[dict]:
 
 
 def update_task(name: str, task_id: str, raw: dict) -> dict:
-    """改文字字段 / 进入下一个的条件 / 类型（主线 ↔ 日常关心会搬家）。顺序用拖动改，不在这里。"""
+    """改文字字段 / 进入下一个的条件 / 类型（主线 ↔ 定时提醒会搬家）。顺序用拖动改，不在这里。"""
     fields = _pick_fields(raw)
     if "goal" in fields and not fields["goal"]:
         raise QuestError("目标不能为空")
     if fields.get("kind") == KIND_STORY and quest_service.is_care_scene(name):
-        # 日常关心改成主线：得有在用的主线场景可以搬过去，先检查再落盘（别把主线小目标留在日常关心里）
+        # 定时提醒改成主线：得有在用的主线场景可以搬过去，先检查再落盘（别把主线小目标留在定时提醒里）
         story = quest_service.bound_playbook()
         if not story or quest_service.is_care_scene(story):
-            raise QuestError("没有在用的主线场景，这条日常关心改不成主线小目标")
+            raise QuestError("没有在用的主线场景，这条定时提醒改不成主线小目标")
     if fields:
         quest_service.update_task(name, task_id, fields)
     defn = quest_service.get_task_definition(name, task_id) or {}
     if quest_service.is_care(defn) and not quest_service.is_care_scene(name):
-        # 主线里的小目标改成日常关心 → 搬进「日常关心」场景（连线清掉、进度一起搬）
+        # 主线里的小目标改成定时提醒 → 搬进「定时提醒」场景（连线清掉、进度一起搬）
         care = quest_service.care_playbook()
         if care and quest_service.move_tasks_to_care_scene(name, [task_id]):
             _relink_sequence(name)
             _relink_sequence(care)
             return _task_view(care, task_id)
     if not quest_service.is_care(defn) and quest_service.is_care_scene(name):
-        # 日常关心改成主线 → 搬进在用的主线场景末尾（不能留在日常关心里，页面上会看不见）
+        # 定时提醒改成主线 → 搬进在用的主线场景末尾（不能留在定时提醒里，页面上会看不见）
         story = quest_service.bound_playbook() or ""
         quest_service.move_task_to_story(name, task_id, story)
         _relink_sequence(name)
@@ -513,7 +530,7 @@ def approve_proposal(
 ) -> dict:
     """主人同意小歪提的小目标。
 
-    默认作为「日常关心」：给频率和条件，不进主线；选「主线」才搬进在用的主线场景，
+    默认作为「定时提醒」：给频率和条件，不进主线；选「主线」才搬进在用的主线场景，
     默认插在当前进行中的那一步之后（也可以指定插在哪一步之后）。"""
     pb = quest_service.require_playbook(name)
     task = next((t for t in pb.get("tasks") or [] if t.get("id") == task_id), None)
@@ -521,11 +538,11 @@ def approve_proposal(
         raise QuestError(f"小目标不存在: {task_id}")
     kind = str(kind or KIND_CARE).strip()
     if kind not in KINDS:
-        raise QuestError("类型只能是 主线 或 日常关心")
+        raise QuestError("类型只能是 主线 或 定时提醒")
     if kind == KIND_STORY and quest_service.is_care_scene(name):
         story = quest_service.bound_playbook()
         if not story or quest_service.is_care_scene(story):
-            raise QuestError("没有开启的主线场景，只能作为日常关心")
+            raise QuestError("没有开启的主线场景，只能作为定时提醒")
         pb["tasks"] = [t for t in pb.get("tasks") or [] if t.get("id") != task_id]
         quest_service.save_playbook(name, pb)
         quest_service._delete_task_instances(name, task_id)
@@ -619,7 +636,7 @@ def _current_or_raise() -> str:
 
 
 def _playbook_for(task_id: str) -> str:
-    """task_id 在哪个生效中的场景（主线或日常关心）。"""
+    """task_id 在哪个生效中的场景（主线或定时提醒）。"""
     name = quest_service.resolve_task_playbook(task_id)
     if not name:
         raise QuestError(f"小目标不在进行中的场景里: {task_id}")
@@ -627,7 +644,7 @@ def _playbook_for(task_id: str) -> str:
 
 
 def restart_task(task_id: str) -> dict:
-    """达成 / 未达成 / 跳过 → 重新开始这个（它变成当前，原来进行中的退回等待中）；日常关心：重新打开 / 现在就恢复。"""
+    """达成 / 未达成 / 跳过 → 重新开始这个（它变成当前，原来进行中的退回等待中）；定时提醒：重新打开 / 现在就恢复。"""
     playbook = _playbook_for(task_id)
     if not quest_service.get_instances(LOCAL_PROFILE_DEVICE, playbook):
         quest_service.ensure_instances(LOCAL_PROFILE_DEVICE, playbook)
@@ -641,7 +658,7 @@ def start_from(task_id: str) -> dict:
     """「从这个开始」：它前面还没有结果的都记为未达成（主人跳过），它成为当前。"""
     playbook = _playbook_for(task_id)
     if quest_service.is_care_scene(playbook):
-        raise QuestError("日常关心不分先后")
+        raise QuestError("定时提醒不分先后")
     skipped = quest_service.skip_until(LOCAL_PROFILE_DEVICE, playbook, task_id)
     return {"task": _task_view(playbook, task_id), "skipped": skipped}
 
@@ -735,6 +752,8 @@ def _task_views(playbook: str) -> list[dict]:
                 "kind": KIND_CARE if quest_service.is_care(t) else KIND_STORY,
                 "schedule_time": str(t.get("schedule_time") or ""),
                 "schedule_days": list(t.get("schedule_days") or []),
+                "schedule_date": str(t.get("schedule_date") or ""),
+                "done_at": str(t.get("done_at") or ""),
                 "paused": bool(quest_service.is_care(t) and status in (STATUS_PAUSED, STATUS_FAILED)),
                 "paused_until": (row or {}).get("paused_until"),
                 "resume_at": _resume_at(t, row, status),
@@ -750,7 +769,7 @@ def _task_views(playbook: str) -> list[dict]:
 
 
 def _resume_at(defn: dict, row: dict | None, status: str) -> str | None:
-    """日常关心达成后的冷却到期时间（ISO）；不适用返回 None。"""
+    """定时提醒达成后的冷却到期时间（ISO）；不适用返回 None。"""
     if not quest_service.is_care(defn) or not row or status != STATUS_SUCCESS or not row.get("finished_at"):
         return None
     try:
@@ -817,7 +836,7 @@ def _playbook_cards(current: str | None) -> list[dict]:
                 "care_tasks": care,
                 "is_default": name == DEFAULT_PLAYBOOK_NAME or is_care_scene,
                 "is_care_scene": is_care_scene,
-                # 主线场景：在用的那个；日常关心：随主动陪伴一直生效
+                # 主线场景：在用的那个；定时提醒：随主动陪伴一直生效
                 "is_current": (name == current) or is_care_scene,
                 "enabled": (name == current) or is_care_scene,
                 "tasks": tasks,
@@ -825,7 +844,7 @@ def _playbook_cards(current: str | None) -> list[dict]:
                 "finished": quest_service.playbook_finished(LOCAL_PROFILE_DEVICE, name),
             }
         )
-    # 顺序：在用的主线 → 日常关心 → 其它主线（默认的在前）
+    # 顺序：在用的主线 → 定时提醒 → 其它主线（默认的在前）
     out.sort(key=lambda c: (0 if (c["enabled"] and not c["is_care_scene"]) else 1 if c["is_care_scene"] else 2, not c["is_default"], c["title"]))
     return out
 
@@ -857,6 +876,7 @@ def overview(proactive: dict[str, Any] | None = None, *, live: dict[str, Any] | 
     try:
         quest_service.migrate_care_tasks_into_care_scene()
         quest_service.expire_stale_proposals()
+        quest_service.prune_done_reminders()
     except Exception:  # noqa: BLE001
         pass
     playbook = quest_service.bound_playbook()
@@ -895,7 +915,6 @@ def overview(proactive: dict[str, Any] | None = None, *, live: dict[str, Any] | 
             "idle_sec": int(quest.get("idle_sec") or 60),
             "daily_limit": int(quest.get("daily_limit", 16)),
             "care_daily_limit": int(quest.get("care_daily_limit", 10)),
-            "reminder_soon_sec": int(quest.get("reminder_soon_sec", 90)),
             "care_pause_sec": int(quest.get("care_pause_sec", 86400)),
             # 空闲待机张望：从偏好页挪到这里，仍存在 behavior.*
             "idle_live": bool(behavior.get("idle_live", True)),
@@ -908,6 +927,7 @@ def overview(proactive: dict[str, Any] | None = None, *, live: dict[str, Any] | 
             "enabled": bool(quiet.get("enabled")),
             "start": str(quiet.get("start") or ""),
             "end": str(quiet.get("end") or ""),
+            "timezone": str(quiet.get("timezone") or "Asia/Shanghai"),
             "active": _quiet_now(),
         },
         "proactive": {
@@ -925,7 +945,7 @@ def overview(proactive: dict[str, Any] | None = None, *, live: dict[str, Any] | 
 
 def _annotate_next_attempt(cards: list[dict], snap: dict[str, Any]) -> None:
     """给当前场景里进行中的小目标标上：主线——这一轮提过没有（提过就等小歪标结果 / 下次检测）；
-    日常关心——最早何时再提。场景卡标上下次目标检测的时间（来自循环的 pass_at）。"""
+    定时提醒——最早何时再提。场景卡标上下次目标检测的时间（来自循环的 pass_at）。"""
     last_map = snap.get("task_last_attempt") if isinstance(snap.get("task_last_attempt"), dict) else {}
     pass_map = snap.get("pass_at") if isinstance(snap.get("pass_at"), dict) else {}
     retry = float(snap.get("task_retry_sec") or quest_proactive.QUEST_TASK_RETRY_SEC)

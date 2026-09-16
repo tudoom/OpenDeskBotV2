@@ -250,6 +250,32 @@ class TcpSocketStream : public Stream {
     return n == 1 ? value : -1;
   }
 
+  /* 整段收（2026-09-14 WiFi 下动作/语音/相机全不通的真凶）：
+   * read() 每个字节都是一次 lwIP recv 系统调用（~20µs），泵的 3ms 预算只
+   * 能抽 ~150 B；loopTask 又被语音轮/渲染拖慢，实测 PC→设备只有几 KB/s。
+   * 5.7 KB 的 lwIP 接收窗口被 15 KB 表情帧塞满后 PC 侧零窗口探测按秒退避，
+   * 帧延迟 5～16 s，PC 的 6 s 确认超时反复杀会话。一次 recv 拿走整段后，
+   * 同样的预算能抽满 16 KB。永不阻塞：没数据立刻返回 0。 */
+  size_t readBytes(uint8_t* buffer, size_t length) override {
+    if (fd < 0 || buffer == nullptr || length == 0) {
+      return 0;
+    }
+    const int n = recv(fd, buffer, length, MSG_DONTWAIT);
+    if (n <= 0) {
+      return 0;
+    }
+    rx_bytes += static_cast<uint32_t>(n);
+    rx_last_ms = millis();
+    if (!first_rx_noted) {
+      first_rx_noted = true;
+      wifi_link_forensic("first rx byte");
+    }
+    return static_cast<size_t>(n);
+  }
+  size_t readBytes(char* buffer, size_t length) override {
+    return readBytes(reinterpret_cast<uint8_t*>(buffer), length);
+  }
+
   size_t write(uint8_t value) override { return write(&value, 1); }
 
   size_t write(const uint8_t* data, size_t length) override {
@@ -989,6 +1015,20 @@ void wifi_link_poll(void) {
   (void)s_mtu_clamped;
 
   if (s_stream.connected()) {
+    if (!usb_transport_active_link_is_wifi()) {
+      /* 0.0.58：绑在 USB 上时没人读这条流，Core 发来的 hello 堆在缓冲区里，socket_alive 的
+       * MSG_PEEK 永远"有数据"，对端早关了也发现不了、再也不重连（黑匣子：一次 tcp up 后两小时没动静）。
+       * 这里把没人要的字节丢掉，FIN 才露得出来。 */
+      uint8_t scratch[128];
+      int drained = 0;
+      while (drained < 4096) {
+        const int n = recv(s_stream.fd, scratch, sizeof(scratch), MSG_DONTWAIT);
+        if (n <= 0) {
+          break;
+        }
+        drained += n;
+      }
+    }
     if (!socket_alive(s_stream.fd)) {
       wifi_link_drop_connection("peer closed");
     }

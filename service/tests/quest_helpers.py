@@ -86,17 +86,17 @@ def demo_playbook(name: str = "demo") -> dict:
 
 
 def clear_care_scene() -> None:
-    """把随包「日常关心」场景清空，让只关心主线的用例不受它影响。"""
+    """把随包「定时提醒」场景清空，让只关心主线的用例不受它影响。"""
     from deskbot_server.application.quest_service import save_playbook
 
-    save_playbook("care", {"name": "care", "title": "日常关心", "is_care_scene": True, "template_version": 999, "tasks": []})
+    save_playbook("care", {"name": "care", "title": "定时提醒", "is_care_scene": True, "template_version": 999, "tasks": []})
 
 
 def care_scene_with(tasks: list[dict]) -> None:
-    """把给定的日常关心写进「日常关心」场景（替换原有）。"""
+    """把给定的定时提醒写进「定时提醒」场景（替换原有）。"""
     from deskbot_server.application.quest_service import save_playbook
 
-    save_playbook("care", {"name": "care", "title": "日常关心", "is_care_scene": True, "template_version": 999, "tasks": tasks})
+    save_playbook("care", {"name": "care", "title": "定时提醒", "is_care_scene": True, "template_version": 999, "tasks": tasks})
 
 
 def bind(name: str | None) -> None:

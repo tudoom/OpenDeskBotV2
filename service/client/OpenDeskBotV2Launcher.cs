@@ -1190,6 +1190,19 @@ namespace OpenDeskBotV2Client
             {
                 CopyFileIfMissing(seedEnv, Path.Combine(appRoot, ".env"));
             }
+            // 内部分发包可在 seed\ 顶层放任意附加文件（如企业 CA 证书包）：首启一并落地，不覆盖既有文件。
+            if (Directory.Exists(seedRoot))
+            {
+                foreach (string extra in Directory.GetFiles(seedRoot, "*", SearchOption.TopDirectoryOnly))
+                {
+                    string name = Path.GetFileName(extra);
+                    if (name == "config.yaml" || name == ".env.example" || name == ".env" || name == ".DS_Store")
+                    {
+                        continue;
+                    }
+                    CopyFileIfMissing(extra, Path.Combine(appRoot, name));
+                }
+            }
             CopyTreeIfMissing(
                 Path.Combine(seedRoot, "data", "global"),
                 Path.Combine(appRoot, "data", "global"));
