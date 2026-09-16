@@ -31,20 +31,9 @@ OpenDeskBotV2 是一台开源的 ESP32-S3 桌面机器人。它能听你说话�
 
 ## 最新更新
 
-**v0.8**（2026-09-11） · [下载与完整说明](https://github.com/tudoom/OpenDeskBotV2/releases/tag/v0.8) · [全部版本](https://github.com/tudoom/OpenDeskBotV2/releases)
+**v0.9**（2026-09-16） · [下载与完整说明](https://github.com/tudoom/OpenDeskBotV2/releases/tag/v0.9) · [全部版本](https://github.com/tudoom/OpenDeskBotV2/releases)
 
-1. 新增 Mac 客户端：打开后直接一键直连设备，不用再启动多个服务
-2. 新增 PC 端的 Agent 模块：同时支持 Agent.md 人设调整、文字对话、联网搜索、控制家居等各类功能
-3. 新增卡通表情模块：支持 AI 直接生成任意卡通表情
-4. 新增表演模块：支持自然语言生成「表情 + 动作 + 语音」的小歪交互表演组合
-5. 新增 AI 生成动作功能
-6. 新增 USB、WiFi 双连接：配网后 PC 端可以通过 WiFi 连接设备
-7. 新增固件更新功能：直接通过 PC 端更新固件的能力
-8. 新增主动陪伴模块：可以为小歪设计主动陪伴场景，冷场主动开口，日常关心可定时
-9. 优化麦克风与语音体验：设备端按需上行和增加小歪静音开关
-10. 优化了家居控制能力
-11. 修复了声音模块及声音复刻的问题
-12. 优化了多项固件相关问题：包括温度上报与温度断电保护等
+修复了一些 bug。
 
 ## V2 相比 V1 的变化
 
